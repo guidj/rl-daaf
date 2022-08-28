@@ -1,15 +1,13 @@
 import os
 import os.path
 import json
-from typing import Dict, List, Optional, Sequence, Callable, Any
+from typing import Optional, Sequence, Callable, Any
 import copy
-import math
 
 import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 import tensorflow as tf
 
 
@@ -106,7 +104,9 @@ def incomplete_or_missing_results(
 
     df_missing = pd.DataFrame(missing_status)
     missing_configs = (
-        df_missing[df_missing["ok_count"] == False]["config"].unique().tolist()
+        df_missing[df_missing["ok_count"] == False]["config"]  # noqa: E712
+        .unique()
+        .tolist()
     )
     return set(incomplete_configs + missing_configs)
 
@@ -157,7 +157,7 @@ def config_baseline(df_config_slice, df):
     )
     assert len(configs) == 1
     config = next(iter(configs))
-    return df[df["config"] == config].sort_values(by="episode").reset_index()
+    return _df[_df["config"] == config].sort_values(by="episode").reset_index()
 
 
 def plot_config_comparison(
@@ -197,7 +197,7 @@ def _plot_config_comparison(
 ):
     methods = sorted(df["method"].unique())
     if ax is None:
-        fig, axes = plt.subplots(1, figsize=(8, 6))
+        _, axes = plt.subplots(1, figsize=(8, 6))
     else:
         axes = ax
     axes = [axes] * len(methods)
@@ -210,10 +210,6 @@ def _plot_config_comparison(
         episode = df_method["episode"]
         mean = df_method[metric].apply(lambda x: x["mean"])
         std = df_method[metric].apply(lambda x: x["std"])
-        # nom = df_method[metric].apply(lambda x: x["std"])
-        # denom = df_method[metric].apply(lambda x: np.sqrt(x["sample_size"]))
-        # std = (nom / denom) * 1.96
-        yerr = [mean - std, mean + std]
         (handle,) = ax.plot(episode, mean, axes=ax, label=method, color=color)
         handles.append(handle)
         ax.fill_between(
@@ -283,7 +279,7 @@ def plot_multiple_configs(
     log_scale_y: bool = False,
     colors: Sequence[str] = None,
 ):
-    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+    _, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
     for config, axes in zip(configs, axes.flatten()):
         plot_config_comparison(
             df,
@@ -300,7 +296,7 @@ def plot_multiple_configs(
 def _plot_config_method(df, title, metric, ax=None):
     configs = sorted(df["config"].unique())
     if ax is None:
-        fig, axes = plt.subplots(1, figsize=(8, 6))
+        _, axes = plt.subplots(1, figsize=(8, 6))
     else:
         axes = ax
     axes = [axes] * len(configs)
@@ -310,8 +306,6 @@ def _plot_config_method(df, title, metric, ax=None):
         episode = df_config["episode"]
         mean = df_config[metric].apply(lambda x: x["mean"])
         std = df_config[metric].apply(lambda x: x["std"])
-
-        yerr = [mean - std, mean + std]
         (handle,) = ax.plot(episode, mean, axes=ax, label=config)
         handles.append(handle)
         ax.fill_between(
@@ -323,14 +317,10 @@ def _plot_config_method(df, title, metric, ax=None):
     return axes[0]
 
 
-def plot_config_method(df, config, method, metric="rmse", ax=None):
-    return _plot_config_method(df_config, title=config, metric=metric, ax=ax)
-
-
 def plot_multiple_configs_method(
     df, configs, method, metric, title=None, figsize=(24, 16)
 ):
-    fig, axes = plt.subplots(figsize=figsize)
+    _, axes = plt.subplots(figsize=figsize)
     axes = [axes] * len(configs)
     handles = []
     df_method = slice_method(df, method)
@@ -339,8 +329,6 @@ def plot_multiple_configs_method(
         episode = _df["episode"]
         mean = _df[metric].apply(lambda x: x["mean"])
         std = _df[metric].apply(lambda x: x["std"])
-
-        yerr = [mean - std, mean + std]
         (handle,) = ax.plot(episode, mean, axes=ax, label=config)
         handles.append(handle)
         ax.fill_between(
@@ -350,21 +338,6 @@ def plot_multiple_configs_method(
     axes[0].set_title(title)
     plt.legend(handles=handles, labels=configs)
     return axes[0]
-
-
-# def error_plot(df, x_col: str, split_col: str, figsize=(6, 6)):
-#     fig, axes = plt.subplots(figsize=figsize)
-#     splits = df[split_col].unique()
-#     for split in splits:
-#         mask = df[split_col] == split
-#         _df_split = df[mask]
-#         x = _df_split[x_col]
-#         y = _df_split["rmse (mean)"].astype(float)
-#         e = _df_split["rmse (std)"].astype(float)
-#         plt.xticks(rotation=45)
-#         axes.errorbar(x, y, yerr=e)
-#     plt.legend(labels=splits)
-#     return axes
 
 
 def get_configs(df, level: str, exclude_baseline: bool = True):
@@ -414,7 +387,7 @@ def final_episode_metrics(df, metric):
 
 
 def boxplot_corr(df, metric, title: str, x_label: str = None, y_label: str = None):
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(10, 10))
+    _, ax = plt.subplots(nrows=1, ncols=1, figsize=(10, 10))
     mask = df["P"] != 1
     sns.boxplot(x="method", y=metric, hue="P", data=df[mask], ax=ax)
     # plt.xticks(rotation = 25)
@@ -456,7 +429,7 @@ def qtable_sample_heatmaps(df, method, figsize=(16, 16)):
     _dfq = final_episode_metrics(df, metric="qtable")
     _dfq = _dfq[_dfq["method"] == method]
     _dfq_sample = _dfq.sample(n=4)
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=figsize)
+    _, axes = plt.subplots(nrows=2, ncols=2, figsize=figsize)
     for idx, ax in enumerate(axes.flatten()):
         sns.heatmap(_dfq_sample.iloc[idx]["qtable (mean)"], ax=ax)
         ax.set_title(f"{method}, {_dfq_sample.iloc[idx]['config']}")
