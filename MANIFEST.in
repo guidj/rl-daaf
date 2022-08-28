@@ -19,3 +19,4 @@ include .bumpversion.cfg
 
 # notebooks
 recursive-include notebooks *.ipynb
+recursive-include notebooks *.py
