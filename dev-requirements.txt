@@ -1,0 +1,6 @@
+-r requirements.txt
+-e .
+-r test-requirements.txt
+-r docs-requirements.txt
+bumpversion==0.5.3
+black==22.3.0
