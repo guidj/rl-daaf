@@ -59,6 +59,7 @@ class Args:
     """
     Experiment arguments.
     """
+
     # TODO: replace unitiated fields with the grouper classes
     # TODO: create constructor that uses the flattend fields
     # TODO: replace use of this library in rngexp
@@ -92,4 +93,3 @@ def parse_args(args: Mapping[str, Any]):
         buffer_size_multiplier=mutable_args.pop("buffer_size_multiplier"),
     )
     return Args(**mutable_args, control_args=control_args, cpr_args=cpr_args)
-
