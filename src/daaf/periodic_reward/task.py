@@ -30,7 +30,7 @@ class StateActionValues:
     action_values: Optional[np.ndarray]
 
 
-def parse_args() -> Args:
+def parse_args() -> progargs.Args:
     """
     Parses experiment arguments.
     """
