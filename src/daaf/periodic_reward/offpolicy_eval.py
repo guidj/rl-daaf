@@ -27,7 +27,7 @@ from rlplg import envspec, metrics, tracking
 from rlplg.learning import utils
 from rlplg.learning.tabular import policies
 from rlplg.learning.tabular.evaluation import offpolicy
-from daaf.periodic_reward import baseline, common, constants, progargs
+from daaf.periodic_reward import baseline, constants, progargs, task
 
 
 def cpr_policy_evalution(
@@ -61,7 +61,7 @@ def cpr_policy_evalution(
         output_dir: a path to write execution logs.
         log_steps: frequency for writing execution logs.
     """
-    mapper_fn = common.create_cumulative_step_mapper_fn(
+    mapper_fn = task.create_cumulative_step_mapper_fn(
         env_spec=env_spec,
         num_states=num_states,
         num_actions=num_actions,
@@ -72,7 +72,7 @@ def cpr_policy_evalution(
             cpr_args.buffer_size_multiplier,
         ),
     )
-    generate_steps_fn = common.create_generate_nstep_episodes_fn(mapper=mapper_fn)
+    generate_steps_fn = task.create_generate_nstep_episodes_fn(mapper=mapper_fn)
 
     if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
         results = baseline.cpr_nstep_sarsa_prediction(
@@ -168,7 +168,7 @@ def cpr_policy_evalution(
             logging.info("Zero episodes!")
 
 
-def main(args: common.Args):
+def main(args: task.Args):
     """
     Entry point running offline evaluation for CPR.
 
@@ -176,13 +176,13 @@ def main(args: common.Args):
         args: configuration for execution.
     """
     # init env and agent
-    env_spec, mdp = common.create_problem_spec(
+    env_spec, mdp = task.create_problem_spec(
         problem=args.problem,
         env_args=args.problem_args,
         mdp_stats_path=args.mdp_stats_path,
         mdp_stats_num_episodes=args.mdp_stats_num_episodes,
     )
-    dp_state_action_values = common.dynamic_prog_estimation(
+    dp_state_action_values = task.dynamic_prog_estimation(
         env_spec=env_spec, mdp=mdp, control_args=args.control_args
     )
     policy = policies.PyRandomPolicy(
@@ -215,4 +215,4 @@ def main(args: common.Args):
 
 
 if __name__ == "__main__":
-    main(common.parse_args())
+    main(task.parse_args())
