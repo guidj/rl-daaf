@@ -30,55 +30,7 @@ class StateActionValues:
     action_values: Optional[np.ndarray]
 
 
-@dataclasses.dataclass(frozen=True)
-class Args:
-    """
-    Experiment arguments.
-    """
-
-    run_id: str
-    problem: str
-    output_dir: str
-    num_episodes: int
-    control_epsilon: float
-    control_alpha: float
-    control_gamma: float
-    control_args: progargs.ControlArgs = dataclasses.field(init=False)
-    reward_period: int
-    cu_step_mapper: str
-    buffer_size: Optional[int]
-    buffer_size_multiplier: Optional[int]
-    log_steps: int
-    mdp_stats_path: str
-    mdp_stats_num_episodes: int
-    cpr_args: progargs.CPRArgs = dataclasses.field(init=False)
-    problem_args: Mapping[str, Any]
-
-    def __post_init__(self):
-        control_args = progargs.ControlArgs(
-            epsilon=self.control_epsilon,
-            alpha=self.control_alpha,
-            gamma=self.control_gamma,
-        )
-        object.__setattr__(self, "control_args", control_args)
-        object.__delattr__(self, "control_epsilon")
-        object.__delattr__(self, "control_alpha")
-        object.__delattr__(self, "control_gamma")
-
-        cpr_args = progargs.CPRArgs(
-            reward_period=self.reward_period,
-            cu_step_mapper=self.cu_step_mapper,
-            buffer_size=self.buffer_size,
-            buffer_size_multiplier=self.buffer_size_multiplier,
-        )
-        object.__setattr__(self, "cpr_args", cpr_args)
-        object.__delattr__(self, "reward_period")
-        object.__delattr__(self, "cu_step_mapper")
-        object.__delattr__(self, "buffer_size")
-        object.__delattr__(self, "buffer_size_multiplier")
-
-
-def parse_args() -> Args:
+def parse_args() -> progargs.Args:
     """
     Parses experiment arguments.
     """
@@ -105,7 +57,7 @@ def parse_args() -> Args:
 
     known_args, unknown_args = arg_parser.parse_known_args()
     problem_params = parse_problem_args(problem=known_args.problem, args=unknown_args)
-    return Args(**vars(known_args), problem_args=problem_params)
+    return progargs.parse_args(**vars(known_args), problem_args=problem_params)
 
 
 def parse_problem_args(problem: str, args: Sequence[str]) -> Mapping[str, Any]:
