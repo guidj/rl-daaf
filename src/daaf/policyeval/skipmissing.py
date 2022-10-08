@@ -161,12 +161,11 @@ def cpr_first_visit_monte_carlo_action_values(
             key = visit_key(experience)
             state_action_visits_remaining[key] -= 1
             step = len(experiences) - reverse_step
-            if (step - 1) % reward_period != 0:
-                continue
-
+            # Update return with periodic reward only
+            if (step - 1) % reward_period == 0:
+                reward = experience.reward
+                episode_return = gamma * episode_return + reward
             state_id, action_id = key
-            reward = experience.reward
-            episode_return = gamma * episode_return + reward
 
             if state_action_visits_remaining[key] == 0:
                 state_action_updates[key] += 1

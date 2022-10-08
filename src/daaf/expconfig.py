@@ -2,6 +2,7 @@
 Configuration to generate experiments.
 """
 
+import copy
 import dataclasses
 import json
 import os
@@ -45,22 +46,23 @@ def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
         A set of experiments
     """
     with open(config_path, "r", encoding="UTF-8") as readable:
-        _configs = json.load(readable)
+        configs = json.load(readable)
 
     experiment_configs = []
-    for _config in _configs:
-        for _experiment in _config["experiments"]:
-            for cu_mapping_method in _experiment["cpr_config"]["methods"]:
+    for config in configs:
+        for experiment in config["experiments"]:
+            for cu_mapping_method in experiment["cpr_config"]["methods"]:
+                exp_config_args = copy.deepcopy(experiment)
                 cpr_config = CprConfig(
-                    reward_periods=_experiment["cpr_config"]["reward_periods"],
+                    reward_periods=experiment["cpr_config"]["reward_periods"],
                     cu_step_mapper=cu_mapping_method,
                 )
-                _experiment["cpr_config"] = cpr_config
+                exp_config_args["cpr_config"] = cpr_config
                 experiment_configs.append(
                     ExperimentConfig(
-                        **_experiment,
-                        env_name=_config["env_name"],
-                        tags=_config["tags"],
+                        **exp_config_args,
+                        env_name=config["env_name"],
+                        tags=config["tags"],
                     )
                 )
     return experiment_configs
@@ -103,7 +105,14 @@ def create_experiment_runs_from_configs(
             exp_args = progargs.ExperimentArgs(
                 run_id=run_id,
                 env_name=config.env_name,
-                output_dir=f"{output_dir}/{subdir}/{now}/{config.cpr_config.cu_step_mapper}/L{config.level}-P{reward_period}/{exp_id}",
+                output_dir=os.path.join(
+                    output_dir,
+                    subdir,
+                    str(now),
+                    config.cpr_config.cu_step_mapper,
+                    f"L{config.level}-P{reward_period}",
+                    exp_id,
+                ),
                 num_episodes=num_episodes,
                 algorithm=algorithm,
                 log_steps=10,

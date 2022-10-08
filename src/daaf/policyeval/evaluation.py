@@ -36,6 +36,7 @@ def cpr_policy_evalution(
     policy: policies.PyQGreedyPolicy,
     env_spec: envspec.EnvSpec,
     num_episodes: int,
+    algorithm: str,
     num_states: int,
     num_actions: int,
     control_args: progargs.ControlArgs,
@@ -60,11 +61,7 @@ def cpr_policy_evalution(
         output_dir: a path to write execution logs.
         log_steps: frequency for writing execution logs.
     """
-<<<<<<< HEAD:src/daaf/periodic_reward/onpolicy_eval.py
-    mapper_fn = task.create_cumulative_step_mapper_fn(
-=======
     mapper_fn = task.create_aggregate_reward_step_mapper_fn(
->>>>>>> d305522 (Refactors common module (#3)):src/daaf/policyeval/evaluation.py
         env_spec=env_spec,
         num_states=num_states,
         num_actions=num_actions,
@@ -85,37 +82,64 @@ def cpr_policy_evalution(
     logging.info("Starting CPR Evaluation")
 
     # Policy Eval with CPR
-    if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
-        results = skipmissing.cpr_sarsa_prediction(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            alpha=control_args.alpha,
-            gamma=control_args.gamma,
-            state_id_fn=env_spec.discretizer.state,
-            action_id_fn=env_spec.discretizer.action,
-            initial_qtable=initial_table,
-            reward_period=cpr_args.reward_period,
-            generate_episodes=generate_steps_fn,
-        )
+    if algorithm == constants.SARSA:
+        if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
+            results = skipmissing.cpr_sarsa_prediction(
+                policy=policy,
+                environment=env_spec.environment,
+                num_episodes=num_episodes,
+                alpha=control_args.alpha,
+                gamma=control_args.gamma,
+                state_id_fn=env_spec.discretizer.state,
+                action_id_fn=env_spec.discretizer.action,
+                initial_qtable=initial_table,
+                reward_period=cpr_args.reward_period,
+                generate_episodes=generate_steps_fn,
+            )
+        else:
+            results = onpolicy.sarsa_action_values(
+                policy=policy,
+                environment=env_spec.environment,
+                num_episodes=num_episodes,
+                alpha=control_args.alpha,
+                gamma=control_args.gamma,
+                state_id_fn=env_spec.discretizer.state,
+                action_id_fn=env_spec.discretizer.action,
+                initial_qtable=initial_table,
+                generate_episodes=generate_steps_fn,
+            )
+    elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
+        if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
+            results = skipmissing.cpr_first_visit_monte_carlo_action_values(
+                policy=policy,
+                environment=env_spec.environment,
+                num_episodes=num_episodes,
+                gamma=control_args.gamma,
+                state_id_fn=env_spec.discretizer.state,
+                action_id_fn=env_spec.discretizer.action,
+                initial_qtable=initial_table,
+                reward_period=cpr_args.reward_period,
+                generate_episodes=generate_steps_fn,
+            )
+        else:
+            results = onpolicy.first_visit_monte_carlo_action_values(
+                policy=policy,
+                environment=env_spec.environment,
+                num_episodes=num_episodes,
+                gamma=control_args.gamma,
+                state_id_fn=env_spec.discretizer.state,
+                action_id_fn=env_spec.discretizer.action,
+                initial_qtable=initial_table,
+                generate_episodes=generate_steps_fn,
+            )
     else:
-        results = onpolicy.sarsa_action_values(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            alpha=control_args.alpha,
-            gamma=control_args.gamma,
-            state_id_fn=env_spec.discretizer.state,
-            action_id_fn=env_spec.discretizer.action,
-            initial_qtable=initial_table,
-            generate_episodes=generate_steps_fn,
-        )
+        raise ValueError(f"Unsupported algorithm {algorithm}")
 
     with tracking.ExperimentLogger(
         output_dir,
         name=f"qpolicy/cpr/mapper-{cpr_args.cu_step_mapper}",
         params={
-            "algorithm": "SARSA/On-Policy",
+            "algorithm": algorithm,
             "alpha": control_args.alpha,
             "gamma": control_args.gamma,
             "epsilon": control_args.epsilon,
@@ -161,11 +185,7 @@ def cpr_policy_evalution(
             logging.info("Zero episodes!")
 
 
-<<<<<<< HEAD:src/daaf/periodic_reward/onpolicy_eval.py
-def main(args: task.Args):
-=======
 def main(args: progargs.ExperimentArgs):
->>>>>>> d305522 (Refactors common module (#3)):src/daaf/policyeval/evaluation.py
     """
     Entry point running online evaluation for CPR.
 
@@ -173,18 +193,9 @@ def main(args: progargs.ExperimentArgs):
         args: configuration for execution.
     """
     # init env and agent
-<<<<<<< HEAD
-    env_spec, mdp = task.create_problem_spec(
-<<<<<<< HEAD:src/daaf/periodic_reward/onpolicy_eval.py
-        problem=args.problem,
-        env_args=args.problem_args,
-=======
-=======
     env_spec, mdp = task.create_env_spec_and_mdp(
->>>>>>> e918ed8 (Renames problem to env-name in evaluation module)
         problem=args.env_name,
         env_args=args.env_args,
->>>>>>> d305522 (Refactors common module (#3)):src/daaf/policyeval/evaluation.py
         mdp_stats_path=args.mdp_stats_path,
         mdp_stats_num_episodes=args.mdp_stats_num_episodes,
     )
@@ -202,6 +213,7 @@ def main(args: progargs.ExperimentArgs):
         policy=policy,
         env_spec=env_spec,
         num_episodes=args.num_episodes,
+        algorithm=args.algorithm,
         num_states=mdp.env_desc().num_states,
         num_actions=mdp.env_desc().num_actions,
         control_args=args.control_args,
