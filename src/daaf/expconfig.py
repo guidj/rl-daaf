@@ -6,7 +6,6 @@ import dataclasses
 import json
 import os
 import os.path
-import random
 import time
 from typing import Any, Generator, Mapping, Sequence
 
@@ -36,29 +35,6 @@ class ExperimentConfig:
     mdp_stats_num_episodes: int
     cpr_config: CprConfig
     tags: Sequence[str]
-
-
-def create_worker_experiments(
-    config_path: str,
-    num_runs: int,
-    num_episodes: int,
-    num_workers: int,
-    output_dir: str,
-) -> Sequence[Sequence[progargs.ExperimentRunConfig]]:
-    """
-    Creates experimets, and partitions them for `num_workers`.
-    """
-    experiments_configs = parse_experiments_config(config_path=config_path)
-    experiments = tuple(
-        create_experiment_runs_from_configs(
-            experiment_configs=experiments_configs,
-            num_runs=num_runs,
-            num_episodes=num_episodes,
-            output_dir=output_dir,
-        )
-    )
-    shuffled_experiments = random.sample(experiments, len(experiments))
-    return utils.split(items=shuffled_experiments, num_partitions=num_workers)
 
 
 def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
@@ -94,6 +70,7 @@ def create_experiment_runs_from_configs(
     experiment_configs: Sequence[ExperimentConfig],
     num_runs: int,
     num_episodes: int,
+    algorithm: str,
     output_dir: str,
     timestamp: int = None,
 ) -> Generator[progargs.ExperimentRunConfig, None, None]:
@@ -128,6 +105,7 @@ def create_experiment_runs_from_configs(
                 env_name=config.env_name,
                 output_dir=f"{output_dir}/{subdir}/{now}/{config.cpr_config.cu_step_mapper}/L{config.level}-P{reward_period}/{exp_id}",
                 num_episodes=num_episodes,
+                algorithm=algorithm,
                 log_steps=10,
                 mdp_stats_path=config.mdp_stats_path,
                 mdp_stats_num_episodes=config.mdp_stats_num_episodes,
@@ -139,15 +117,6 @@ def create_experiment_runs_from_configs(
                 num_runs=num_runs,
                 args=exp_args,
             )
-
-
-def desirialize_experiment_run_configs(
-    jobs: Sequence[Mapping[str, Any]]
-) -> Sequence[progargs.ExperimentRunConfig]:
-    """
-    Desirializes `ExperimentRunConfig` instances from dictionaries.
-    """
-    return [progargs.ExperimentRunConfig.from_dict(params) for params in jobs]
 
 
 def generate_experiments_per_run_configs(

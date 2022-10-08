@@ -181,4 +181,3 @@ def cpr_first_visit_monte_carlo_action_values(
 
         # need to copy values because it's a mutable numpy array
         yield len(experiences), copy.deepcopy(qtable)
-

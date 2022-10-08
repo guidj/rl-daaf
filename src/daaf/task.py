@@ -34,12 +34,13 @@ def parse_args() -> progargs.ExperimentArgs:
     """
     Parses experiment arguments.
     """
-    arg_parser = argparse.ArgumentParser(prog="Solving Cumulative Periodic Rewards")
+    arg_parser = argparse.ArgumentParser(prog="Delayed aggregated anonymous feedback.")
     arg_parser.add_argument("--env-name", type=str, required=True)
     arg_parser.add_argument("--run-id", type=str, default=runtime.run_id())
     arg_parser.add_argument("--output-dir", type=str, default=tempfile.gettempdir())
     arg_parser.add_argument("--reward-period", type=int, default=2)
     arg_parser.add_argument("--num-episodes", type=int, default=1000)
+    arg_parser.add_argument("--algorithm", type=str)
     arg_parser.add_argument(
         "--cu-step-mapper",
         type=str,
@@ -56,9 +57,9 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=100)
 
     known_args, unknown_args = arg_parser.parse_known_args()
-    problem_params = parse_env_args(env_name=known_args.problem, args=unknown_args)
-    return progargs.desirialize_experiment_args_args(
-        **vars(known_args), problem_args=problem_params
+    env_args = parse_env_args(env_name=known_args.env_name, args=unknown_args)
+    return progargs.ExperimentArgs.from_flat_dict(
+        {**vars(known_args), **{"env_args": env_args}}
     )
 
 

@@ -66,9 +66,31 @@ class ExperimentArgs:
     cpr_args: CPRArgs
     output_dir: str
     num_episodes: int
+    algorithm: str
     log_steps: int
     mdp_stats_path: str
     mdp_stats_num_episodes: int
+
+    @staticmethod
+    def from_flat_dict(args: Mapping[str, Any]) -> "ExperimentArgs":
+        """
+        Parse task arguments.
+        """
+        mutable_args = dict(**copy.deepcopy(args))
+        control_args = ControlArgs(
+            epsilon=mutable_args.pop("control_epsilon"),
+            alpha=mutable_args.pop("control_alpha"),
+            gamma=mutable_args.pop("control_gamma"),
+        )
+        cpr_args = CPRArgs(
+            reward_period=mutable_args.pop("reward_period"),
+            cu_step_mapper=mutable_args.pop("cu_step_mapper"),
+            buffer_size=mutable_args.pop("buffer_size"),
+            buffer_size_multiplier=mutable_args.pop("buffer_size_multiplier"),
+        )
+        return ExperimentArgs(
+            **mutable_args, control_args=control_args, cpr_args=cpr_args
+        )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -116,22 +138,3 @@ class ExperimentRunConfig:
             )
         _data["args"] = utils.dataclass_from_dict(ExperimentArgs, _data["args"])
         return utils.dataclass_from_dict(ExperimentRunConfig, _data)
-
-
-def desirialize_experiment_args_args(args: Mapping[str, Any]) -> ExperimentArgs:
-    """
-    Parse task arguments.
-    """
-    mutable_args = dict(**copy.deepcopy(args))
-    control_args = ControlArgs(
-        epsilon=mutable_args.pop("control_epsilon"),
-        alpha=mutable_args.pop("control_alpha"),
-        gamma=mutable_args.pop("control_gamma"),
-    )
-    cpr_args = CPRArgs(
-        reward_period=mutable_args.pop("reward_period"),
-        cu_step_mapper=mutable_args.pop("cu_step_mapper"),
-        buffer_size=mutable_args.pop("buffer_size"),
-        buffer_size_multiplier=mutable_args.pop("buffer_size_multiplier"),
-    )
-    return ExperimentArgs(**mutable_args, control_args=control_args, cpr_args=cpr_args)

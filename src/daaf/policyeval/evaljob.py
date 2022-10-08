@@ -26,6 +26,7 @@ class EvalPipelineArgs:
     config_path: str
     num_runs: int
     num_episodes: int
+    algorithm: str
     output_dir: str
     # ray args
     cluster_uri: Optional[str]
@@ -49,6 +50,7 @@ def main(args: EvalPipelineArgs):
             config_path=args.config_path,
             num_runs=args.num_runs,
             num_episodes=args.num_episodes,
+            algorithm=args.algorithm,
             output_dir=args.output_dir,
             num_tasks=args.num_tasks,
         )
@@ -82,7 +84,12 @@ def main(args: EvalPipelineArgs):
 
 
 def create_tasks(
-    config_path: str, num_runs: int, num_episodes: int, output_dir: str, num_tasks: int
+    config_path: str,
+    num_runs: int,
+    num_episodes: int,
+    algorithm: str,
+    output_dir: str,
+    num_tasks: int,
 ) -> Mapping[int, Tuple[ray.ObjectRef, Sequence[Any]]]:
     """
     Runs numerical experiments on policy evaluation.
@@ -96,6 +103,7 @@ def create_tasks(
             experiment_configs=experiment_configs,
             num_runs=num_runs,
             num_episodes=num_episodes,
+            algorithm=algorithm,
             output_dir=output_dir,
         )
     )
@@ -153,6 +161,7 @@ def parse_args() -> EvalPipelineArgs:
     arg_parser.add_argument("--config-path", type=str, required=True)
     arg_parser.add_argument("--num-runs", type=int, required=True)
     arg_parser.add_argument("--num-episodes", type=int, required=True)
+    arg_parser.add_argument("--algorithm", type=str, required=True)
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
     arg_parser.add_argument("--num-tasks", type=int, default=1)
