@@ -2,7 +2,7 @@ import copy
 import dataclasses
 from typing import Any, Mapping, Optional
 
-from daaf.periodic_reward import constants
+from daaf import constants, utils
 
 
 @dataclasses.dataclass(frozen=True)
@@ -54,28 +54,71 @@ class CPRArgs:
 
 
 @dataclasses.dataclass(frozen=True)
-class Args:
+class ExperimentArgs:
     """
     Experiment arguments.
     """
 
-    # TODO: replace unitiated fields with the grouper classes
-    # TODO: create constructor that uses the flattend fields
-    # TODO: replace use of this library in rngexp
-
     run_id: str
-    problem: str
+    env_name: str
+    env_args: Mapping[str, Any]
+    control_args: ControlArgs
+    cpr_args: CPRArgs
     output_dir: str
     num_episodes: int
-    control_args: ControlArgs
     log_steps: int
     mdp_stats_path: str
     mdp_stats_num_episodes: int
-    cpr_args: CPRArgs
-    problem_args: Mapping[str, Any]
 
 
-def parse_args(args: Mapping[str, Any]):
+@dataclasses.dataclass(frozen=True)
+class ComputingSpec:
+    """
+    Computing execution mode specification.
+    """
+
+    concurrency: Optional[int]
+
+
+@dataclasses.dataclass(frozen=True)
+class ExperimentRunConfig:
+    """
+    Experiments definition.
+    """
+
+    num_runs: int
+    args: ExperimentArgs
+
+    def as_dict(self) -> Mapping[str, Any]:
+        """
+        Converts the class into dictionary with basic types.
+        """
+        mapping = copy.deepcopy(self.__dict__)
+        mapping["args"] = mapping["args"].__dict__
+        mapping["args"]["cpr_args"] = mapping["args"]["cpr_args"].__dict__
+        mapping["args"]["control_args"] = mapping["args"]["control_args"].__dict__
+        return mapping
+
+    @staticmethod
+    def from_dict(data: Mapping[str, Any]) -> "ExperimentRunConfig":
+        """
+        Generates an instance from a serialized mapping generated using `as_dict`.
+        """
+        # we pop the fields that aren't a part of common.Args first
+        _data = dict(**copy.deepcopy(data))
+        nested_dataclasses = (
+            ("cpr_args", CPRArgs),
+            ("control_args", ControlArgs),
+        )
+        for field_name, clazz in nested_dataclasses:
+            _data["args"][field_name] = utils.dataclass_from_dict(
+                clazz, _data["args"].pop(field_name)
+            )
+        _data["args"] = utils.dataclass_from_dict(ExperimentArgs, _data["args"])
+        return utils.dataclass_from_dict(ExperimentRunConfig, _data)
+
+
+def desirialize_experiment_args_args(args: Mapping[str, Any]) -> ExperimentArgs:
     """
     Parse task arguments.
     """
@@ -91,4 +134,4 @@ def parse_args(args: Mapping[str, Any]):
         buffer_size=mutable_args.pop("buffer_size"),
         buffer_size_multiplier=mutable_args.pop("buffer_size_multiplier"),
     )
-    return Args(**mutable_args, control_args=control_args, cpr_args=cpr_args)
+    return ExperimentArgs(**mutable_args, control_args=control_args, cpr_args=cpr_args)

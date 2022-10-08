@@ -9,15 +9,15 @@ import tempfile
 from typing import Any, Callable, Generator, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
+from rlplg import envplay, envspec, envsuite, runtime
+from rlplg.learning import utils
+from rlplg.learning.tabular import dynamicprog, markovdp, policies
 from tf_agents.environments import py_environment
 from tf_agents.policies import py_policy
 from tf_agents.trajectories import trajectory
 
-from rlplg import envplay, envspec, envsuite, runtime
-from rlplg.learning import utils
-from rlplg.learning.tabular import dynamicprog, markovdp, policies
-from daaf import envstats, replay_mapper
-from daaf.periodic_reward import constants, progargs
+from daaf import constants, progargs, replay_mapper
+from daaf.envstats import envstats
 
 
 @dataclasses.dataclass(frozen=True)
@@ -30,7 +30,11 @@ class StateActionValues:
     action_values: Optional[np.ndarray]
 
 
+<<<<<<< HEAD:src/daaf/periodic_reward/task.py
 def parse_args() -> progargs.Args:
+=======
+def parse_args() -> progargs.ExperimentArgs:
+>>>>>>> d305522 (Refactors common module (#3)):src/daaf/task.py
     """
     Parses experiment arguments.
     """
@@ -57,7 +61,13 @@ def parse_args() -> progargs.Args:
 
     known_args, unknown_args = arg_parser.parse_known_args()
     problem_params = parse_problem_args(problem=known_args.problem, args=unknown_args)
+<<<<<<< HEAD:src/daaf/periodic_reward/task.py
     return progargs.parse_args(**vars(known_args), problem_args=problem_params)
+=======
+    return progargs.desirialize_experiment_args_args(
+        **vars(known_args), problem_args=problem_params
+    )
+>>>>>>> d305522 (Refactors common module (#3)):src/daaf/task.py
 
 
 def parse_problem_args(problem: str, args: Sequence[str]) -> Mapping[str, Any]:
@@ -121,7 +131,7 @@ def dynamic_prog_estimation(
     return StateActionValues(state_values=state_values, action_values=action_values)
 
 
-def create_cumulative_step_mapper_fn(
+def create_aggregate_reward_step_mapper_fn(
     env_spec: envspec.EnvSpec,
     num_states: int,
     num_actions: int,
