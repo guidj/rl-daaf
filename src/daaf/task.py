@@ -30,16 +30,12 @@ class StateActionValues:
     action_values: Optional[np.ndarray]
 
 
-<<<<<<< HEAD:src/daaf/periodic_reward/task.py
-def parse_args() -> progargs.Args:
-=======
 def parse_args() -> progargs.ExperimentArgs:
->>>>>>> d305522 (Refactors common module (#3)):src/daaf/task.py
     """
     Parses experiment arguments.
     """
     arg_parser = argparse.ArgumentParser(prog="Solving Cumulative Periodic Rewards")
-    arg_parser.add_argument("--problem", type=str, required=True)
+    arg_parser.add_argument("--env-name", type=str, required=True)
     arg_parser.add_argument("--run-id", type=str, default=runtime.run_id())
     arg_parser.add_argument("--output-dir", type=str, default=tempfile.gettempdir())
     arg_parser.add_argument("--reward-period", type=int, default=2)
@@ -60,30 +56,26 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=100)
 
     known_args, unknown_args = arg_parser.parse_known_args()
-    problem_params = parse_problem_args(problem=known_args.problem, args=unknown_args)
-<<<<<<< HEAD:src/daaf/periodic_reward/task.py
-    return progargs.parse_args(**vars(known_args), problem_args=problem_params)
-=======
+    problem_params = parse_env_args(env_name=known_args.problem, args=unknown_args)
     return progargs.desirialize_experiment_args_args(
         **vars(known_args), problem_args=problem_params
     )
->>>>>>> d305522 (Refactors common module (#3)):src/daaf/task.py
 
 
-def parse_problem_args(problem: str, args: Sequence[str]) -> Mapping[str, Any]:
+def parse_env_args(env_name: str, args: Sequence[str]) -> Mapping[str, Any]:
     """
     Parses problem arguments.
     """
     arg_parser = argparse.ArgumentParser(prog="Problem Args")
-    if problem == envsuite.ABC:
+    if env_name == envsuite.ABC:
         arg_parser.add_argument("--length", type=int, required=True)
-    elif problem == envsuite.GRID_WORLD:
+    elif env_name == envsuite.GRID_WORLD:
         arg_parser.add_argument("--grid-path", type=str, required=True)
     known_args, _ = arg_parser.parse_known_args(args=args)
     return {**vars(known_args)}
 
 
-def create_problem_spec(
+def create_env_spec_and_mdp(
     problem: str,
     env_args: Mapping[str, Any],
     mdp_stats_path: str,

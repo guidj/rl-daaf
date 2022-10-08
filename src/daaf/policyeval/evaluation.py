@@ -26,13 +26,9 @@ from rlplg import envspec, metrics, tracking
 from rlplg.learning import utils
 from rlplg.learning.tabular import policies
 from rlplg.learning.tabular.evaluation import onpolicy
-<<<<<<< HEAD:src/daaf/periodic_reward/onpolicy_eval.py
-from daaf.periodic_reward import baseline, constants, progargs, task
-=======
 
 from daaf import constants, progargs, task
 from daaf.policyeval import skipmissing
->>>>>>> d305522 (Refactors common module (#3)):src/daaf/policyeval/evaluation.py
 
 
 def cpr_policy_evalution(
@@ -177,11 +173,15 @@ def main(args: progargs.ExperimentArgs):
         args: configuration for execution.
     """
     # init env and agent
+<<<<<<< HEAD
     env_spec, mdp = task.create_problem_spec(
 <<<<<<< HEAD:src/daaf/periodic_reward/onpolicy_eval.py
         problem=args.problem,
         env_args=args.problem_args,
 =======
+=======
+    env_spec, mdp = task.create_env_spec_and_mdp(
+>>>>>>> e918ed8 (Renames problem to env-name in evaluation module)
         problem=args.env_name,
         env_args=args.env_args,
 >>>>>>> d305522 (Refactors common module (#3)):src/daaf/policyeval/evaluation.py
