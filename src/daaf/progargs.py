@@ -69,7 +69,7 @@ class ExperimentArgs:
     algorithm: str
     log_steps: int
     mdp_stats_path: str
-    mdp_stats_num_episodes: int
+    mdp_stats_num_episodes: Optional[int]
 
     @staticmethod
     def from_flat_dict(args: Mapping[str, Any]) -> "ExperimentArgs":

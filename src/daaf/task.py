@@ -55,7 +55,7 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--buffer-size-multiplier", type=int, default=None)
     arg_parser.add_argument("--log-steps", type=int, default=1)
     arg_parser.add_argument("--mdp-stats-path", type=str, required=True)
-    arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=100)
+    arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=None)
 
     args = vars(arg_parser.parse_args())
     known_args, _ = arg_parser.parse_known_args()
@@ -71,7 +71,7 @@ def create_env_spec_and_mdp(
     problem: str,
     env_args: Mapping[str, Any],
     mdp_stats_path: str,
-    mdp_stats_num_episodes: int,
+    mdp_stats_num_episodes: Optional[int],
 ) -> Tuple[envspec.EnvSpec, markovdp.MDP]:
     """
     Creates a environment spec and MDP for a problem.
