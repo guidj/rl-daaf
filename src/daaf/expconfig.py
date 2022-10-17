@@ -115,7 +115,7 @@ def create_experiment_runs_from_configs(
                 ),
                 num_episodes=num_episodes,
                 algorithm=algorithm,
-                log_steps=10,
+                log_episode_frequency=10,
                 mdp_stats_path=config.mdp_stats_path,
                 mdp_stats_num_episodes=config.mdp_stats_num_episodes,
                 cpr_args=cpr_args,

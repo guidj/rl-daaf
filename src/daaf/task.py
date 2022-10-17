@@ -53,7 +53,7 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--control-gamma", type=float, default=1.0)
     arg_parser.add_argument("--buffer-size", type=int, default=None)
     arg_parser.add_argument("--buffer-size-multiplier", type=int, default=None)
-    arg_parser.add_argument("--log-steps", type=int, default=1)
+    arg_parser.add_argument("--log-episode-frequency", type=int, default=1)
     arg_parser.add_argument("--mdp-stats-path", type=str, required=True)
     arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=None)
 

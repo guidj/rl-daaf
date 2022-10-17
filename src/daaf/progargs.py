@@ -67,7 +67,7 @@ class ExperimentArgs:
     output_dir: str
     num_episodes: int
     algorithm: str
-    log_steps: int
+    log_episode_frequency: int
     mdp_stats_path: str
     mdp_stats_num_episodes: Optional[int]
 

@@ -43,7 +43,7 @@ def cpr_policy_evalution(
     cpr_args: progargs.CPRArgs,
     ref_qtable: np.ndarray,
     output_dir: str,
-    log_steps: int,
+    log_episode_frequency: int,
 ) -> None:
     """
     Runs on-policy evaluation under cumulative periodic rewards.
@@ -59,7 +59,7 @@ def cpr_policy_evalution(
         cpr_args: configuration of cumulative rewards, e.g. rewad period.
         ref_qtable: the known value of the policy, to compare with the estimate.
         output_dir: a path to write execution logs.
-        log_steps: frequency for writing execution logs.
+        log_episode_frequency: frequency for writing execution logs.
     """
     mapper_fn = task.create_aggregate_reward_step_mapper_fn(
         env_spec=env_spec,
@@ -157,7 +157,7 @@ def cpr_policy_evalution(
             spearman_corr, _ = metrics.spearman_correlation(
                 pred=qtable, actual=ref_qtable
             )
-            if episode % log_steps == 0:
+            if episode % log_episode_frequency == 0:
                 logging.info(
                     "Task %s, Episode %d: %d steps, %f RMSE",
                     run_id,
@@ -220,7 +220,7 @@ def main(args: progargs.ExperimentArgs):
         cpr_args=args.cpr_args,
         ref_qtable=state_action_values.action_values,
         output_dir=args.output_dir,
-        log_steps=args.log_steps,
+        log_episode_frequency=args.log_episode_frequency,
     )
     env_spec.environment.close()
 
