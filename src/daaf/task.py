@@ -5,8 +5,7 @@ Generators are for Py classes (agents, environment, etc).
 import argparse
 import dataclasses
 import logging
-import tempfile
-from typing import Any, Callable, Generator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Generator, Mapping, Optional, Tuple
 
 import numpy as np
 from rlplg import envplay, envspec, envsuite, runtime
@@ -37,10 +36,12 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser = argparse.ArgumentParser(prog="Delayed aggregated anonymous feedback.")
     arg_parser.add_argument("--env-name", type=str, required=True)
     arg_parser.add_argument("--run-id", type=str, default=runtime.run_id())
-    arg_parser.add_argument("--output-dir", type=str, default=tempfile.gettempdir())
+    arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--reward-period", type=int, default=2)
     arg_parser.add_argument("--num-episodes", type=int, default=1000)
-    arg_parser.add_argument("--algorithm", type=str, choices=constants.ALGORITHMS)
+    arg_parser.add_argument(
+        "--algorithm", type=str, choices=constants.ALGORITHMS, required=True
+    )
     arg_parser.add_argument(
         "--cu-step-mapper",
         type=str,
@@ -56,24 +57,14 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--mdp-stats-path", type=str, required=True)
     arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=100)
 
-    known_args, unknown_args = arg_parser.parse_known_args()
-    env_args = parse_env_args(env_name=known_args.env_name, args=unknown_args)
+    args = vars(arg_parser.parse_args())
+    known_args, _ = arg_parser.parse_known_args()
+    env_args = {
+        key: value for key, value in args.items() if key not in vars(known_args)
+    }
     return progargs.ExperimentArgs.from_flat_dict(
         {**vars(known_args), **{"env_args": env_args}}
     )
-
-
-def parse_env_args(env_name: str, args: Sequence[str]) -> Mapping[str, Any]:
-    """
-    Parses problem arguments.
-    """
-    arg_parser = argparse.ArgumentParser(prog="Problem Args")
-    if env_name == envsuite.ABC:
-        arg_parser.add_argument("--length", type=int, required=True)
-    elif env_name == envsuite.GRID_WORLD:
-        arg_parser.add_argument("--grid-path", type=str, required=True)
-    known_args, _ = arg_parser.parse_known_args(args=args)
-    return {**vars(known_args)}
 
 
 def create_env_spec_and_mdp(
