@@ -103,7 +103,7 @@ def dynamic_prog_estimation(
         mdp: Markov Decison Process dynamics
         control_args: control arguments.
     """
-    observable_random_policy = policies.PyRandomObservablePolicy(
+    observable_random_policy = policies.PyObservableRandomPolicy(
         time_step_spec=env_spec.environment.time_step_spec(),
         action_spec=env_spec.environment.action_spec(),
         num_actions=mdp.env_desc().num_actions,
