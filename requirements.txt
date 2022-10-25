@@ -1,1 +1,4 @@
-rlplg @ git+https://github.com/guidj/rlplg.git@v0.9.6
+rlplg @ git+https://github.com/guidj/rlplg.git@v0.10.2
+# ray
+ray==2.0.0
+ray[default]==2.0.0

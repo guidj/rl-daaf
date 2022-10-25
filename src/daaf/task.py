@@ -4,20 +4,20 @@ Generators are for Py classes (agents, environment, etc).
 """
 import argparse
 import dataclasses
+import json
 import logging
-import tempfile
-from typing import Any, Callable, Generator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Generator, Mapping, Optional, Tuple
 
 import numpy as np
+from rlplg import envplay, envspec, envsuite, runtime
+from rlplg.learning import utils
+from rlplg.learning.tabular import dynamicprog, markovdp, policies
 from tf_agents.environments import py_environment
 from tf_agents.policies import py_policy
 from tf_agents.trajectories import trajectory
 
-from rlplg import envplay, envspec, envsuite, runtime
-from rlplg.learning import utils
-from rlplg.learning.tabular import dynamicprog, markovdp, policies
-from daaf import envstats, replay_mapper
-from daaf.periodic_reward import constants, progargs
+from daaf import constants, progargs, replay_mapper
+from daaf.envstats import envstats
 
 
 @dataclasses.dataclass(frozen=True)
@@ -30,20 +30,24 @@ class StateActionValues:
     action_values: Optional[np.ndarray]
 
 
-def parse_args() -> progargs.Args:
+def parse_args() -> progargs.ExperimentArgs:
     """
     Parses experiment arguments.
     """
-    arg_parser = argparse.ArgumentParser(prog="Solving Cumulative Periodic Rewards")
-    arg_parser.add_argument("--problem", type=str, required=True)
+    arg_parser = argparse.ArgumentParser(prog="Delayed aggregated anonymous feedback.")
+    arg_parser.add_argument("--env-name", type=str, required=True)
+    arg_parser.add_argument("--env-args", type=str, required=True)
     arg_parser.add_argument("--run-id", type=str, default=runtime.run_id())
-    arg_parser.add_argument("--output-dir", type=str, default=tempfile.gettempdir())
+    arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--reward-period", type=int, default=2)
     arg_parser.add_argument("--num-episodes", type=int, default=1000)
     arg_parser.add_argument(
+        "--algorithm", type=str, choices=constants.ALGORITHMS, default="SARSA"
+    )
+    arg_parser.add_argument(
         "--cu-step-mapper",
         type=str,
-        default=constants.REWARD_IMPUTATION_MAPPER,
+        default=constants.REWARD_ESTIMATION_LS_MAPPER,
         choices=constants.CU_MAPPER_METHODS,
     )
     arg_parser.add_argument("--control-epsilon", type=float, default=1.0)
@@ -51,33 +55,27 @@ def parse_args() -> progargs.Args:
     arg_parser.add_argument("--control-gamma", type=float, default=1.0)
     arg_parser.add_argument("--buffer-size", type=int, default=None)
     arg_parser.add_argument("--buffer-size-multiplier", type=int, default=None)
-    arg_parser.add_argument("--log-steps", type=int, default=1)
+    arg_parser.add_argument("--log-episode-frequency", type=int, default=1)
     arg_parser.add_argument("--mdp-stats-path", type=str, required=True)
-    arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=100)
+    arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=None)
 
-    known_args, unknown_args = arg_parser.parse_known_args()
-    problem_params = parse_problem_args(problem=known_args.problem, args=unknown_args)
-    return progargs.parse_args(**vars(known_args), problem_args=problem_params)
-
-
-def parse_problem_args(problem: str, args: Sequence[str]) -> Mapping[str, Any]:
-    """
-    Parses problem arguments.
-    """
-    arg_parser = argparse.ArgumentParser(prog="Problem Args")
-    if problem == envsuite.ABC:
-        arg_parser.add_argument("--length", type=int, required=True)
-    elif problem == envsuite.GRID_WORLD:
-        arg_parser.add_argument("--grid-path", type=str, required=True)
-    known_args, _ = arg_parser.parse_known_args(args=args)
-    return {**vars(known_args)}
+    known_args, _ = arg_parser.parse_known_args()
+    mutable_args = vars(known_args)
+    env_args = (
+        json.loads(mutable_args.pop("env_args"))
+        if mutable_args["env_args"] is not None
+        else {}
+    )
+    return progargs.ExperimentArgs.from_flat_dict(
+        {**mutable_args, **{"env_args": env_args}}
+    )
 
 
-def create_problem_spec(
+def create_env_spec_and_mdp(
     problem: str,
     env_args: Mapping[str, Any],
     mdp_stats_path: str,
-    mdp_stats_num_episodes: int,
+    mdp_stats_num_episodes: Optional[int],
 ) -> Tuple[envspec.EnvSpec, markovdp.MDP]:
     """
     Creates a environment spec and MDP for a problem.
@@ -105,7 +103,7 @@ def dynamic_prog_estimation(
         mdp: Markov Decison Process dynamics
         control_args: control arguments.
     """
-    observable_random_policy = policies.PyRandomObservablePolicy(
+    observable_random_policy = policies.PyObservableRandomPolicy(
         time_step_spec=env_spec.environment.time_step_spec(),
         action_spec=env_spec.environment.action_spec(),
         num_actions=mdp.env_desc().num_actions,
@@ -121,7 +119,7 @@ def dynamic_prog_estimation(
     return StateActionValues(state_values=state_values, action_values=action_values)
 
 
-def create_cumulative_step_mapper_fn(
+def create_aggregate_reward_step_mapper_fn(
     env_spec: envspec.EnvSpec,
     num_states: int,
     num_actions: int,
