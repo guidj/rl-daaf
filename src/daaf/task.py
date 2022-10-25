@@ -4,6 +4,7 @@ Generators are for Py classes (agents, environment, etc).
 """
 import argparse
 import dataclasses
+import json
 import logging
 from typing import Any, Callable, Generator, Mapping, Optional, Tuple
 
@@ -35,17 +36,18 @@ def parse_args() -> progargs.ExperimentArgs:
     """
     arg_parser = argparse.ArgumentParser(prog="Delayed aggregated anonymous feedback.")
     arg_parser.add_argument("--env-name", type=str, required=True)
+    arg_parser.add_argument("--env-args", type=str, required=True)
     arg_parser.add_argument("--run-id", type=str, default=runtime.run_id())
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--reward-period", type=int, default=2)
     arg_parser.add_argument("--num-episodes", type=int, default=1000)
     arg_parser.add_argument(
-        "--algorithm", type=str, choices=constants.ALGORITHMS, required=True
+        "--algorithm", type=str, choices=constants.ALGORITHMS, default="SARSA"
     )
     arg_parser.add_argument(
         "--cu-step-mapper",
         type=str,
-        default=constants.REWARD_IMPUTATION_MAPPER,
+        default=constants.REWARD_ESTIMATION_LS_MAPPER,
         choices=constants.CU_MAPPER_METHODS,
     )
     arg_parser.add_argument("--control-epsilon", type=float, default=1.0)
@@ -57,13 +59,15 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--mdp-stats-path", type=str, required=True)
     arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=None)
 
-    args = vars(arg_parser.parse_args())
     known_args, _ = arg_parser.parse_known_args()
-    env_args = {
-        key: value for key, value in args.items() if key not in vars(known_args)
-    }
+    mutable_args = vars(known_args)
+    env_args = (
+        json.loads(mutable_args.pop("env_args"))
+        if mutable_args["env_args"] is not None
+        else {}
+    )
     return progargs.ExperimentArgs.from_flat_dict(
-        {**vars(known_args), **{"env_args": env_args}}
+        {**mutable_args, **{"env_args": env_args}}
     )
 
 
