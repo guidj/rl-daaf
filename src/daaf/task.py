@@ -34,9 +34,11 @@ def parse_args() -> progargs.ExperimentArgs:
     """
     Parses experiment arguments.
     """
-    arg_parser = argparse.ArgumentParser(prog="Delayed aggregated anonymous feedback.")
+    arg_parser = argparse.ArgumentParser(
+        prog="Policy estimation with delayed aggregated anonymous feedback."
+    )
     arg_parser.add_argument("--env-name", type=str, required=True)
-    arg_parser.add_argument("--env-args", type=str, required=True)
+    arg_parser.add_argument("--env-args", type=str, default=None)
     arg_parser.add_argument("--run-id", type=str, default=runtime.run_id())
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--reward-period", type=int, default=2)
@@ -56,16 +58,21 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--buffer-size", type=int, default=None)
     arg_parser.add_argument("--buffer-size-multiplier", type=int, default=None)
     arg_parser.add_argument("--log-episode-frequency", type=int, default=1)
-    arg_parser.add_argument("--mdp-stats-path", type=str, required=True)
+    arg_parser.add_argument("--mdp-stats-path", type=str, default=None)
     arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=None)
 
     known_args, _ = arg_parser.parse_known_args()
     mutable_args = vars(known_args)
-    env_args = (
-        json.loads(mutable_args.pop("env_args"))
-        if mutable_args["env_args"] is not None
-        else {}
+    env_args_json_string = (
+        mutable_args.pop("env_args") if mutable_args["env_args"] is not None else "{}"
     )
+    try:
+        env_args = json.loads(env_args_json_string)
+    except json.decoder.JSONDecodeError as err:
+        raise RuntimeError(
+            f"Failed to parse env-args json string: {env_args_json_string}",
+        ) from err
+
     return progargs.ExperimentArgs.from_flat_dict(
         {**mutable_args, **{"env_args": env_args}}
     )
