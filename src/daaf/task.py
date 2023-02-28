@@ -158,7 +158,7 @@ def create_aggregate_reward_step_mapper_fn(
         )
     elif cu_step_method == constants.AVERAGE_REWARD_MAPPER:
         mapper = replay_mapper.AverageRewardMapper(reward_period=reward_period)
-    elif cu_step_method == constants.LEAST_MAPPER:
+    elif cu_step_method == constants.REWARD_ESTIMATION_LSQ_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(
             num_states
