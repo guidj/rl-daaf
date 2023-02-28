@@ -31,7 +31,7 @@ from daaf import constants, progargs, task
 from daaf.policyeval import skipmissing
 
 
-def cpr_policy_evalution(
+def daaf_policy_evalution(
     run_id: str,
     policy: policies.PyQGreedyPolicy,
     env_spec: envspec.EnvSpec,
@@ -84,7 +84,7 @@ def cpr_policy_evalution(
     # Policy Eval with CPR
     if algorithm == constants.SARSA:
         if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
-            results = skipmissing.cpr_sarsa_prediction(
+            results = skipmissing.daaf_sarsa_prediction(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
@@ -110,7 +110,7 @@ def cpr_policy_evalution(
             )
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
         if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
-            results = skipmissing.cpr_first_visit_monte_carlo_action_values(
+            results = skipmissing.daaf_first_visit_monte_carlo_action_values(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
@@ -159,10 +159,11 @@ def cpr_policy_evalution(
             )
             if episode % log_episode_frequency == 0:
                 logging.info(
-                    "Task %s, Episode %d: %d steps, %f RMSE",
+                    "Task %s, Episode %d: %d steps, %f RMSLE, %f RMSE",
                     run_id,
                     episode,
                     steps,
+                    rmsle,
                     rmse,
                 )
                 exp_logger.log(
@@ -208,7 +209,7 @@ def main(args: progargs.ExperimentArgs):
         num_actions=mdp.env_desc().num_actions,
         emit_log_probability=True,
     )
-    cpr_policy_evalution(
+    daaf_policy_evalution(
         run_id=args.run_id,
         policy=policy,
         env_spec=env_spec,
