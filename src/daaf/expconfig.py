@@ -14,7 +14,7 @@ from daaf import progargs, utils
 
 
 @dataclasses.dataclass(frozen=True)
-class CprConfig:
+class DaafConfig:
     """
     Configuration for cumulative periodic reward experiments.
     """
@@ -34,7 +34,7 @@ class ExperimentConfig:
     env_args: Mapping[str, Any]
     mdp_stats_path: str
     mdp_stats_num_episodes: int
-    cpr_config: CprConfig
+    daaf_config: DaafConfig
     tags: Sequence[str]
 
 
@@ -51,13 +51,13 @@ def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
     experiment_configs = []
     for config in configs:
         for experiment in config["experiments"]:
-            for cu_mapping_method in experiment["cpr_config"]["methods"]:
+            for cu_mapping_method in experiment["daaf_config"]["methods"]:
                 exp_config_args = copy.deepcopy(experiment)
-                cpr_config = CprConfig(
-                    reward_periods=experiment["cpr_config"]["reward_periods"],
+                daaf_config = DaafConfig(
+                    reward_periods=experiment["daaf_config"]["reward_periods"],
                     cu_step_mapper=cu_mapping_method,
                 )
-                exp_config_args["cpr_config"] = cpr_config
+                exp_config_args["daaf_config"] = daaf_config
                 experiment_configs.append(
                     ExperimentConfig(
                         **exp_config_args,
@@ -86,14 +86,14 @@ def create_experiment_runs_from_configs(
     for config in experiment_configs:
         subdir = os.path.join(*config.tags)
         task_name = "-".join(config.tags)
-        for reward_period in config.cpr_config.reward_periods:
+        for reward_period in config.daaf_config.reward_periods:
             exp_id = utils.create_task_id(now)
             task_id = f"{task_name}-L{config.level}-P{reward_period}"
-            run_id = f"{task_id}-{exp_id}-{config.cpr_config.cu_step_mapper}"
+            run_id = f"{task_id}-{exp_id}-{config.daaf_config.cu_step_mapper}"
 
-            cpr_args = progargs.CPRArgs(
+            daaf_args = progargs.DaafArgs(
                 reward_period=reward_period,
-                cu_step_mapper=config.cpr_config.cu_step_mapper,
+                cu_step_mapper=config.daaf_config.cu_step_mapper,
                 buffer_size=None,
                 buffer_size_multiplier=None,
             )
@@ -109,7 +109,7 @@ def create_experiment_runs_from_configs(
                     output_dir,
                     subdir,
                     str(now),
-                    config.cpr_config.cu_step_mapper,
+                    config.daaf_config.cu_step_mapper,
                     f"L{config.level}-P{reward_period}",
                     exp_id,
                 ),
@@ -118,7 +118,7 @@ def create_experiment_runs_from_configs(
                 log_episode_frequency=10,
                 mdp_stats_path=config.mdp_stats_path,
                 mdp_stats_num_episodes=config.mdp_stats_num_episodes,
-                cpr_args=cpr_args,
+                daaf_args=daaf_args,
                 control_args=control_args,
                 env_args=config.env_args,
             )

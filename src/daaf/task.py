@@ -44,7 +44,10 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--reward-period", type=int, default=2)
     arg_parser.add_argument("--num-episodes", type=int, default=1000)
     arg_parser.add_argument(
-        "--algorithm", type=str, choices=constants.ALGORITHMS, default="SARSA"
+        "--algorithm",
+        type=str,
+        choices=constants.ALGORITHMS,
+        default=constants.ONE_STEP_TD,
     )
     arg_parser.add_argument(
         "--cu-step-mapper",

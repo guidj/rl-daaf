@@ -17,9 +17,10 @@ class ControlArgs:
 
 
 @dataclasses.dataclass(frozen=True)
-class CPRArgs:
+class DaafArgs:
     """
-    Class holds arguments for cumulative periodic rewards (CPR) experiments.
+    Class holds arguments for delayed, aggregated, anonymous feedback
+     (DAAF) experiments experiments.
 
     Args:
         reward_period: the period for generating cumulative rewards.
@@ -63,7 +64,7 @@ class ExperimentArgs:
     env_name: str
     env_args: Mapping[str, Any]
     control_args: ControlArgs
-    cpr_args: CPRArgs
+    daaf_args: DaafArgs
     output_dir: str
     num_episodes: int
     algorithm: str
@@ -82,14 +83,14 @@ class ExperimentArgs:
             alpha=mutable_args.pop("control_alpha"),
             gamma=mutable_args.pop("control_gamma"),
         )
-        cpr_args = CPRArgs(
+        daaf_args = DaafArgs(
             reward_period=mutable_args.pop("reward_period"),
             cu_step_mapper=mutable_args.pop("cu_step_mapper"),
             buffer_size=mutable_args.pop("buffer_size"),
             buffer_size_multiplier=mutable_args.pop("buffer_size_multiplier"),
         )
         return ExperimentArgs(
-            **mutable_args, control_args=control_args, cpr_args=cpr_args
+            **mutable_args, control_args=control_args, daaf_args=daaf_args
         )
 
 
@@ -117,7 +118,7 @@ class ExperimentRunConfig:
         """
         mapping = copy.deepcopy(self.__dict__)
         mapping["args"] = mapping["args"].__dict__
-        mapping["args"]["cpr_args"] = mapping["args"]["cpr_args"].__dict__
+        mapping["args"]["daaf_args"] = mapping["args"]["daaf_args"].__dict__
         mapping["args"]["control_args"] = mapping["args"]["control_args"].__dict__
         return mapping
 
@@ -129,7 +130,7 @@ class ExperimentRunConfig:
         # we pop the fields that aren't a part of common.Args first
         _data = dict(**copy.deepcopy(data))
         nested_dataclasses = (
-            ("cpr_args", CPRArgs),
+            ("daaf_args", DaafArgs),
             ("control_args", ControlArgs),
         )
         for field_name, clazz in nested_dataclasses:
