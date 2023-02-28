@@ -49,7 +49,7 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument(
         "--cu-step-mapper",
         type=str,
-        default=constants.REWARD_ESTIMATION_LS_MAPPER,
+        default=constants.LEAST_MAPPER,
         choices=constants.CU_MAPPER_METHODS,
     )
     arg_parser.add_argument("--control-epsilon", type=float, default=1.0)
@@ -155,7 +155,7 @@ def create_aggregate_reward_step_mapper_fn(
         )
     elif cu_step_method == constants.AVERAGE_REWARD_MAPPER:
         mapper = replay_mapper.AverageRewardMapper(reward_period=reward_period)
-    elif cu_step_method == constants.REWARD_ESTIMATION_LS_MAPPER:
+    elif cu_step_method == constants.LEAST_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(
             num_states

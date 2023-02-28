@@ -28,7 +28,6 @@ from rlplg.learning.tabular import policies
 from rlplg.learning.tabular.evaluation import onpolicy
 
 from daaf import constants, progargs, task
-from daaf.policyeval import skipmissing
 
 
 def daaf_policy_evalution(
@@ -83,55 +82,28 @@ def daaf_policy_evalution(
 
     # Policy Eval with CPR
     if algorithm == constants.SARSA:
-        if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
-            results = skipmissing.daaf_sarsa_prediction(
-                policy=policy,
-                environment=env_spec.environment,
-                num_episodes=num_episodes,
-                alpha=control_args.alpha,
-                gamma=control_args.gamma,
-                state_id_fn=env_spec.discretizer.state,
-                action_id_fn=env_spec.discretizer.action,
-                initial_qtable=initial_table,
-                reward_period=cpr_args.reward_period,
-                generate_episodes=generate_steps_fn,
-            )
-        else:
-            results = onpolicy.sarsa_action_values(
-                policy=policy,
-                environment=env_spec.environment,
-                num_episodes=num_episodes,
-                alpha=control_args.alpha,
-                gamma=control_args.gamma,
-                state_id_fn=env_spec.discretizer.state,
-                action_id_fn=env_spec.discretizer.action,
-                initial_qtable=initial_table,
-                generate_episodes=generate_steps_fn,
-            )
+        results = onpolicy.sarsa_action_values(
+            policy=policy,
+            environment=env_spec.environment,
+            num_episodes=num_episodes,
+            alpha=control_args.alpha,
+            gamma=control_args.gamma,
+            state_id_fn=env_spec.discretizer.state,
+            action_id_fn=env_spec.discretizer.action,
+            initial_qtable=initial_table,
+            generate_episodes=generate_steps_fn,
+        )
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
-        if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
-            results = skipmissing.daaf_first_visit_monte_carlo_action_values(
-                policy=policy,
-                environment=env_spec.environment,
-                num_episodes=num_episodes,
-                gamma=control_args.gamma,
-                state_id_fn=env_spec.discretizer.state,
-                action_id_fn=env_spec.discretizer.action,
-                initial_qtable=initial_table,
-                reward_period=cpr_args.reward_period,
-                generate_episodes=generate_steps_fn,
-            )
-        else:
-            results = onpolicy.first_visit_monte_carlo_action_values(
-                policy=policy,
-                environment=env_spec.environment,
-                num_episodes=num_episodes,
-                gamma=control_args.gamma,
-                state_id_fn=env_spec.discretizer.state,
-                action_id_fn=env_spec.discretizer.action,
-                initial_qtable=initial_table,
-                generate_episodes=generate_steps_fn,
-            )
+        results = onpolicy.first_visit_monte_carlo_action_values(
+            policy=policy,
+            environment=env_spec.environment,
+            num_episodes=num_episodes,
+            gamma=control_args.gamma,
+            state_id_fn=env_spec.discretizer.state,
+            action_id_fn=env_spec.discretizer.action,
+            initial_qtable=initial_table,
+            generate_episodes=generate_steps_fn,
+        )
     else:
         raise ValueError(f"Unsupported algorithm {algorithm}")
 
