@@ -8,7 +8,7 @@ SINGLE_STEP_MAPPER = "single-step-mapper"
 AVERAGE_REWARD_MAPPER = "average-reward-mapper"
 REWARD_ESTIMATION_LSQ_MAPPER = "reward-estimation-lsq-mapper"
 REWARD_IMPUTATION_MAPPER = "reward-imputation-mapper"
-CUMULATIVE_REWARD_MAPPER = "cumulative-reward-mapper"
+SKIP_MISSING_REWARD_MAPPER = "skip-missing-reward-mapper"
 CU_MAPPER_METHODS = (
     IDENTITY_MAPPER,
     SINGLE_STEP_MAPPER,

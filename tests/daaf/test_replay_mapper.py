@@ -375,13 +375,13 @@ def test_impute_missing_reward_mapper_apply():
 
 
 def test_cumulative_reward_mapper_init():
-    mapper = replay_mapper.CumulativeRewardMapper(reward_period=2)
+    mapper = replay_mapper.SkipMissingRewardMapper(reward_period=2)
     assert mapper.reward_period == 2
     assert len(mapper._event_buffer) == 0
 
 
-def test_cumulative_reward_mapper_apply():
-    mapper = replay_mapper.CumulativeRewardMapper(reward_period=2)
+def test_skip_missing_reward_mapper_apply():
+    mapper = replay_mapper.SkipMissingRewardMapper(reward_period=2)
 
     input = trajectory.Trajectory(
         step_type=defaults.batch(

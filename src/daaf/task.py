@@ -49,7 +49,7 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument(
         "--cu-step-mapper",
         type=str,
-        default=constants.LEAST_MAPPER,
+        default=constants.REWARD_ESTIMATION_LSQ_MAPPER,
         choices=constants.CU_MAPPER_METHODS,
     )
     arg_parser.add_argument("--control-epsilon", type=float, default=1.0)
@@ -173,11 +173,11 @@ def create_aggregate_reward_step_mapper_fn(
                 num_states=num_states, num_actions=num_actions
             ),
         )
-    elif cu_step_method == constants.CUMULATIVE_REWARD_MAPPER:
+    elif cu_step_method == constants.SKIP_MISSING_REWARD_MAPPER:
         # Returns events as is;
         # The eval fn has to filter the events, without strictly
         # breaking the MDP.
-        mapper = replay_mapper.CumulativeRewardMapper(reward_period=reward_period)
+        mapper = replay_mapper.SkipMissingRewardMapper(reward_period=reward_period)
     else:
         raise ValueError(
             f"Unknown cu-step-method {cu_step_method}. Choices: {constants.CU_MAPPER_METHODS}"
