@@ -16,7 +16,7 @@ from tf_agents.trajectories import trajectory
 from tf_agents.typing.types import Array
 
 
-def cpr_sarsa_prediction(
+def daaf_sarsa_prediction(
     policy: policies.PyQGreedyPolicy,
     environment: py_environment.PyEnvironment,
     num_episodes: int,
@@ -92,7 +92,7 @@ def cpr_sarsa_prediction(
         yield len(experiences), copy.deepcopy(qtable)
 
 
-def cpr_first_visit_monte_carlo_action_values(
+def daaf_first_visit_monte_carlo_action_values(
     policy: policies.PyQGreedyPolicy,
     environment: py_environment.PyEnvironment,
     num_episodes: int,

@@ -10,9 +10,9 @@ import logging
 from typing import Any, Callable, Generator, Optional
 
 import numpy as np
+from rlplg import envplay
 from tf_agents.trajectories import trajectory
 
-from rlplg import envplay
 from daaf import math_ops
 
 
@@ -163,7 +163,7 @@ class ImputeMissingRewardMapper(TrajMapper):
             yield single_step_traj.replace(reward=reward)
 
 
-class CumulativeRewardMapper(TrajMapper):
+class SkipMissingRewardMapper(TrajMapper):
     """
     Returns the k-th event with a cumulative reward.
     """

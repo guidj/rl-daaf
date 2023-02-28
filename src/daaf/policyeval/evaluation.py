@@ -28,10 +28,9 @@ from rlplg.learning.tabular import policies
 from rlplg.learning.tabular.evaluation import onpolicy
 
 from daaf import constants, progargs, task
-from daaf.policyeval import skipmissing
 
 
-def cpr_policy_evalution(
+def daaf_policy_evalution(
     run_id: str,
     policy: policies.PyQGreedyPolicy,
     env_spec: envspec.EnvSpec,
@@ -40,23 +39,22 @@ def cpr_policy_evalution(
     num_states: int,
     num_actions: int,
     control_args: progargs.ControlArgs,
-    cpr_args: progargs.CPRArgs,
+    daaf_args: progargs.DaafArgs,
     ref_qtable: np.ndarray,
     output_dir: str,
     log_episode_frequency: int,
 ) -> None:
     """
-    Runs on-policy evaluation under cumulative periodic rewards.
+    Runs on-policy evaluation with delayed, aggregated, anonymous feedback.
 
     Args:
         run_id: an Id for the run.
         policy: a policy to be estimated.
         env_spec: configuration of the environment, and state/action mapping functions.
         num_episodes: number of episodes to estimate the policy.
-        num_states: number of states in the problem.
         num_actions: number of actions in the problem.
         control_args: algorithm arguments, e.g. discount factor.
-        cpr_args: configuration of cumulative rewards, e.g. rewad period.
+        daaf_args: configuration of cumulative rewards, e.g. rewad period.
         ref_qtable: the known value of the policy, to compare with the estimate.
         output_dir: a path to write execution logs.
         log_episode_frequency: frequency for writing execution logs.
@@ -65,85 +63,55 @@ def cpr_policy_evalution(
         env_spec=env_spec,
         num_states=num_states,
         num_actions=num_actions,
-        reward_period=cpr_args.reward_period,
-        cu_step_method=cpr_args.cu_step_mapper,
+        reward_period=daaf_args.reward_period,
+        cu_step_method=daaf_args.cu_step_mapper,
         buffer_size_or_multiplier=(
-            cpr_args.buffer_size,
-            cpr_args.buffer_size_multiplier,
+            daaf_args.buffer_size,
+            daaf_args.buffer_size_multiplier,
         ),
     )
     generate_steps_fn = task.create_generate_nstep_episodes_fn(mapper=mapper_fn)
 
-    initial_table = utils.initial_table(
+    initial_values = utils.initial_state_value_table(
         num_states=num_states,
-        num_actions=num_actions,
     )
 
-    logging.info("Starting CPR Evaluation")
+    logging.info("Starting DAAF Evaluation")
 
-    # Policy Eval with CPR
-    if algorithm == constants.SARSA:
-        if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
-            results = skipmissing.cpr_sarsa_prediction(
-                policy=policy,
-                environment=env_spec.environment,
-                num_episodes=num_episodes,
-                alpha=control_args.alpha,
-                gamma=control_args.gamma,
-                state_id_fn=env_spec.discretizer.state,
-                action_id_fn=env_spec.discretizer.action,
-                initial_qtable=initial_table,
-                reward_period=cpr_args.reward_period,
-                generate_episodes=generate_steps_fn,
-            )
-        else:
-            results = onpolicy.sarsa_action_values(
-                policy=policy,
-                environment=env_spec.environment,
-                num_episodes=num_episodes,
-                alpha=control_args.alpha,
-                gamma=control_args.gamma,
-                state_id_fn=env_spec.discretizer.state,
-                action_id_fn=env_spec.discretizer.action,
-                initial_qtable=initial_table,
-                generate_episodes=generate_steps_fn,
-            )
+    # Policy Eval with DAAF
+    if algorithm == constants.ONE_STEP_TD:
+        results = onpolicy.one_step_td_state_values(
+            policy=policy,
+            environment=env_spec.environment,
+            num_episodes=num_episodes,
+            alpha=control_args.alpha,
+            gamma=control_args.gamma,
+            state_id_fn=env_spec.discretizer.state,
+            initial_values=initial_values,
+            generate_episodes=generate_steps_fn,
+        )
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
-        if cpr_args.cu_step_mapper == constants.CUMULATIVE_REWARD_MAPPER:
-            results = skipmissing.cpr_first_visit_monte_carlo_action_values(
-                policy=policy,
-                environment=env_spec.environment,
-                num_episodes=num_episodes,
-                gamma=control_args.gamma,
-                state_id_fn=env_spec.discretizer.state,
-                action_id_fn=env_spec.discretizer.action,
-                initial_qtable=initial_table,
-                reward_period=cpr_args.reward_period,
-                generate_episodes=generate_steps_fn,
-            )
-        else:
-            results = onpolicy.first_visit_monte_carlo_action_values(
-                policy=policy,
-                environment=env_spec.environment,
-                num_episodes=num_episodes,
-                gamma=control_args.gamma,
-                state_id_fn=env_spec.discretizer.state,
-                action_id_fn=env_spec.discretizer.action,
-                initial_qtable=initial_table,
-                generate_episodes=generate_steps_fn,
-            )
+        results = onpolicy.first_visit_monte_carlo_state_values(
+            policy=policy,
+            environment=env_spec.environment,
+            num_episodes=num_episodes,
+            gamma=control_args.gamma,
+            state_id_fn=env_spec.discretizer.state,
+            initial_values=initial_values,
+            generate_episodes=generate_steps_fn,
+        )
     else:
         raise ValueError(f"Unsupported algorithm {algorithm}")
 
     with tracking.ExperimentLogger(
         output_dir,
-        name=f"qpolicy/cpr/mapper-{cpr_args.cu_step_mapper}",
+        name=f"qpolicy/daaf/mapper-{daaf_args.cu_step_mapper}",
         params={
             "algorithm": algorithm,
             "alpha": control_args.alpha,
             "gamma": control_args.gamma,
             "epsilon": control_args.epsilon,
-            "buffer_size": cpr_args.buffer_size_multiplier,
+            "buffer_size": daaf_args.buffer_size_multiplier,
         },
     ) as exp_logger:
         qtable: Optional[np.ndarray] = None
@@ -159,10 +127,11 @@ def cpr_policy_evalution(
             )
             if episode % log_episode_frequency == 0:
                 logging.info(
-                    "Task %s, Episode %d: %d steps, %f RMSE",
+                    "Task %s, Episode %d: %d steps, %f RMSLE, %f RMSE",
                     run_id,
                     episode,
                     steps,
+                    rmsle,
                     rmse,
                 )
                 exp_logger.log(
@@ -187,7 +156,7 @@ def cpr_policy_evalution(
 
 def main(args: progargs.ExperimentArgs):
     """
-    Entry point running online evaluation for CPR.
+    Entry point running online evaluation for DAAF.
 
     Args:
         args: configuration for execution.
@@ -208,7 +177,7 @@ def main(args: progargs.ExperimentArgs):
         num_actions=mdp.env_desc().num_actions,
         emit_log_probability=True,
     )
-    cpr_policy_evalution(
+    daaf_policy_evalution(
         run_id=args.run_id,
         policy=policy,
         env_spec=env_spec,
@@ -217,7 +186,7 @@ def main(args: progargs.ExperimentArgs):
         num_states=mdp.env_desc().num_states,
         num_actions=mdp.env_desc().num_actions,
         control_args=args.control_args,
-        cpr_args=args.cpr_args,
+        daaf_args=args.daaf_args,
         ref_qtable=state_action_values.action_values,
         output_dir=args.output_dir,
         log_episode_frequency=args.log_episode_frequency,

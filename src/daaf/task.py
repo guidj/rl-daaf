@@ -34,20 +34,25 @@ def parse_args() -> progargs.ExperimentArgs:
     """
     Parses experiment arguments.
     """
-    arg_parser = argparse.ArgumentParser(prog="Delayed aggregated anonymous feedback.")
+    arg_parser = argparse.ArgumentParser(
+        prog="Policy estimation with delayed aggregated anonymous feedback."
+    )
     arg_parser.add_argument("--env-name", type=str, required=True)
-    arg_parser.add_argument("--env-args", type=str, required=True)
+    arg_parser.add_argument("--env-args", type=str, default=None)
     arg_parser.add_argument("--run-id", type=str, default=runtime.run_id())
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--reward-period", type=int, default=2)
     arg_parser.add_argument("--num-episodes", type=int, default=1000)
     arg_parser.add_argument(
-        "--algorithm", type=str, choices=constants.ALGORITHMS, default="SARSA"
+        "--algorithm",
+        type=str,
+        choices=constants.ALGORITHMS,
+        default=constants.ONE_STEP_TD,
     )
     arg_parser.add_argument(
         "--cu-step-mapper",
         type=str,
-        default=constants.REWARD_ESTIMATION_LS_MAPPER,
+        default=constants.REWARD_ESTIMATION_LSQ_MAPPER,
         choices=constants.CU_MAPPER_METHODS,
     )
     arg_parser.add_argument("--control-epsilon", type=float, default=1.0)
@@ -56,16 +61,21 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--buffer-size", type=int, default=None)
     arg_parser.add_argument("--buffer-size-multiplier", type=int, default=None)
     arg_parser.add_argument("--log-episode-frequency", type=int, default=1)
-    arg_parser.add_argument("--mdp-stats-path", type=str, required=True)
+    arg_parser.add_argument("--mdp-stats-path", type=str, default=None)
     arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=None)
 
     known_args, _ = arg_parser.parse_known_args()
     mutable_args = vars(known_args)
-    env_args = (
-        json.loads(mutable_args.pop("env_args"))
-        if mutable_args["env_args"] is not None
-        else {}
+    env_args_json_string = (
+        mutable_args.pop("env_args") if mutable_args["env_args"] is not None else "{}"
     )
+    try:
+        env_args = json.loads(env_args_json_string)
+    except json.decoder.JSONDecodeError as err:
+        raise RuntimeError(
+            f"Failed to parse env-args json string: {env_args_json_string}",
+        ) from err
+
     return progargs.ExperimentArgs.from_flat_dict(
         {**mutable_args, **{"env_args": env_args}}
     )
@@ -148,7 +158,7 @@ def create_aggregate_reward_step_mapper_fn(
         )
     elif cu_step_method == constants.AVERAGE_REWARD_MAPPER:
         mapper = replay_mapper.AverageRewardMapper(reward_period=reward_period)
-    elif cu_step_method == constants.REWARD_ESTIMATION_LS_MAPPER:
+    elif cu_step_method == constants.REWARD_ESTIMATION_LSQ_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(
             num_states
@@ -166,11 +176,11 @@ def create_aggregate_reward_step_mapper_fn(
                 num_states=num_states, num_actions=num_actions
             ),
         )
-    elif cu_step_method == constants.CUMULATIVE_REWARD_MAPPER:
+    elif cu_step_method == constants.SKIP_MISSING_REWARD_MAPPER:
         # Returns events as is;
         # The eval fn has to filter the events, without strictly
         # breaking the MDP.
-        mapper = replay_mapper.CumulativeRewardMapper(reward_period=reward_period)
+        mapper = replay_mapper.SkipMissingRewardMapper(reward_period=reward_period)
     else:
         raise ValueError(
             f"Unknown cu-step-method {cu_step_method}. Choices: {constants.CU_MAPPER_METHODS}"
