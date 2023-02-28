@@ -2,3 +2,5 @@ rlplg @ git+https://github.com/guidj/rlplg.git@v0.10.3
 # ray
 ray==2.0.0
 ray[default]==2.0.0
+# bypass type changes (e.g. deprecation of np.bool)
+numpy==1.23.2
