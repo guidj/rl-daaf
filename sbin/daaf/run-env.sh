@@ -12,7 +12,7 @@ script="./src/daaf/periodic_reward/${module}.py"
 output="./data/$problem/L${level}_P${reward_period}_EPS${episodes}"
 args="length=4"
 
-for cu_step_mapper in identity-mapper reward-imputation-mapper reward-estimation-lsq-mapperr; do
+for cu_step_mapper in identity-mapper reward-imputation-mapper reward-estimation-lsq-mapper; do
     python $script --problem $problem \
         --output=$output/$cu_step_mapper/ \
         --num-episodes=$episodes \
