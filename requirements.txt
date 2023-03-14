@@ -40,9 +40,7 @@ charset-normalizer==3.1.0
     #   aiohttp
     #   requests
 click==8.0.4
-    # via
-    #   -r requirements.in
-    #   ray
+    # via ray
 cloudpickle==2.2.1
     # via
     #   gym
