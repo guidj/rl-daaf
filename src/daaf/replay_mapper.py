@@ -75,7 +75,7 @@ class SingleStepMapper(abc.ABC):
 
 class AverageRewardMapper(TrajMapper):
     """
-    Simulates a trajectory of periodic cumulative rewards:
+    Simulates a trajectory of periodic aggregate rewards:
       - For a set of actions, K, we take their reward, add it up, and divide it equally.
       - Each K action is emitted as is.
     """
@@ -83,7 +83,7 @@ class AverageRewardMapper(TrajMapper):
     def __init__(self, reward_period: int):
         """
         Args:
-            reward_period: the interval for cumulative rewards.
+            reward_period: the interval for aggregate rewards.
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
@@ -117,7 +117,7 @@ class AverageRewardMapper(TrajMapper):
 
 class ImputeMissingRewardMapper(TrajMapper):
     """
-    Simulates a trajectory of periodic cumulative rewards:
+    Simulates a trajectory of periodic aggregate rewards:
       - For a set of actions, K, we take their reward, and sum them up.
       - The last event gets the sum of the rewards
       - The others get an imputed value.
@@ -126,9 +126,9 @@ class ImputeMissingRewardMapper(TrajMapper):
     def __init__(self, reward_period: int, impute_value: float):
         """
         Args:
-            reward_period: the interval for cumulative rewards.
+            reward_period: the interval for aggregate rewards.
             impute_value: the reward value to apply in steps where there
-                cumulative reward isn't generated.
+                aggregate reward isn't generated.
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
@@ -149,7 +149,7 @@ class ImputeMissingRewardMapper(TrajMapper):
 
         Yields:
             Steps of the trajectory with `impute_value` as the reward
-            for steps where the cumulative reward isn't generated.
+            for steps where the aggregate reward isn't generated.
         """
         for single_step_traj in envplay.unroll_trajectory(traj):
             self._step_counter += 1
@@ -165,13 +165,13 @@ class ImputeMissingRewardMapper(TrajMapper):
 
 class SkipMissingRewardMapper(TrajMapper):
     """
-    Returns the k-th event with a cumulative reward.
+    Returns the k-th event with a aggregate reward.
     """
 
     def __init__(self, reward_period: int):
         """
         Args:
-            reward_period: the interval for cumulative rewards.
+            reward_period: the interval for aggregate rewards.
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
@@ -186,7 +186,7 @@ class SkipMissingRewardMapper(TrajMapper):
             traj: A `trajectory.Trajectory` instance.
 
         Yields:
-            Steps of the trajectory where the cumulative reward
+            Steps of the trajectory where the aggregate reward
             is generated.
         """
         for single_step_traj in envplay.unroll_trajectory(traj):
@@ -194,25 +194,26 @@ class SkipMissingRewardMapper(TrajMapper):
         while len(self._event_buffer) >= self.reward_period:
             # accumulate earliest K events, and emit last event
             events = [self._event_buffer.pop(0) for _ in range(self.reward_period)]
-            cumulative_reward = np.sum([event.reward for event in events])
+            aggregate_reward = np.sum([event.reward for event in events])
             last_event = events[-1]
-            events[-1] = last_event.replace(reward=cumulative_reward)
+            events[-1] = last_event.replace(reward=aggregate_reward)
             for event in events:
                 yield event
 
 
 class LeastSquaresAttributionMapper(TrajMapper):
     """
-    Simulates a trajectory of periodic cumulative rewards:
+    Simulates a trajectory of delayed, aggregated, anonymous feedback.
       - It accumulates transitions until it reaches a size M
       - Given M transitions, it estimates R(s, a) using the Least Squares method.
 
     This means that updates can be delayed up until M transitions are observed.
     Because we use Least-Squares, a problem can have multiple solutions.
-    And since the reward is only constrained on meeting the cumulative reward conditions,
+    And since the reward is only constrained on meeting the aggregate reward,
     the estimated values might not even correspond to the true rewards.
 
-    We use a decaying learning rate to merge consecutive reward estimates.
+    Note: this method runs estimation once, when conditions are
+    met (i.e. the matrix is complete).
     """
 
     def __init__(
@@ -235,7 +236,8 @@ class LeastSquaresAttributionMapper(TrajMapper):
             init_rtable: A table shaped [num_states, num_actions], encoding prior beliefs about the rewards for each (S, A) pair.
             buffer_size: The maximum number of trajectories to keep in the buffer - each one should contain `reward_period` steps.
 
-        Note: decay isn't used when summing up the rewards for K steps.
+            Note: discount is ignored when aggregating rewards for K steps.
+            It ought to apply when estimating value functions.
         """
         if reward_period < 2:
             raise ValueError(
@@ -322,6 +324,141 @@ class LeastSquaresAttributionMapper(TrajMapper):
                     # between the currente estimate and the latest.
                     self.rtable = new_rtable
                     self.num_updates += 1
+
+                except ValueError as err:
+                    # the computation failed, likely due to the matix being unsuitable (no solution).
+                    logging.debug("Reward estimation failed: %s", err)
+
+            yield trajectory.Trajectory(
+                step_type=step_traj.step_type,
+                observation=step_traj.observation,
+                action=step_traj.action,
+                policy_info=step_traj.policy_info,
+                next_step_type=step_traj.next_step_type,
+                reward=rtable_snapshot[state_id, action_id],
+                discount=step_traj.discount,
+            )
+
+
+class OneStepLateAttributionMapper(TrajMapper):
+    """
+    This class implements the OLS algorithm, derived
+    from expectation maximimization (EM) to estimate
+    rewards from a set of observed aggregate
+    reward windows.
+    """
+
+    def __init__(
+        self,
+        num_states: int,
+        num_actions: int,
+        reward_period: int,
+        state_id_fn: Callable[[Any], int],
+        action_id_fn: Callable[[Any], int],
+        init_rtable: np.ndarray,
+        buffer_size: int = 2**9,
+    ):
+        """
+        Args:
+            num_states: The number of finite states in the MDP.
+            num_actions: The number of finite actions in the MDP.
+            reward_period: The interval at which aggregate reward is obsered.
+            state_id_fn: A function that maps observations from trajectories into a state ID (int).
+            action_id_fn: A function that maps actions from the trajectories into an action ID (int).
+            init_rtable: A table shaped [num_states, num_actions], encoding prior beliefs about the rewards for each (S, A) pair.
+            buffer_size: The maximum number of trajectories to keep in the buffer - each one should contain `reward_period` steps.
+
+        Note: discount is ignored when aggregating rewards for K steps.
+        It ought to apply when estimating value functions.
+        """
+        if reward_period < 2:
+            raise ValueError(
+                f"Reward period must be greater than 1. Got {reward_period}"
+            )
+
+        if init_rtable.shape != (num_states, num_actions):
+            raise ValueError(
+                f"Tensor initial_rtable must have shape [{num_states},{num_actions}]. Got [{init_rtable}]."
+            )
+
+        num_factors = num_states * num_actions
+        self.num_states = num_states
+        self.num_actions = num_actions
+        self.reward_period = reward_period
+        self.state_id_fn = state_id_fn
+        self.action_id_fn = action_id_fn
+        self.buffer_size = buffer_size
+        self.num_updates = 0
+        self._estimation_buffer = AbQueueBuffer(
+            self.buffer_size, num_factors=num_factors
+        )
+        self._event_buffer = list()
+        self.rtable = copy.deepcopy(init_rtable)
+
+        self._state_action_mask = np.zeros(
+            shape=(self.num_states, self.num_actions), dtype=np.float32
+        )
+        self._rewards = 0.0
+        self._period_steps = 0
+        self._steps = 0
+
+    def apply(
+        self, traj: trajectory.Trajectory
+    ) -> Generator[trajectory.Trajectory, None, None]:
+        """
+        Args:
+            traj: A `trajectory.Trajectory` instance.
+
+        Yields:
+            Steps of the trajectory with the rewards replaced by
+            their estimated value.
+        """
+        for step_traj in envplay.unroll_trajectory(traj):
+            # for step in range(steps):
+            state_id = self.state_id_fn(step_traj.observation)
+            action_id = self.action_id_fn(step_traj.action)
+            self._state_action_mask[state_id, action_id] += 1
+            self._rewards += step_traj.reward
+            self._period_steps += 1
+            # snapshot rtable for the current traj
+            rtable_snapshot = copy.deepcopy(self.rtable)
+            self._steps += 1
+
+            # TODO: revise conditions for keep data
+            if self.num_updates == 0 and self._period_steps == self.reward_period:
+                # Grab info about event for reward estimation
+                matrix_entry = np.reshape(self._state_action_mask, newshape=[-1])
+                self._estimation_buffer.add(matrix_entry, rhs=self._rewards)
+                # reset
+                self._state_action_mask = np.zeros(
+                    shape=(self.num_states, self.num_actions), dtype=np.float32
+                )
+                self._rewards = 0.0
+                self._period_steps = 0
+
+            # TODO: revise conditions for estimating
+            # First time, just run estimation
+            if (
+                self.num_updates == 0
+                and not self._estimation_buffer.empty
+                and math_ops.meets_least_squares_sufficient_conditions(
+                    self._estimation_buffer.matrix
+                )
+            ):
+                logging.debug("Estimating rewards with One-Step Late (EM).")
+                try:
+                    pass
+                    # new_rtable = math_ops.solve_least_squares(
+                    #     matrix=self._estimation_buffer.matrix,
+                    #     rhs=self._estimation_buffer.rhs,
+                    # )
+                    # new_rtable = np.reshape(
+                    #     new_rtable, newshape=(self.num_states, self.num_actions)
+                    # )
+                    # # update the reward estimates by a fraction of the delta
+                    # # between the currente estimate and the latest.
+                    # self.rtable = new_rtable
+                    # self.num_updates += 1
 
                 except ValueError as err:
                     # the computation failed, likely due to the matix being unsuitable (no solution).
