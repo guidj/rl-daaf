@@ -121,7 +121,7 @@ def generate_mdp_stats(
     )
 
 
-def create_stats_filename(env_name: str, level: str = None) -> str:
+def create_stats_filename(env_name: str, level: Optional[str] = None) -> str:
     """
     Generates a filename given an environment and level.
 

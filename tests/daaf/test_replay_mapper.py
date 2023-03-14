@@ -638,7 +638,7 @@ def test_counter_reset():
     assert counter.value == 0
 
 
-def item(array: TensorOrArray) -> int:
+def item(array: TensorOrArray) -> TensorOrArray:
     if isinstance(array, tf.Tensor):
         return array.numpy().item()
     return array.item()

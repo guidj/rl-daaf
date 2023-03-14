@@ -12,7 +12,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 import ray
 
 import daaf
-from daaf import expconfig, utils
+from daaf import expconfig, progargs, utils
 from daaf.policyeval import evaluation
 
 
@@ -107,7 +107,7 @@ def create_tasks(
             output_dir=output_dir,
         )
     )
-    experiments = tuple(
+    experiments: Sequence[progargs.ExperimentArgs] = tuple(
         expconfig.generate_experiments_per_run_configs(experiment_run_configs)
     )
     # shuffle tasks to balance workload

@@ -148,6 +148,7 @@ def create_aggregate_reward_step_mapper_fn(
         cu_step_method: the method to alter trajectory data.
         buffer_size_or_multiplier: number of elements kept in buffer or multiple for |S|x|A|xMultiplier.
     """
+    mapper: Optional[replay_mapper.TrajMapper] = None
     if cu_step_method == constants.IDENTITY_MAPPER:
         mapper = replay_mapper.IdentifyMapper()
     elif cu_step_method == constants.SINGLE_STEP_MAPPER:

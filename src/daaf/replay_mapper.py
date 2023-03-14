@@ -9,7 +9,7 @@ They can process batched transitions, but emit them as single events.
 import abc
 import copy
 import logging
-from typing import Any, Callable, Generator, Optional
+from typing import Any, Callable, Generator, List, Optional, Set, Tuple
 
 import numpy as np
 from rlplg import envplay
@@ -38,7 +38,7 @@ class TrajMapper(abc.ABC):
         return NotImplemented
 
 
-class IdentifyMapper(abc.ABC):
+class IdentifyMapper(TrajMapper):
     """
     Makes no changes to the a trajectory.
     """
@@ -56,7 +56,7 @@ class IdentifyMapper(abc.ABC):
         yield traj
 
 
-class SingleStepMapper(abc.ABC):
+class SingleStepMapper(TrajMapper):
     """
     Unbatches an `trajectory.Trajectory` into single steps.
     """
@@ -72,7 +72,7 @@ class SingleStepMapper(abc.ABC):
             Individual steps from a batched trajectory.
         """
         del self
-        return envplay.unroll_trajectory(traj)
+        yield from envplay.unroll_trajectory(traj)
 
 
 class AverageRewardMapper(TrajMapper):
@@ -91,7 +91,7 @@ class AverageRewardMapper(TrajMapper):
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
 
         self.reward_period = reward_period
-        self._event_buffer = list()
+        self._event_buffer: List[trajectory.Trajectory] = list()
 
     def apply(
         self, traj: trajectory.Trajectory
@@ -178,7 +178,7 @@ class SkipMissingRewardMapper(TrajMapper):
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
         self.reward_period = reward_period
-        self._event_buffer = list()
+        self._event_buffer: List[trajectory.Trajectory] = list()
 
     def apply(
         self, traj: trajectory.Trajectory
@@ -260,7 +260,7 @@ class LeastSquaresAttributionMapper(TrajMapper):
         self._estimation_buffer = AbQueueBuffer(
             self.buffer_size, num_factors=num_factors
         )
-        self._event_buffer = list()
+        self._event_buffer: List[trajectory.Trajectory] = list()
         self.rtable = copy.deepcopy(init_rtable)
 
         self._state_action_mask = np.zeros(
@@ -365,7 +365,7 @@ class AbQueueBuffer:
         self._b = np.zeros(shape=(buffer_size,), dtype=np.float32)
         self._next_pos = 0
         self._additions = 0
-        self._factors_tracker = set()
+        self._factors_tracker: Set[Tuple] = set()
 
     def add(self, row: np.ndarray, rhs: np.ndarray) -> None:
         """
@@ -431,7 +431,7 @@ class Counter:
         Initializes the counter.
         Reset has to be called for the counter to increment.
         """
-        self._value = None
+        self._value: Optional[int] = None
 
     def inc(self) -> None:
         """

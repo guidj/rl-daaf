@@ -143,4 +143,7 @@ class ExperimentRunConfig:
                 clazz, _data["args"].pop(field_name)
             )
         _data["args"] = utils.dataclass_from_dict(ExperimentArgs, _data["args"])
-        return utils.dataclass_from_dict(ExperimentRunConfig, _data)
+        instance: ExperimentRunConfig = utils.dataclass_from_dict(
+            ExperimentRunConfig, _data
+        )
+        return instance

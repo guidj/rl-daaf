@@ -38,7 +38,7 @@ def least_squares_factors_present(matrix: np.ndarray) -> bool:
         raise ValueError(f"Only 2D tensors are supported. Got shape: {shape}")
 
     columns_check = np.sum(matrix, axis=0)
-    missing = np.sum(columns_check == 0)
+    missing: int = np.sum(columns_check == 0)
     return missing == 0
 
 

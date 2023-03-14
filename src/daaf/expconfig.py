@@ -8,7 +8,7 @@ import json
 import os
 import os.path
 import time
-from typing import Any, Generator, Mapping, Sequence
+from typing import Any, Generator, Mapping, Optional, Sequence
 
 from daaf import progargs, utils
 
@@ -74,7 +74,7 @@ def create_experiment_runs_from_configs(
     num_episodes: int,
     algorithm: str,
     output_dir: str,
-    timestamp: int = None,
+    timestamp: Optional[int] = None,
 ) -> Generator[progargs.ExperimentRunConfig, None, None]:
     """
     Generates experiments for a problem given the parameters (configs).
@@ -130,7 +130,7 @@ def create_experiment_runs_from_configs(
 
 def generate_experiments_per_run_configs(
     experiment_run_configs: Sequence[progargs.ExperimentRunConfig],
-) -> Generator[Sequence[progargs.ExperimentArgs], None, None]:
+) -> Generator[progargs.ExperimentArgs, None, None]:
     """
     Given a sequence of experiments, expands them
     based on the number of runs per experiments.
