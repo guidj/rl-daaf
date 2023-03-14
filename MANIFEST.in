@@ -13,7 +13,14 @@ recursive-include sbin *.sh
 # config
 include .isort.cfg
 include .bumpversion.cfg
+include mypy.ini
 
 # notebooks
 recursive-include notebooks *.ipynb
 recursive-include notebooks *.py
+
+# make
+include Makefile
+
+# typing
+recursive-include src *.typed
