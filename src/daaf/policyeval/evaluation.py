@@ -19,11 +19,11 @@ Generally, we estimate rewards to then estimate Q.
 
 
 import logging
-from typing import Optional
+from typing import Optional, Set
 
 import numpy as np
 from rlplg import envspec, metrics, tracking
-from rlplg.learning import utils
+from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import policies
 from rlplg.learning.tabular.evaluation import onpolicy
 
@@ -40,7 +40,7 @@ def daaf_policy_evalution(
     num_actions: int,
     control_args: progargs.ControlArgs,
     daaf_args: progargs.DaafArgs,
-    ref_qtable: np.ndarray,
+    ref_state_values: np.ndarray,
     output_dir: str,
     log_episode_frequency: int,
 ) -> None:
@@ -55,7 +55,7 @@ def daaf_policy_evalution(
         num_actions: number of actions in the problem.
         control_args: algorithm arguments, e.g. discount factor.
         daaf_args: configuration of cumulative rewards, e.g. rewad period.
-        ref_qtable: the known value of the policy, to compare with the estimate.
+        ref_state_values: the known value of the policy, to compare with the estimate.
         output_dir: a path to write execution logs.
         log_episode_frequency: frequency for writing execution logs.
     """
@@ -72,10 +72,6 @@ def daaf_policy_evalution(
     )
     generate_steps_fn = task.create_generate_nstep_episodes_fn(mapper=mapper_fn)
 
-    initial_values = utils.initial_state_value_table(
-        num_states=num_states,
-    )
-
     logging.info("Starting DAAF Evaluation")
 
     # Policy Eval with DAAF
@@ -84,10 +80,15 @@ def daaf_policy_evalution(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
-            alpha=control_args.alpha,
+            lrs=schedules.LearningRateSchedule(
+                initial_learning_rate=control_args.alpha,
+                schedule=constant_learning_rate,
+            ),
             gamma=control_args.gamma,
             state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_values,
+            initial_values=initial_values(
+                num_states=num_states,
+            ),
             generate_episodes=generate_steps_fn,
         )
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
@@ -97,7 +98,9 @@ def daaf_policy_evalution(
             num_episodes=num_episodes,
             gamma=control_args.gamma,
             state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_values,
+            initial_values=initial_values(
+                num_states=num_states,
+            ),
             generate_episodes=generate_steps_fn,
         )
     else:
@@ -114,16 +117,18 @@ def daaf_policy_evalution(
             "buffer_size": daaf_args.buffer_size_multiplier,
         },
     ) as exp_logger:
-        qtable: Optional[np.ndarray] = None
-        for episode, (steps, qtable) in enumerate(results):
-            rmse = metrics.rmse(pred=qtable, actual=ref_qtable)
-            rmsle = metrics.rmsle(pred=qtable, actual=ref_qtable, translate=True)
-            mean_error = metrics.mean_error(pred=qtable, actual=ref_qtable)
+        state_values: Optional[np.ndarray] = None
+        for episode, (steps, state_values) in enumerate(results):
+            rmse = metrics.rmse(pred=state_values, actual=ref_state_values)
+            rmsle = metrics.rmsle(
+                pred=state_values, actual=ref_state_values, translate=True
+            )
+            mean_error = metrics.mean_error(pred=state_values, actual=ref_state_values)
             pearson_corr, _ = metrics.pearson_correlation(
-                pred=qtable, actual=ref_qtable
+                pred=state_values, actual=ref_state_values
             )
             spearman_corr, _ = metrics.spearman_correlation(
-                pred=qtable, actual=ref_qtable
+                pred=state_values, actual=ref_state_values
             )
             if episode % log_episode_frequency == 0:
                 logging.info(
@@ -139,7 +144,7 @@ def daaf_policy_evalution(
                     steps=steps,
                     returns=0.0,
                     metadata={
-                        "qtable": qtable.tolist(),
+                        "qtable": state_values.tolist(),
                         "rmse": str(rmse),
                         "rmsle": str(rmsle),
                         "mean_error": str(mean_error),
@@ -148,8 +153,8 @@ def daaf_policy_evalution(
                     },
                 )
         try:
-            logging.info("\nBaseline Q-table\n%s", ref_qtable)
-            logging.info("\nEstimated Q-table\n%s", qtable)
+            logging.info("\nBaseline values\n%s", ref_state_values)
+            logging.info("\nEstimated values\n%s", state_values)
         except NameError:
             logging.info("Zero episodes!")
 
@@ -187,11 +192,41 @@ def main(args: progargs.ExperimentArgs):
         num_actions=mdp.env_desc().num_actions,
         control_args=args.control_args,
         daaf_args=args.daaf_args,
-        ref_qtable=state_action_values.action_values,
+        ref_state_values=state_action_values.state_values,
         output_dir=args.output_dir,
         log_episode_frequency=args.log_episode_frequency,
     )
     env_spec.environment.close()
+
+
+def constant_learning_rate(initial_lr: float, episode: int, step: int):
+    """
+    Returns the initial learning rate.
+    """
+    del episode
+    del step
+    return initial_lr
+
+
+def initial_values(
+    num_states: int,
+    dtype: np.dtype = np.float32,
+    random: bool = False,
+    terminal_states: Optional[Set[int]] = None,
+) -> np.ndarray:
+    """
+    The value of terminal states should be zero.
+    """
+    if random:
+        if terminal_states is None:
+            logging.warning("Creating Q-table with no terminal states")
+
+        vtable = np.random.rand(
+            num_states,
+        )
+        vtable[list(terminal_states or [])] = 0.0
+        return vtable.astype(dtype)
+    return np.zeros(shape=(num_states,), dtype=dtype)
 
 
 if __name__ == "__main__":
