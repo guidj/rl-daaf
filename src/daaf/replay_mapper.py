@@ -4,6 +4,8 @@ Defines mappers for trajectory events.
 These mappers alters the sequence of events that was observed, e.g. including the rewards.
 They can process batched transitions, but emit them as single events.
 """
+
+
 import abc
 import copy
 import logging

@@ -1,3 +1,8 @@
+"""
+Program arguments.
+"""
+
+
 import copy
 import dataclasses
 from typing import Any, Mapping, Optional
