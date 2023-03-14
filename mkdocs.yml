@@ -1,6 +1,0 @@
-site_name: RL DAAF
-site_description: >
-  Technical documentation for DAAF experiments.
-
-nav:
-  - RL-PLG Home: 'index.md'
