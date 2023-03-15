@@ -55,8 +55,8 @@ class CountEnv(BasePyEnv):
     """
 
     MAX_VALUE = 3
-    WRONG_MOVE_REWARD = -10
-    RIGHT_MOVE_REWARD = -1
+    WRONG_MOVE_REWARD = -10.0
+    RIGHT_MOVE_REWARD = -1.0
 
     def __init__(self):
         super().__init__(
@@ -87,6 +87,7 @@ class CountEnv(BasePyEnv):
         action: A NumPy array, or a nested dict, list or tuple of arrays
             corresponding to `action_spec()`.
         """
+        assert self._observation is not None
 
         if action == 0:
             new_obs = copy.deepcopy(self._observation)

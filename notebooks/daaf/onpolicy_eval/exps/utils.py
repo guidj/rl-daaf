@@ -1,21 +1,19 @@
+import copy
+import json
 import os
 import os.path
-import json
-from typing import Optional, Sequence, Callable, Any
-import copy
+from typing import Any, Callable, Optional, Sequence
 
-import pandas as pd
-import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
 import tensorflow as tf
-
 
 METHOD_ID_TO_NAME = {
     "identity-mapper": "FR",
     "reward-imputation-mapper": "ZI-M",
-    "reward-estimation-ls-mapper": "LEAST",
-    "cumulative-reward-mapper": "S-M",
+    "reward-estimation-lsq-mapper": "LEAST",
 }
 
 

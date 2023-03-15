@@ -5,7 +5,7 @@ Policy evaluation functions modified for Cumulative Periodic Rewards.
 
 import collections
 import copy
-from typing import Any, Callable, Generator, Tuple
+from typing import Any, Callable, Dict, Generator, Tuple
 
 import numpy as np
 from rlplg import envplay
@@ -34,7 +34,7 @@ def daaf_sarsa_prediction(
         ],
         Generator[trajectory.Trajectory, None, None],
     ] = envplay.generate_episodes,
-) -> Generator[Tuple[int, Array, float], None, None]:
+) -> Generator[Tuple[int, Array], None, None]:
     """
     On-policy Sarsa Prediction.
     Estimates Q (table) for a fixed policy pi.
@@ -71,7 +71,7 @@ def daaf_sarsa_prediction(
 
     for _ in range(num_episodes):
         # This can be memory intensive, for long episodes and large state/action representations.
-        experiences = list(generate_episodes(environment, policy, num_episodes=1))
+        experiences = list(generate_episodes(environment, policy, 1))
         for step in range(len(experiences) - 1):
             if (step + 1) % reward_period != 0:
                 continue
@@ -109,7 +109,7 @@ def daaf_first_visit_monte_carlo_action_values(
         ],
         Generator[trajectory.Trajectory, None, None],
     ] = envplay.generate_episodes,
-) -> Generator[Tuple[int, Array, float], None, None]:
+) -> Generator[Tuple[int, Array], None, None]:
     """
     First-Visit Monte Carlo Prediction.
     Estimates Q(s, a) for a fixed policy pi.
@@ -143,12 +143,14 @@ def daaf_first_visit_monte_carlo_action_values(
 
     # first state and reward come from env reset
     qtable = copy.deepcopy(initial_qtable)
-    state_action_updates = collections.defaultdict(int)
-    state_action_visits_remaining = collections.defaultdict(int)
+    state_action_updates: Dict[Tuple[int, int], int] = collections.defaultdict(int)
+    state_action_visits_remaining: Dict[Tuple[int, int], int] = collections.defaultdict(
+        int
+    )
 
     for _ in range(num_episodes):
         # This can be memory intensive, for long episodes and large state/action representations.
-        _experiences = list(generate_episodes(environment, policy, num_episodes=1))
+        _experiences = list(generate_episodes(environment, policy, 1))
         # reverse list and ammortize state visits
         experiences = []
         while len(_experiences) > 0:

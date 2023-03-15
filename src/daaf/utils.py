@@ -4,7 +4,7 @@ Utilities, helpers.
 import dataclasses
 import math
 import uuid
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 
 def create_task_id(timestamp: int):
@@ -33,7 +33,7 @@ def split(items: Sequence[Any], num_partitions: int) -> Sequence[Sequence[Any]]:
     return [partition for partition in splits if partition]
 
 
-def dataclass_from_dict(clazz: Callable, data: Mapping[str, Any]):
+def dataclass_from_dict(clazz: Any, data: Mapping[str, Any]):  # type: ignore [arg-type]
     """
     Creates an instance of a dataclass from a dictionary.
     """

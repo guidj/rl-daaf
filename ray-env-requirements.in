@@ -1,0 +1,7 @@
+--extra-index-url https://pypi.spotify.net/simple/ --extra-index-url https://pypi.spotify.net/spotify/dev
+-r requirements.txt
+
+# ray client deps
+# to download (depickle) info
+# from the cluster
+tblib==1.7.0
