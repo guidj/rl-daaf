@@ -177,8 +177,6 @@ def main(args: progargs.ExperimentArgs):
         env_spec=env_spec, mdp=mdp, control_args=args.control_args
     )
     policy = policies.PyRandomPolicy(
-        time_step_spec=env_spec.environment.time_step_spec(),
-        action_spec=env_spec.environment.action_spec(),
         num_actions=mdp.env_desc().num_actions,
         emit_log_probability=True,
     )

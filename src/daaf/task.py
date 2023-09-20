@@ -6,15 +6,13 @@ import argparse
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Mapping, Optional, Tuple
+from typing import Any, Callable, Generator, Iterable, Mapping, Optional, Tuple
 
+import gymnasium as gym
 import numpy as np
-from rlplg import envplay, envspec, envsuite, runtime
+from rlplg import core, envplay, envspec, envsuite, runtime
 from rlplg.learning import utils
 from rlplg.learning.tabular import dynamicprog, markovdp, policies
-from tf_agents.environments import py_environment
-from tf_agents.policies import py_policy
-from tf_agents.trajectories import trajectory
 
 from daaf import constants, progargs, replay_mapper
 from daaf.envstats import envstats
@@ -114,8 +112,6 @@ def dynamic_prog_estimation(
         control_args: control arguments.
     """
     observable_random_policy = policies.PyObservableRandomPolicy(
-        time_step_spec=env_spec.environment.time_step_spec(),
-        action_spec=env_spec.environment.action_spec(),
         num_actions=mdp.env_desc().num_actions,
     )
     state_values = dynamicprog.iterative_policy_evaluation(
@@ -136,7 +132,7 @@ def create_aggregate_reward_step_mapper_fn(
     reward_period: int,
     cu_step_method: str,
     buffer_size_or_multiplier: Tuple[Optional[int], Optional[int]],
-) -> Callable[[trajectory.Trajectory], Generator[trajectory.Trajectory, None, None]]:
+) -> Callable[[core.Trajectory], Generator[core.Trajectory, None, None]]:
     """
     Creates an object that alters the trajectory data.
 
@@ -151,8 +147,6 @@ def create_aggregate_reward_step_mapper_fn(
     mapper: Optional[replay_mapper.TrajMapper] = None
     if cu_step_method == constants.IDENTITY_MAPPER:
         mapper = replay_mapper.IdentifyMapper()
-    elif cu_step_method == constants.SINGLE_STEP_MAPPER:
-        mapper = replay_mapper.SingleStepMapper()
     elif cu_step_method == constants.REWARD_IMPUTATION_MAPPER:
         mapper = replay_mapper.ImputeMissingRewardMapper(
             reward_period=reward_period, impute_value=0.0
@@ -192,12 +186,9 @@ def create_aggregate_reward_step_mapper_fn(
 
 def create_generate_nstep_episodes_fn(
     mapper: Callable[
-        [trajectory.Trajectory], Generator[trajectory.Trajectory, None, None]
+        [Iterable[core.Trajectory]], Generator[core.Trajectory, None, None]
     ],
-) -> Callable[
-    [py_environment.PyEnvironment, py_policy.PyPolicy, int],
-    Generator[trajectory.Trajectory, None, None],
-]:
+) -> Callable[[gym.Env, core.PyPolicy, int], Generator[core.Trajectory, None, None],]:
     """
     Creates a function that transform trajectory events a provided
     `mapper`.
@@ -207,17 +198,17 @@ def create_generate_nstep_episodes_fn(
     """
 
     def generate_nstep_episodes(
-        environment: py_environment.PyEnvironment,
-        policy: py_policy.PyPolicy,
+        environment: gym.Env,
+        policy: core.PyPolicy,
         num_episodes: int,
-    ) -> Generator[trajectory.Trajectory, None, None]:
+    ) -> Generator[core.Trajectory, None, None]:
         """
         Generates events for `num_episodes` given an environment and policy.
         """
         for experience in envplay.generate_episodes(
             environment, policy, num_episodes=num_episodes
         ):
-            for traj in mapper(experience):
+            for traj in mapper([experience]):
                 yield traj
 
     return generate_nstep_episodes

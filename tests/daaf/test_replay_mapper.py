@@ -1,10 +1,11 @@
+from typing import Any, Union
+
 import hypothesis
 import numpy as np
 import pytest
 import tensorflow as tf
 from hypothesis import strategies as st
-from tf_agents.trajectories import policy_step, time_step, trajectory
-from tf_agents.typing.types import TensorOrArray
+from rlplg import core
 
 from daaf import replay_mapper
 from tests import defaults
@@ -15,198 +16,95 @@ def test_identity_mapper_apply():
 
     inputs = [
         # single step traj
-        trajectory.Trajectory(
-            step_type=defaults.batch(
-                time_step.StepType.MID,
-            ),
-            observation=defaults.batch(1),
-            action=defaults.batch(2),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(
-                    np.log(0.8),
-                )
-            ),
-            next_step_type=defaults.batch(
-                time_step.StepType.MID,
-            ),
-            reward=defaults.batch(-7.0),
-            discount=defaults.batch(1.0),
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(2),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-7.0),
+            terminated=False,
+            truncated=False,
         ),
-        # multi step traj
-        trajectory.Trajectory(
-            step_type=defaults.batch(
-                time_step.StepType.FIRST,
-                time_step.StepType.MID,
-                time_step.StepType.MID,
-                time_step.StepType.MID,
-            ),
-            observation=defaults.batch(0, 1, 2, 3),
-            action=defaults.batch(0, 2, 4, 6),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(
-                    np.log(0.3),
-                    np.log(0.8),
-                    np.log(0.7),
-                    np.log(0.2),
-                )
-            ),
-            next_step_type=defaults.batch(
-                time_step.StepType.MID,
-                time_step.StepType.MID,
-                time_step.StepType.MID,
-                time_step.StepType.LAST,
-            ),
-            reward=defaults.batch(-1.0, -7.0, 5.0, 7.0),
-            discount=defaults.batch(1.0, 1.0, 1.0, 1.0),
+        core.Trajectory(
+            observation=defaults.array(0),
+            action=defaults.array(0),
+            policy_info={"log_probability": defaults.array(np.log(0.3))},
+            reward=defaults.array(-1.0),
+            terminated=False,
+            truncated=False,
+        ),
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(2),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-7.0),
+            terminated=True,
+            truncated=True,
+        ),
+        core.Trajectory(
+            observation=defaults.array(2),
+            action=defaults.array(4),
+            policy_info={"log_probability": defaults.array(np.log(0.7))},
+            reward=defaults.array(5.0),
+            terminated=True,
+            truncated=False,
+        ),
+        core.Trajectory(
+            observation=defaults.array(3),
+            action=defaults.array(6),
+            policy_info={"log_probability": defaults.array(np.log(0.2))},
+            reward=defaults.array(-7.0),
+            terminated=False,
+            truncated=True,
         ),
     ]
 
     expectations = [
-        trajectory.Trajectory(
-            step_type=defaults.batch(
-                time_step.StepType.MID,
-            ),
-            observation=defaults.batch(1),
-            action=defaults.batch(2),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(
-                    np.log(0.8),
-                )
-            ),
-            next_step_type=defaults.batch(
-                time_step.StepType.MID,
-            ),
-            reward=defaults.batch(-7.0),
-            discount=defaults.batch(1.0),
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(2),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-7.0),
+            terminated=False,
+            truncated=False,
         ),
-        trajectory.Trajectory(
-            step_type=defaults.batch(
-                time_step.StepType.FIRST,
-                time_step.StepType.MID,
-                time_step.StepType.MID,
-                time_step.StepType.MID,
-            ),
-            observation=defaults.batch(0, 1, 2, 3),
-            action=defaults.batch(0, 2, 4, 6),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(
-                    np.log(0.3),
-                    np.log(0.8),
-                    np.log(0.7),
-                    np.log(0.2),
-                )
-            ),
-            next_step_type=defaults.batch(
-                time_step.StepType.MID,
-                time_step.StepType.MID,
-                time_step.StepType.MID,
-                time_step.StepType.LAST,
-            ),
-            reward=defaults.batch(-1.0, -7.0, 5.0, 7.0),
-            discount=defaults.batch(1.0, 1.0, 1.0, 1.0),
+        core.Trajectory(
+            observation=defaults.array(0),
+            action=defaults.array(0),
+            policy_info={"log_probability": defaults.array(np.log(0.3))},
+            reward=defaults.array(-1.0),
+            terminated=False,
+            truncated=False,
+        ),
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(2),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-7.0),
+            terminated=True,
+            truncated=True,
+        ),
+        core.Trajectory(
+            observation=defaults.array(2),
+            action=defaults.array(4),
+            policy_info={"log_probability": defaults.array(np.log(0.7))},
+            reward=defaults.array(5.0),
+            terminated=True,
+            truncated=False,
+        ),
+        core.Trajectory(
+            observation=defaults.array(3),
+            action=defaults.array(6),
+            policy_info={"log_probability": defaults.array(np.log(0.2))},
+            reward=defaults.array(-7.0),
+            terminated=False,
+            truncated=True,
         ),
     ]
 
-    outputs = [list(mapper.apply(input)) for input in inputs]
+    outputs = list(mapper.apply(inputs))
 
     for output, expected in zip(outputs, expectations):
-        assert len(output) == 1
-        output = next(iter(output))
-        np.testing.assert_array_equal(output.step_type, expected.step_type)
-        np.testing.assert_array_equal(output.observation, expected.observation)
-        np.testing.assert_array_equal(output.action, expected.action)
-        np.testing.assert_array_equal(output.next_step_type, expected.next_step_type)
-        np.testing.assert_array_equal(output.reward, expected.reward)
-        np.testing.assert_array_equal(output.discount, expected.discount)
-
-
-def test_single_action_mapper_apply():
-    mapper = replay_mapper.SingleStepMapper()
-
-    input = trajectory.Trajectory(
-        step_type=defaults.batch(
-            time_step.StepType.FIRST,
-            time_step.StepType.MID,
-            time_step.StepType.MID,
-            time_step.StepType.MID,
-        ),
-        observation=defaults.batch(0, 1, 2, 3),
-        action=defaults.batch(0, 2, 4, 6),
-        policy_info=policy_step.PolicyInfo(
-            log_probability=defaults.batch(
-                np.log(0.3),
-                np.log(0.8),
-                np.log(0.7),
-                np.log(0.2),
-            )
-        ),
-        next_step_type=defaults.batch(
-            time_step.StepType.MID,
-            time_step.StepType.MID,
-            time_step.StepType.MID,
-            time_step.StepType.LAST,
-        ),
-        reward=defaults.batch(-1.0, -7.0, 5.0, 7.0),
-        discount=defaults.batch(1.0, 1.0, 1.0, 1.0),
-    )
-
-    expectations = [
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.FIRST),
-            observation=defaults.batch(0),
-            action=defaults.batch(0),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(np.log(0.3))
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(-1.0),
-            discount=defaults.batch(1.0),
-        ),
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.MID),
-            observation=defaults.batch(1),
-            action=defaults.batch(2),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(np.log(0.8))
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(-7.0),
-            discount=defaults.batch(1.0),
-        ),
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.MID),
-            observation=defaults.batch(2),
-            action=defaults.batch(4),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(np.log(0.7))
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(5.0),
-            discount=defaults.batch(1.0),
-        ),
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.MID),
-            observation=defaults.batch(3),
-            action=defaults.batch(6),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(np.log(0.2))
-            ),
-            next_step_type=defaults.batch(time_step.StepType.LAST),
-            reward=defaults.batch(7.0),
-            discount=defaults.batch(1.0),
-        ),
-    ]
-
-    outputs = list(mapper.apply(input))
-
-    assert len(outputs) == 4
-    for output, expected in zip(outputs, expectations):
-        np.testing.assert_array_equal(output.step_type, expected.step_type)
-        np.testing.assert_array_equal(output.observation, expected.observation)
-        np.testing.assert_array_equal(output.action, expected.action)
-        np.testing.assert_array_equal(output.next_step_type, expected.next_step_type)
-        np.testing.assert_array_equal(output.reward, expected.reward)
-        np.testing.assert_array_equal(output.discount, expected.discount)
+        assert_trajectory(output=output, expected=expected)
 
 
 @hypothesis.given(reward_period=st.integers(min_value=2))
@@ -229,60 +127,49 @@ def test_average_reward_mapper_apply():
     """
     mapper = replay_mapper.AverageRewardMapper(reward_period=2)
 
-    input = trajectory.Trajectory(
-        step_type=defaults.batch(time_step.StepType.FIRST, time_step.StepType.MID),
-        observation=defaults.batch(0, 1),
-        action=defaults.batch(0, 1),
-        policy_info=policy_step.PolicyInfo(
-            log_probability=defaults.batch(
-                np.log(0.3),
-                np.log(0.8),
-            )
+    inputs = [
+        core.Trajectory(
+            observation=defaults.array(0),
+            action=defaults.array(0),
+            policy_info={"log_probability": defaults.array(np.log(0.3))},
+            reward=defaults.array(-1.0),
+            terminated=False,
+            truncated=False,
         ),
-        next_step_type=defaults.batch(time_step.StepType.MID, time_step.StepType.MID),
-        reward=defaults.batch(-1.0, -7.0),
-        discount=defaults.batch(1.0, 1.0),
-    )
-
-    expectactions = [
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.FIRST),
-            observation=defaults.batch(0),
-            action=defaults.batch(0),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(
-                    np.log(0.3),
-                )
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(-4.0),
-            discount=defaults.batch(1.0),
-        ),
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.MID),
-            observation=defaults.batch(1),
-            action=defaults.batch(1),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(
-                    np.log(0.8),
-                )
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(-4.0),
-            discount=defaults.batch(1.0),
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(1),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-7.0),
+            terminated=False,
+            truncated=False,
         ),
     ]
 
-    outputs = list(mapper.apply(input))
+    expectactions = [
+        core.Trajectory(
+            observation=defaults.array(0),
+            action=defaults.array(0),
+            policy_info={"log_probability": defaults.array(np.log(0.3))},
+            reward=defaults.array(-4.0),
+            terminated=False,
+            truncated=False,
+        ),
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(1),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-4.0),
+            terminated=False,
+            truncated=False,
+        ),
+    ]
+
+    outputs = list(mapper.apply(inputs))
 
     assert len(outputs) == 2
     for output, expected in zip(outputs, expectactions):
-        np.testing.assert_array_equal(output.step_type, expected.step_type)
-        np.testing.assert_array_equal(output.observation, expected.observation)
-        np.testing.assert_array_equal(output.action, expected.action)
-        np.testing.assert_array_equal(output.next_step_type, expected.next_step_type)
-        np.testing.assert_array_equal(output.reward, expected.reward)
-        np.testing.assert_array_equal(output.discount, expected.discount)
+        assert_trajectory(output=output, expected=expected)
 
 
 @hypothesis.given(
@@ -318,60 +205,49 @@ def test_impute_missing_reward_mapper_init_with_invalid_impute_value():
 def test_impute_missing_reward_mapper_apply():
     mapper = replay_mapper.ImputeMissingRewardMapper(reward_period=2, impute_value=0.0)
 
-    input = trajectory.Trajectory(
-        step_type=defaults.batch(time_step.StepType.FIRST, time_step.StepType.MID),
-        observation=defaults.batch(0, 1),
-        action=defaults.batch(0, 1),
-        policy_info=policy_step.PolicyInfo(
-            log_probability=defaults.batch(
-                np.log(0.3),
-                np.log(0.8),
-            )
+    inputs = [
+        core.Trajectory(
+            observation=defaults.array(0),
+            action=defaults.array(0),
+            policy_info={"log_probability": defaults.array(np.log(0.3))},
+            reward=defaults.array(-1.0),
+            terminated=False,
+            truncated=False,
         ),
-        next_step_type=defaults.batch(time_step.StepType.MID, time_step.StepType.MID),
-        reward=defaults.batch(-1.0, -7.0),
-        discount=defaults.batch(1.0, 1.0),
-    )
-
-    expectactions = [
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.FIRST),
-            observation=defaults.batch(0),
-            action=defaults.batch(0),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(
-                    np.log(0.3),
-                )
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(0.0),
-            discount=defaults.batch(1.0),
-        ),
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.MID),
-            observation=defaults.batch(1),
-            action=defaults.batch(1),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(
-                    np.log(0.8),
-                )
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(-8.0),
-            discount=defaults.batch(1.0),
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(1),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-7.0),
+            terminated=False,
+            truncated=False,
         ),
     ]
 
-    outputs = list(mapper.apply(input))
+    expectactions = [
+        core.Trajectory(
+            observation=defaults.array(0),
+            action=defaults.array(0),
+            policy_info={"log_probability": defaults.array(np.log(0.3))},
+            reward=defaults.array(0.0),
+            terminated=False,
+            truncated=False,
+        ),
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(1),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-8.0),
+            terminated=False,
+            truncated=False,
+        ),
+    ]
+
+    outputs = list(mapper.apply(inputs))
 
     assert len(outputs) == 2
     for output, expected in zip(outputs, expectactions):
-        np.testing.assert_array_equal(output.step_type, expected.step_type)
-        np.testing.assert_array_equal(output.observation, expected.observation)
-        np.testing.assert_array_equal(output.action, expected.action)
-        np.testing.assert_array_equal(output.next_step_type, expected.next_step_type)
-        np.testing.assert_array_equal(output.reward, expected.reward)
-        np.testing.assert_array_equal(output.discount, expected.discount)
+        assert_trajectory(output=output, expected=expected)
 
 
 def test_cumulative_reward_mapper_init():
@@ -383,90 +259,81 @@ def test_cumulative_reward_mapper_init():
 def test_skip_missing_reward_mapper_apply():
     mapper = replay_mapper.SkipMissingRewardMapper(reward_period=2)
 
-    input = trajectory.Trajectory(
-        step_type=defaults.batch(
-            time_step.StepType.FIRST,
-            time_step.StepType.MID,
-            time_step.StepType.MID,
-            time_step.StepType.MID,
+    inputs = [
+        core.Trajectory(
+            observation=defaults.array(0),
+            action=defaults.array(0),
+            policy_info={"log_probability": defaults.array(np.log(0.3))},
+            reward=defaults.array(-1.0),
+            terminated=False,
+            truncated=False,
         ),
-        observation=defaults.batch(0, 1, 2, 3),
-        action=defaults.batch(0, 2, 4, 6),
-        policy_info=policy_step.PolicyInfo(
-            log_probability=defaults.batch(
-                np.log(0.3),
-                np.log(0.8),
-                np.log(0.7),
-                np.log(0.2),
-            )
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(2),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-7.0),
+            terminated=False,
+            truncated=False,
         ),
-        next_step_type=defaults.batch(
-            time_step.StepType.MID,
-            time_step.StepType.MID,
-            time_step.StepType.MID,
-            time_step.StepType.LAST,
+        core.Trajectory(
+            observation=defaults.array(2),
+            action=defaults.array(4),
+            policy_info={"log_probability": defaults.array(np.log(0.7))},
+            reward=defaults.array(5.0),
+            terminated=False,
+            truncated=False,
         ),
-        reward=defaults.batch(-1.0, -7.0, 5.0, 7.0),
-        discount=defaults.batch(1.0, 1.0, 1.0, 1.0),
-    )
-
-    expectations = [
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.FIRST),
-            observation=defaults.batch(0),
-            action=defaults.batch(0),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(np.log(0.3))
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(-1.0),
-            discount=defaults.batch(1.0),
-        ),
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.MID),
-            observation=defaults.batch(1),
-            action=defaults.batch(2),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(np.log(0.8))
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(-8.0),
-            discount=defaults.batch(1.0),
-        ),
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.MID),
-            observation=defaults.batch(2),
-            action=defaults.batch(4),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(np.log(0.7))
-            ),
-            next_step_type=defaults.batch(time_step.StepType.MID),
-            reward=defaults.batch(5.0),
-            discount=defaults.batch(1.0),
-        ),
-        trajectory.Trajectory(
-            step_type=defaults.batch(time_step.StepType.MID),
-            observation=defaults.batch(3),
-            action=defaults.batch(6),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(np.log(0.2))
-            ),
-            next_step_type=defaults.batch(time_step.StepType.LAST),
-            reward=defaults.batch(12.0),
-            discount=defaults.batch(1.0),
+        core.Trajectory(
+            observation=defaults.array(3),
+            action=defaults.array(6),
+            policy_info={"log_probability": defaults.array(np.log(0.2))},
+            reward=defaults.array(7.0),
+            terminated=True,
+            truncated=False,
         ),
     ]
 
-    outputs = list(mapper.apply(input))
+    expectations = [
+        core.Trajectory(
+            observation=defaults.array(0),
+            action=defaults.array(0),
+            policy_info={"log_probability": defaults.array(np.log(0.3))},
+            reward=defaults.array(-1.0),
+            terminated=False,
+            truncated=False,
+        ),
+        core.Trajectory(
+            observation=defaults.array(1),
+            action=defaults.array(2),
+            policy_info={"log_probability": defaults.array(np.log(0.8))},
+            reward=defaults.array(-8.0),
+            terminated=False,
+            truncated=False,
+        ),
+        core.Trajectory(
+            observation=defaults.array(2),
+            action=defaults.array(4),
+            policy_info={"log_probability": defaults.array(np.log(0.7))},
+            reward=defaults.array(5.0),
+            terminated=False,
+            truncated=False,
+        ),
+        core.Trajectory(
+            observation=defaults.array(3),
+            action=defaults.array(6),
+            policy_info={"log_probability": defaults.array(np.log(0.2))},
+            reward=defaults.array(12.0),
+            terminated=True,
+            truncated=False,
+        ),
+    ]
+
+    outputs = list(mapper.apply(inputs))
 
     assert len(outputs) == 4
     for output, expected in zip(outputs, expectations):
-        np.testing.assert_array_equal(output.step_type, expected.step_type)
-        np.testing.assert_array_equal(output.observation, expected.observation)
-        np.testing.assert_array_equal(output.action, expected.action)
-        np.testing.assert_array_equal(output.next_step_type, expected.next_step_type)
-        np.testing.assert_array_equal(output.reward, expected.reward)
-        np.testing.assert_array_equal(output.discount, expected.discount)
+        assert_trajectory(output=output, expected=expected)
 
 
 def test_least_squares_attribution_mapper_init():
@@ -478,7 +345,7 @@ def test_least_squares_attribution_mapper_init():
         state_id_fn=item,
         action_id_fn=item,
         buffer_size=8,
-        init_rtable=defaults.batch([0, 1], [0, 1], [0, 1], [0, 1]),
+        init_rtable=defaults.array([0, 1], [0, 1], [0, 1], [0, 1]),
     )
 
     assert mapper.num_states == 4
@@ -497,7 +364,7 @@ def test_least_squares_attribution_mapper_init_with_mismatched_table():
             state_id_fn=item,
             action_id_fn=item,
             buffer_size=8,
-            init_rtable=defaults.batch([0.0, 1.0]),
+            init_rtable=defaults.array([0.0, 1.0]),
         )
 
 
@@ -510,7 +377,7 @@ def test_least_squares_attribution_mapper_init_with_small_buffer_size():
             state_id_fn=item,
             action_id_fn=item,
             buffer_size=7,
-            init_rtable=defaults.batch([0, 1], [0, 1], [0, 1], [0, 1]),
+            init_rtable=defaults.array([0, 1], [0, 1], [0, 1], [0, 1]),
         )
 
 
@@ -541,17 +408,19 @@ def test_least_squares_attribution_mapper_apply():
     """
 
     def ctraj(states, actions, rewards, probs):
-        return trajectory.Trajectory(
-            step_type=defaults.batch(*[time_step.StepType.MID for _ in actions]),
-            observation=defaults.batch(*states),
-            action=defaults.batch(*actions),
-            policy_info=policy_step.PolicyInfo(
-                log_probability=defaults.batch(*[np.log(prob) for prob in probs])
-            ),
-            next_step_type=defaults.batch(*[time_step.StepType.MID for _ in actions]),
-            reward=defaults.batch(*rewards),
-            discount=defaults.batch(*[1.0 for _ in actions]),
-        )
+        trajs = []
+        for state, action, reward, prob in zip(states, actions, rewards, probs):
+            trajs.append(
+                core.Trajectory(
+                    observation=defaults.array(state),
+                    action=defaults.array(action),
+                    policy_info={"log_probability": defaults.array(np.log(prob))},
+                    reward=defaults.array(reward),
+                    terminated=False,
+                    truncated=False,
+                )
+            )
+        return trajs
 
     mapper = replay_mapper.LeastSquaresAttributionMapper(
         num_states=2,
@@ -560,59 +429,89 @@ def test_least_squares_attribution_mapper_apply():
         state_id_fn=item,
         action_id_fn=item,
         buffer_size=8,
-        init_rtable=defaults.batch([-1.0, -1.0], [-1.0, -1.0]),
+        init_rtable=defaults.array([-1.0, -1.0], [-1.0, -1.0]),
     )
 
     # We are simulating cumulative rewards.
     # So we supply the actual rewards to the simulator to aggregate (sum).
-    inputs = [
-        ctraj(states=(0, 0), actions=(0, 1), rewards=(0.0, 1.0), probs=(0.0, 1.0)),
-        ctraj(states=(1, 1), actions=(0, 1), rewards=(0.0, 1.0), probs=(0.0, 1.0)),
-        # after the event above, all factors are present, but we still lack rows
-        # to satisfy the condition m >= n
-        ctraj(states=(0, 1), actions=(1, 0), rewards=(1.0, 0.0), probs=(1.0, 0.0)),
-        ctraj(states=(0, 1), actions=(1, 1), rewards=(1.0, 1.0), probs=(1.0, 1.0)),
-        # after the event above, m >= n
-        # the events will below will be emitted with estimated rewards
-        ctraj(states=(0, 0), actions=(0, 1), rewards=(-7.0, -7.0), probs=(0.0, 1.0)),
-        ctraj(states=(1, 1), actions=(0, 1), rewards=(-7.0, -7.0), probs=(0.0, 1.0)),
-        ctraj(states=(0, 1), actions=(1, 0), rewards=(-7.0, -7.0), probs=(1.0, 0.0)),
-        ctraj(states=(0, 1), actions=(1, 1), rewards=(-7.0, -7.0), probs=(1.0, 1.0)),
-    ]
+    inputs = []
+    inputs.extend(
+        ctraj(states=(0, 0), actions=(0, 1), rewards=(0.0, 1.0), probs=(0.0, 1.0))
+    )
+    inputs.extend(
+        ctraj(states=(1, 1), actions=(0, 1), rewards=(0.0, 1.0), probs=(0.0, 1.0))
+    )
+    # after the event above, all factors are present, but we still lack rows
+    # to satisfy the condition m >= n
+    inputs.extend(
+        ctraj(states=(0, 1), actions=(1, 0), rewards=(1.0, 0.0), probs=(1.0, 0.0))
+    )
+    inputs.extend(
+        ctraj(states=(0, 1), actions=(1, 1), rewards=(1.0, 1.0), probs=(1.0, 1.0))
+    )
+    # after the event above, m >= n
+    # the events will below will be emitted with estimated rewards
+    inputs.extend(
+        ctraj(states=(0, 0), actions=(0, 1), rewards=(-7.0, -7.0), probs=(0.0, 1.0))
+    )
+    inputs.extend(
+        ctraj(states=(1, 1), actions=(0, 1), rewards=(-7.0, -7.0), probs=(0.0, 1.0))
+    )
+    inputs.extend(
+        ctraj(states=(0, 1), actions=(1, 0), rewards=(-7.0, -7.0), probs=(1.0, 0.0))
+    )
+    inputs.extend(
+        ctraj(states=(0, 1), actions=(1, 1), rewards=(-7.0, -7.0), probs=(1.0, 1.0))
+    )
 
-    expectactions = [
-        # the events below are emitted with the initial beliefs about rewards
-        ctraj(states=(0,), actions=(0,), rewards=(-1.0,), probs=(0.0,)),
-        ctraj(states=(0,), actions=(1,), rewards=(-1.0,), probs=(1.0,)),
-        ctraj(states=(1,), actions=(0,), rewards=(-1.0,), probs=(0.0,)),
-        ctraj(states=(1,), actions=(1,), rewards=(-1.0,), probs=(1.0,)),
-        ctraj(states=(0,), actions=(1,), rewards=(-1.0,), probs=(1.0,)),
-        ctraj(states=(1,), actions=(0,), rewards=(-1.0,), probs=(0.0,)),
-        ctraj(states=(0,), actions=(1,), rewards=(-1.0,), probs=(1.0,)),
-        ctraj(states=(1,), actions=(1,), rewards=(-1.0,), probs=(1.0,)),
-        # the events below are emitted with estimated rewards
-        ctraj(states=(0,), actions=(0,), rewards=(0.0,), probs=(0.0,)),
-        ctraj(states=(0,), actions=(1,), rewards=(1.0,), probs=(1.0,)),
-        ctraj(states=(1,), actions=(0,), rewards=(0.0,), probs=(0.0,)),
-        ctraj(states=(1,), actions=(1,), rewards=(1.0,), probs=(1.0,)),
-        ctraj(states=(0,), actions=(1,), rewards=(1.0,), probs=(1.0,)),
-        ctraj(states=(1,), actions=(0,), rewards=(0.0,), probs=(0.0,)),
-        ctraj(states=(0,), actions=(1,), rewards=(1.0,), probs=(1.0,)),
-        ctraj(states=(1,), actions=(1,), rewards=(1.0,), probs=(1.0,)),
-    ]
+    expectactions = []
+    # the events below are emitted with the initial beliefs about rewards
+    expectactions.extend(
+        ctraj(states=(0,), actions=(0,), rewards=(-1.0,), probs=(0.0,))
+    )
+    expectactions.extend(
+        ctraj(states=(0,), actions=(1,), rewards=(-1.0,), probs=(1.0,))
+    )
+    expectactions.extend(
+        ctraj(states=(1,), actions=(0,), rewards=(-1.0,), probs=(0.0,))
+    )
+    expectactions.extend(
+        ctraj(states=(1,), actions=(1,), rewards=(-1.0,), probs=(1.0,))
+    )
+    expectactions.extend(
+        ctraj(states=(0,), actions=(1,), rewards=(-1.0,), probs=(1.0,))
+    )
+    expectactions.extend(
+        ctraj(states=(1,), actions=(0,), rewards=(-1.0,), probs=(0.0,))
+    )
+    expectactions.extend(
+        ctraj(states=(0,), actions=(1,), rewards=(-1.0,), probs=(1.0,))
+    )
+    expectactions.extend(
+        ctraj(states=(1,), actions=(1,), rewards=(-1.0,), probs=(1.0,))
+    )
+    # the events below are emitted with estimated rewards
+    expectactions.extend(ctraj(states=(0,), actions=(0,), rewards=(0.0,), probs=(0.0,)))
+    expectactions.extend(ctraj(states=(0,), actions=(1,), rewards=(1.0,), probs=(1.0,)))
+    expectactions.extend(ctraj(states=(1,), actions=(0,), rewards=(0.0,), probs=(0.0,)))
+    expectactions.extend(ctraj(states=(1,), actions=(1,), rewards=(1.0,), probs=(1.0,)))
+    expectactions.extend(ctraj(states=(0,), actions=(1,), rewards=(1.0,), probs=(1.0,)))
+    expectactions.extend(ctraj(states=(1,), actions=(0,), rewards=(0.0,), probs=(0.0,)))
+    expectactions.extend(ctraj(states=(0,), actions=(1,), rewards=(1.0,), probs=(1.0,)))
+    expectactions.extend(ctraj(states=(1,), actions=(1,), rewards=(1.0,), probs=(1.0,)))
 
-    outputs = []
-    for traj in inputs:
-        outputs.extend(list(mapper.apply(traj)))
+    outputs = list(mapper.apply(inputs))
 
     assert len(outputs) == 16
     for output, expected in zip(outputs, expectactions):
-        np.testing.assert_array_equal(output.step_type, expected.step_type)
+
+        # reward can only be approximately equal
         np.testing.assert_array_equal(output.observation, expected.observation)
         np.testing.assert_array_equal(output.action, expected.action)
-        np.testing.assert_array_equal(output.next_step_type, expected.next_step_type)
+        np.testing.assert_array_equal(output.policy_info, expected.policy_info)
         np.testing.assert_array_almost_equal(output.reward, expected.reward)
-        np.testing.assert_array_equal(output.discount, expected.discount)
+        np.testing.assert_array_equal(output.terminated, expected.terminated)
+        np.testing.assert_array_equal(output.truncated, expected.truncated)
 
 
 def test_counter_init():
@@ -638,7 +537,16 @@ def test_counter_reset():
     assert counter.value == 0
 
 
-def item(array: TensorOrArray) -> TensorOrArray:
+def item(array: Union[np.ndarray, tf.Tensor]) -> Any:
     if isinstance(array, tf.Tensor):
         return array.numpy().item()
     return array.item()
+
+
+def assert_trajectory(output: core.Trajectory, expected: core.Trajectory) -> None:
+    np.testing.assert_array_equal(output.observation, expected.observation)
+    np.testing.assert_array_equal(output.action, expected.action)
+    np.testing.assert_array_equal(output.policy_info, expected.policy_info)
+    np.testing.assert_array_equal(output.reward, expected.reward)
+    np.testing.assert_array_equal(output.terminated, expected.terminated)
+    np.testing.assert_array_equal(output.truncated, expected.truncated)

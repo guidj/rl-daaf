@@ -486,7 +486,7 @@ pyzmq==25.0.1
     #   jupyter-client
     #   jupyter-server
     #   nbclassic
-ray[default]==2.2.0
+ray[default]==2.4.0
     # via -r requirements.txt
 requests==2.28.2
     # via
