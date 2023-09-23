@@ -6,7 +6,7 @@ import argparse
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Iterable, Mapping, Optional, Tuple
+from typing import Any, Callable, Generator, Mapping, Optional, Tuple
 
 import gymnasium as gym
 import numpy as np
@@ -100,7 +100,7 @@ def create_env_spec_and_mdp(
 
 
 def dynamic_prog_estimation(
-    env_spec: envspec.EnvSpec, mdp: markovdp.MDP, control_args: progargs.ControlArgs
+    mdp: markovdp.MDP, control_args: progargs.ControlArgs
 ) -> StateActionValues:
     """
     Runs dynamic programming on an MDP to generate state-value and action-value
@@ -132,7 +132,7 @@ def create_aggregate_reward_step_mapper_fn(
     reward_period: int,
     cu_step_method: str,
     buffer_size_or_multiplier: Tuple[Optional[int], Optional[int]],
-) -> Callable[[core.Trajectory], Generator[core.Trajectory, None, None]]:
+) -> replay_mapper.TrajMapper:
     """
     Creates an object that alters the trajectory data.
 
@@ -171,44 +171,48 @@ def create_aggregate_reward_step_mapper_fn(
                 num_states=num_states, num_actions=num_actions
             ),
         )
-    elif cu_step_method == constants.SKIP_MISSING_REWARD_MAPPER:
-        # Returns events as is;
-        # The eval fn has to filter the events, without strictly
-        # breaking the MDP.
-        mapper = replay_mapper.SkipMissingRewardMapper(reward_period=reward_period)
     else:
         raise ValueError(
             f"Unknown cu-step-method {cu_step_method}. Choices: {constants.CU_MAPPER_METHODS}"
         )
 
-    return mapper.apply
+    return mapper
 
 
 def create_generate_nstep_episodes_fn(
-    mapper: Callable[
-        [Iterable[core.Trajectory]], Generator[core.Trajectory, None, None]
-    ],
-) -> Callable[[gym.Env, core.PyPolicy, int], Generator[core.Trajectory, None, None],]:
+    mapper: replay_mapper.TrajMapper,
+) -> Callable[
+    [gym.Env, core.PyPolicy, int],
+    Generator[core.TrajectoryStep, None, None],
+]:
     """
     Creates a function that transform trajectory events a provided
     `mapper`.
 
     Args:
-        mapper: A callable that transforms trajectory events, and yields new ones.
+        mapper: A TrajMapper that transforms trajectory events.
     """
 
     def generate_nstep_episodes(
         environment: gym.Env,
         policy: core.PyPolicy,
         num_episodes: int,
-    ) -> Generator[core.Trajectory, None, None]:
+    ) -> Generator[core.TrajectoryStep, None, None]:
         """
         Generates events for `num_episodes` given an environment and policy.
         """
-        for experience in envplay.generate_episodes(
-            environment, policy, num_episodes=num_episodes
-        ):
-            for traj in mapper([experience]):
-                yield traj
+        # Unroll one trajectory at a time
+        for _ in range(num_episodes):
+            trajectory = []
+            for experience in envplay.generate_episodes(
+                environment, policy, num_episodes=1
+            ):
+                trajectory.append(experience)
+            mapper.add(trajectory)
+            try:
+                yield mapper.next()
+            except StopIteration:
+                # only stop once there are no more new events
+                pass
 
     return generate_nstep_episodes

@@ -7,7 +7,6 @@ IDENTITY_MAPPER = "identity-mapper"
 AVERAGE_REWARD_MAPPER = "average-reward-mapper"
 REWARD_ESTIMATION_LSQ_MAPPER = "reward-estimation-lsq-mapper"
 REWARD_IMPUTATION_MAPPER = "reward-imputation-mapper"
-SKIP_MISSING_REWARD_MAPPER = "skip-missing-reward-mapper"
 CU_MAPPER_METHODS = (
     IDENTITY_MAPPER,
     AVERAGE_REWARD_MAPPER,

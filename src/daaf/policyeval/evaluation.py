@@ -174,7 +174,7 @@ def main(args: progargs.ExperimentArgs):
         mdp_stats_num_episodes=args.mdp_stats_num_episodes,
     )
     state_action_values = task.dynamic_prog_estimation(
-        env_spec=env_spec, mdp=mdp, control_args=args.control_args
+        mdp=mdp, control_args=args.control_args
     )
     policy = policies.PyRandomPolicy(
         num_actions=mdp.env_desc().num_actions,
