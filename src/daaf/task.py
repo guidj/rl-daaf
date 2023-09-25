@@ -203,16 +203,9 @@ def create_generate_nstep_episodes_fn(
         """
         # Unroll one trajectory at a time
         for _ in range(num_episodes):
-            trajectory = []
-            for experience in envplay.generate_episodes(
-                environment, policy, num_episodes=1
+            for traj_step in mapper.apply(
+                envplay.generate_episodes(environment, policy, num_episodes=1)
             ):
-                trajectory.append(experience)
-            mapper.add(trajectory)
-            try:
-                yield mapper.next()
-            except StopIteration:
-                # only stop once there are no more new events
-                pass
+                yield traj_step
 
     return generate_nstep_episodes
