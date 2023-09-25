@@ -10,7 +10,7 @@ import abc
 import copy
 import dataclasses
 import logging
-from typing import Any, Callable, Iterable, List, Optional, Set, Tuple
+from typing import Any, Callable, Iterator, List, Optional, Set, Tuple
 
 import numpy as np
 from rlplg import core
@@ -20,29 +20,19 @@ from daaf import math_ops
 
 class TrajMapper(abc.ABC):
     """
-    Base class that provides an interface for modifying trajectory events.
-    Modifies a trajectory instance, and produces new ones.
+    Base class that provides an interface for modifying trajectory steps.
+    Modifies a trajectory.
     """
 
     @abc.abstractmethod
-    def add(self, trajs: Iterable[core.TrajectoryStep]) -> None:
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            trajs: A iterable of trajectories.
+            trajectory: A iterator of trajectory steps.
         """
-        del self, trajs
-        return NotImplemented
-
-    @abc.abstractmethod
-    def next(self) -> core.TrajectoryStep:
-        """
-        Returns:
-            The next trajectory step.
-
-        Raises:
-            StopIteration
-        """
-        del self
+        del self, trajectory
         return NotImplemented
 
 
@@ -51,28 +41,15 @@ class IdentifyMapper(TrajMapper):
     Makes no changes to the a trajectory.
     """
 
-    def __init__(self) -> None:
-        self._traj_step_buffer: List[core.TrajectoryStep] = []
-
-    def add(self, trajs: Iterable[core.TrajectoryStep]) -> None:
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            trajs: A iterable of trajectories.
+            trajectory: A iterator of trajectory steps.
         """
-        self._traj_step_buffer.extend(trajs)
-
-    def next(self) -> core.TrajectoryStep:
-        """
-        Returns:
-            The next trajectory step.
-
-        Raises:
-            StopIteration
-        """
-        try:
-            return self._traj_step_buffer.pop(0)
-        except IndexError as err:
-            raise StopIteration("Buffer is empty.") from err
+        for traj_step in trajectory:
+            yield traj_step
 
 
 class AverageRewardMapper(TrajMapper):
@@ -89,39 +66,28 @@ class AverageRewardMapper(TrajMapper):
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
-
         self.reward_period = reward_period
-        self._traj_step_buffer: List[core.TrajectoryStep] = []
-        self._mapped_traj_step_buffer: List[core.TrajectoryStep] = []
 
-    def add(self, trajs: Iterable[core.TrajectoryStep]) -> None:
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            trajs: A iterable of trajectories.
+            trajectory: A iterator of trajectory steps.
         """
-        self._traj_step_buffer.extend(trajs)
 
-        while len(self._traj_step_buffer) >= self.reward_period:
-            events = [self._traj_step_buffer.pop(0) for _ in range(self.reward_period)]
-            average_reward = np.sum([event.reward for event in events]) / np.array(
-                self.reward_period
-            )
-            self._mapped_traj_step_buffer.extend(
-                [dataclasses.replace(event, reward=average_reward) for event in events]
-            )
-
-    def next(self) -> core.TrajectoryStep:
-        """
-        Returns:
-            The next trajectory step.
-
-        Raises:
-            StopIteration
-        """
-        try:
-            return self._mapped_traj_step_buffer.pop(0)
-        except IndexError as err:
-            raise StopIteration("Buffer is empty.") from err
+        buffer: List[core.TrajectoryStep] = []
+        reward_sum = 0.0
+        for step, traj_step in enumerate(trajectory):
+            buffer.append(traj_step)
+            reward_sum += traj_step.reward
+            if (step + 1) % self.reward_period == 0:
+                average_reward = reward_sum / self.reward_period
+                for buffer_traj_step in buffer:
+                    yield dataclasses.replace(buffer_traj_step, reward=average_reward)
+                # reset
+                buffer.clear()
+                reward_sum = 0.0
 
 
 class ImputeMissingRewardMapper(TrajMapper):
@@ -146,38 +112,23 @@ class ImputeMissingRewardMapper(TrajMapper):
 
         self.reward_period = reward_period
         self.impute_value = impute_value
-        self._cu_reward_sum = 0.0
-        self._step_counter = 0
-        self._traj_step_buffer: List[core.TrajectoryStep] = []
 
-    def add(self, trajs: Iterable[core.TrajectoryStep]) -> None:
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            trajs: A iterable of trajectories.
+            trajectory: A iterator of trajectory steps.
         """
-        self._traj_step_buffer.extend(trajs)
+        reward_sum = 0.0
 
-    def next(self) -> core.TrajectoryStep:
-        """
-        Returns:
-            The next trajectory step.
-
-        Raises:
-            StopIteration
-        """
-        try:
-            traj = self._traj_step_buffer.pop(0)
-            self._step_counter += 1
-            self._cu_reward_sum += traj.reward
-            if self._step_counter % self.reward_period == 0:
-                reward = self._cu_reward_sum
-                # reset rewards
-                self._cu_reward_sum = 0.0
+        for step, traj_step in enumerate(trajectory):
+            reward_sum += traj_step.reward
+            if (step + 1) % self.reward_period == 0:
+                reward, reward_sum = reward_sum, 0.0
             else:
                 reward = self.impute_value
-            return dataclasses.replace(traj, reward=reward)
-        except IndexError as err:
-            raise StopIteration("Buffer is empty.") from err
+            yield dataclasses.replace(traj_step, reward=reward)
 
 
 class LeastSquaresAttributionMapper(TrajMapper):
@@ -237,42 +188,39 @@ class LeastSquaresAttributionMapper(TrajMapper):
         self._estimation_buffer = AbQueueBuffer(
             self.buffer_size, num_factors=num_factors
         )
-        self._traj_step_buffer: List[core.TrajectoryStep] = []
-        self._mapped_traj_step_buffer: List[core.TrajectoryStep] = []
+        # self._traj_step_buffer: List[core.TrajectoryStep] = []
+        # self._mapped_traj_step_buffer: List[core.TrajectoryStep] = []
         self.rtable = copy.deepcopy(init_rtable)
 
-        self._state_action_mask = np.zeros(
-            shape=(self.num_states, self.num_actions), dtype=np.float32
-        )
-        self._rewards = 0.0
-        self._period_steps = 0
-        self._steps = 0
-
-    def add(self, trajs: Iterable[core.TrajectoryStep]) -> None:
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            trajs: A iterable of trajectories.
+            trajectory: A iterator of trajectory steps.
         """
-        for traj in trajs:
-            state_id = self.state_id_fn(traj.observation)
-            action_id = self.action_id_fn(traj.action)
-            self._state_action_mask[state_id, action_id] += 1
-            self._rewards += traj.reward
-            self._period_steps += 1
+        state_action_mask = np.zeros(
+            shape=(self.num_states, self.num_actions), dtype=np.float32
+        )
+        rewards = 0.0
+
+        for step, traj_step in enumerate(trajectory):
+            state_id = self.state_id_fn(traj_step.observation)
+            action_id = self.action_id_fn(traj_step.action)
+            state_action_mask[state_id, action_id] += 1
+            rewards += traj_step.reward
             # snapshot rtable for the current traj
             rtable_snapshot = copy.deepcopy(self.rtable)
-            self._steps += 1
 
-            if self.num_updates == 0 and self._period_steps == self.reward_period:
+            if self.num_updates == 0 and (step + 1) % self.reward_period == 0:
                 # Grab info about event for reward estimation
-                matrix_entry = np.reshape(self._state_action_mask, newshape=[-1])
-                self._estimation_buffer.add(matrix_entry, rhs=self._rewards)
+                matrix_entry = np.reshape(state_action_mask, newshape=[-1])
+                self._estimation_buffer.add(matrix_entry, rhs=rewards)
                 # reset
-                self._state_action_mask = np.zeros(
+                state_action_mask = np.zeros(
                     shape=(self.num_states, self.num_actions), dtype=np.float32
                 )
-                self._rewards = 0.0
-                self._period_steps = 0
+                rewards = 0.0
 
             # Run estimation at the first possible moment,
             if (
@@ -300,22 +248,9 @@ class LeastSquaresAttributionMapper(TrajMapper):
                     # the computation failed, likely due to the matix being unsuitable (no solution).
                     logging.debug("Reward estimation failed: %s", err)
 
-            self._traj_step_buffer.append(
-                dataclasses.replace(traj, reward=rtable_snapshot[state_id, action_id])
+            yield dataclasses.replace(
+                traj_step, reward=rtable_snapshot[state_id, action_id]
             )
-
-    def next(self) -> core.TrajectoryStep:
-        """
-        Returns:
-            The next trajectory step.
-
-        Raises:
-            StopIteration
-        """
-        try:
-            return self._traj_step_buffer.pop(0)
-        except IndexError as err:
-            raise StopIteration("Buffer is empty.") from err
 
 
 class AbQueueBuffer:

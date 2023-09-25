@@ -35,14 +35,10 @@ def test_identity_mapper():
         traj_step(state=3, action=6, reward=-7.0, prob=0.2, truncated=True),
     ]
 
-    mapper.add(inputs)
-    outputs = [mapper.next() for _ in range(len(inputs))]
-
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 5
     for output, expected in zip(outputs, expectations):
         assert_trajectory(output=output, expected=expected)
-
-    with pytest.raises(StopIteration):
-        mapper.next()
 
 
 @hypothesis.given(reward_period=st.integers(min_value=2))
@@ -70,6 +66,8 @@ def test_average_reward_mapper():
         traj_step(state=1, action=1, reward=-7.0, prob=0.8),
         traj_step(state=0, action=0, reward=13.0, prob=0.1),
         traj_step(state=1, action=1, reward=-9.0, prob=0.2),
+        # skipped; falls within period
+        traj_step(state=2, action=2, reward=2.0, prob=0.2),
     ]
 
     expectactions = [
@@ -78,14 +76,11 @@ def test_average_reward_mapper():
         traj_step(state=0, action=0, reward=2.0, prob=0.1),
         traj_step(state=1, action=1, reward=2.0, prob=0.2),
     ]
-    mapper.add(inputs)
-    outputs = [mapper.next() for _ in range(len(inputs))]
 
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 4
     for output, expected in zip(outputs, expectactions):
         assert_trajectory(output=output, expected=expected)
-
-    with pytest.raises(StopIteration):
-        mapper.next()
 
 
 @hypothesis.given(
@@ -126,6 +121,7 @@ def test_impute_missing_reward_mapper():
         traj_step(state=1, action=1, reward=-7.0, prob=0.8),
         traj_step(state=0, action=0, reward=3.0, prob=0.3),
         traj_step(state=1, action=1, reward=6.0, prob=0.8, truncated=True),
+        traj_step(state=1, action=1, reward=11.0, prob=0.9, terminated=True),
     ]
 
     expectactions = [
@@ -133,11 +129,11 @@ def test_impute_missing_reward_mapper():
         traj_step(state=1, action=1, reward=-8.0, prob=0.8),
         traj_step(state=0, action=0, reward=0.0, prob=0.3),
         traj_step(state=1, action=1, reward=9.0, prob=0.8, truncated=True),
+        traj_step(state=1, action=1, reward=0.0, prob=0.9, terminated=True),
     ]
 
-    mapper.add(inputs)
-    outputs = [mapper.next() for _ in range(len(inputs))]
-
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 5
     for output, expected in zip(outputs, expectactions):
         assert_trajectory(output=output, expected=expected)
 
@@ -268,9 +264,8 @@ def test_least_squares_attribution_mapper():
         traj_step(state=1, action=1, reward=1.0, prob=1.0),
     ]
 
-    mapper.add(inputs)
-    outputs = [mapper.next() for _ in range(len(inputs))]
-
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 16
     for output, expected in zip(outputs, expectactions):
         # reward can only be approximately equal
         np.testing.assert_array_equal(output.observation, expected.observation)
@@ -279,9 +274,6 @@ def test_least_squares_attribution_mapper():
         np.testing.assert_array_almost_equal(output.reward, expected.reward)
         np.testing.assert_array_equal(output.terminated, expected.terminated)
         np.testing.assert_array_equal(output.truncated, expected.truncated)
-
-    with pytest.raises(StopIteration):
-        mapper.next()
 
 
 def test_counter_init():
