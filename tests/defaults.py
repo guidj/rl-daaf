@@ -1,13 +1,11 @@
 import copy
-from typing import Any, Optional, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
+import gymnasium as gym
 import numpy as np
-from tf_agents.environments import py_environment
-from tf_agents.policies import py_policy
-from tf_agents.specs import array_spec
-from tf_agents.trajectories import policy_step
-from tf_agents.trajectories import time_step as ts
-from tf_agents.typing.types import NestedArray, NestedArraySpec, Seed
+from gymnasium import spaces
+from rlplg import core
+from rlplg.core import InitState, ObsType, RenderType, TimeStep
 
 GRID_WIDTH = 5
 GRID_HEIGHT = 5
@@ -20,23 +18,7 @@ ACTOR_COLOR = (75, 25, 50)
 EXIT_COLOR = (255, 204, 0)
 
 
-class BasePyEnv(py_environment.PyEnvironment):
-    """
-    A base class for test environments.
-    """
-
-    def __init__(self, action_spec: NestedArraySpec, observation_spec: NestedArraySpec):
-        self._action_spec = action_spec
-        self._observation_spec = observation_spec
-
-    def observation_spec(self) -> NestedArraySpec:
-        return self._observation_spec
-
-    def action_spec(self) -> NestedArraySpec:
-        return self._action_spec
-
-
-class CountEnv(BasePyEnv):
+class CountEnv(gym.Env[np.ndarray, int]):
     """
     Choose between moving forward or stopping, until we reach 3, starting from zero.
         - States: 0, 1, 2, 3 (terminal)
@@ -59,26 +41,14 @@ class CountEnv(BasePyEnv):
     RIGHT_MOVE_REWARD = -1.0
 
     def __init__(self):
-        super().__init__(
-            action_spec=array_spec.BoundedArraySpec(
-                shape=(),
-                dtype=np.int32,
-                minimum=0,
-                maximum=1,
-                name="action",
-            ),
-            observation_spec=array_spec.BoundedArraySpec(
-                shape=(),
-                dtype=np.int32,
-                minimum=0,
-                name="observation",
-            ),
-        )
-        # env specific
-        self._observation: Optional[np.ndarray] = None
-        self._seed = None
+        self.action_space = spaces.Box(low=0, high=1, dtype=np.int64)
+        self.observation_space = spaces.Box(low=0, dtype=np.int64)
 
-    def _step(self, action: NestedArray) -> ts.TimeStep:
+        # env specific
+        self._observation: np.ndarray = np.empty(shape=(0,))
+        self._seed: Optional[int] = None
+
+    def step(self, action: int) -> TimeStep:
         """Updates the environment according to action and returns a `TimeStep`.
 
         See `step(self, action)` docstring for more details.
@@ -94,7 +64,7 @@ class CountEnv(BasePyEnv):
             reward = self.WRONG_MOVE_REWARD
         elif action == 1:
             new_obs = np.array(
-                np.min([self._observation + 1, self.MAX_VALUE]), np.int32
+                np.min([self._observation + 1, self.MAX_VALUE]), np.int64
             )
             reward = self.RIGHT_MOVE_REWARD
         else:
@@ -106,24 +76,40 @@ class CountEnv(BasePyEnv):
 
         self._observation = new_obs
         finished = np.array_equal(new_obs, self.MAX_VALUE)
-        if finished:
-            return ts.termination(
-                observation=copy.deepcopy(self._observation), reward=reward
-            )
-        return ts.transition(
-            observation=copy.deepcopy(self._observation), reward=reward
-        )
+        return copy.deepcopy(self._observation), reward, finished, False, {}
 
-    def _reset(self) -> ts.TimeStep:
+    def reset(
+        self, *, seed: Optional[int] = None, options: Optional[Mapping[str, Any]] = None
+    ) -> InitState:
         """Starts a new sequence, returns the first `TimeStep` of this sequence.
 
         See `reset(self)` docstring for more details
         """
-        self._observation = np.array(0, np.int32)
-        return ts.restart(observation=self._observation)
+        del options
+        self.seed(seed)
+        self._observation = np.array(0, np.int64)
+        return copy.deepcopy(self._observation), {}
+
+    def render(self) -> RenderType:
+        """
+        Renders a view of the environment's current
+        state.
+        """
+        if self.render_mode == "rgb_array":
+            return copy.deepcopy(self._observation)
+        return super().render()
+
+    def seed(self, seed: Optional[int] = None) -> Any:
+        """
+        Sets a seed, if defined.
+        """
+        if seed is not None:
+            self._seed = seed
+            np.random.seed(seed)
+        return self._seed
 
 
-class SingleStateEnv(BasePyEnv):
+class SingleStateEnv(gym.Env[Mapping[str, Any], int]):
     """
     An environment that remains in a perpetual state.
     """
@@ -131,28 +117,14 @@ class SingleStateEnv(BasePyEnv):
     def __init__(self, num_actions: int):
         assert num_actions > 0, "`num_actios` must be positive."
         self.num_actions = num_actions
-        super().__init__(
-            action_spec=array_spec.BoundedArraySpec(
-                shape=(),
-                dtype=np.int32,
-                minimum=0,
-                maximum=num_actions,
-                name="action",
-            ),
-            observation_spec=array_spec.BoundedArraySpec(
-                shape=(),
-                dtype=np.int32,
-                minimum=0,
-                maximum=0,
-                name="observation",
-            ),
-        )
+        self.action_space = spaces.Box(low=0, high=num_actions, dtype=np.int64)
+        self.observation_space = spaces.Box(low=0, high=0, dtype=np.int64)
 
         # env specific
         self._observation: Optional[np.ndarray] = None
         self._seed = None
 
-    def _step(self, action: NestedArray) -> ts.TimeStep:
+    def step(self, action: int) -> TimeStep:
         """Updates the environment according to action and returns a `TimeStep`.
 
         See `step(self, action)` docstring for more details.
@@ -165,53 +137,82 @@ class SingleStateEnv(BasePyEnv):
         # none
         if not (0 <= action < self.num_actions):
             raise ValueError(f"Unknown action {action}")
-        return ts.transition(observation=copy.deepcopy(self._observation), reward=0.0)
+        return copy.deepcopy(self._observation), 0.0, False, False, {}
 
-    def _reset(self) -> ts.TimeStep:
+    def reset(
+        self, *, seed: Optional[int] = None, options: Optional[Mapping[str, Any]] = None
+    ) -> InitState:
         """Starts a new sequence, returns the first `TimeStep` of this sequence.
 
         See `reset(self)` docstring for more details
         """
-        self._observation = np.array(0, np.int32)
-        return ts.restart(observation=self._observation)
+        del options
+        self.seed(seed)
+        self._observation = np.array(0, np.int64)
+        return copy.deepcopy(self._observation), {}
+
+    def render(self) -> RenderType:
+        """
+        Renders a view of the environment's current
+        state.
+        """
+        if self.render_mode == "rgb_array":
+            return copy.deepcopy(self._observation)
+        return super().render()
+
+    def seed(self, seed: Optional[int] = None) -> Any:
+        """
+        Sets a seed, if defined.
+        """
+        if seed is not None:
+            self._seed = seed
+            np.random.seed(seed)
+        return self._seed
 
 
-class RoundRobinActionsPolicy(py_policy.PyPolicy):
+class RoundRobinActionsPolicy(core.PyPolicy):
     """
     Chooses a sequence of actions provided in the constructor, forever.
     """
 
     def __init__(
         self,
-        time_step_spec: ts.TimeStep,
-        action_spec: NestedArraySpec,
         actions: Sequence[Any],
     ):
-        super().__init__(time_step_spec, action_spec)
         self._counter = 0
         self._actions = actions
         self._iterator = iter(actions)
         self.emit_log_probability = True
 
-    def _action(
+    def get_initial_state(self, batch_size: Optional[int] = None) -> Any:
+        del batch_size
+        return ()
+
+    def action(
         self,
-        time_step: ts.TimeStep,
-        policy_state: NestedArray,
-        seed: Optional[Seed] = None,
-    ) -> policy_step.PolicyStep:
+        observation: ObsType,
+        policy_state: Any = (),
+        seed: Optional[int] = None,
+    ) -> core.PolicyStep:
         """
-        Takes the current time step (which includes the environment feedback)
+        Takes the current time step.
         """
-        del time_step, policy_state, seed
-        state, info = (), policy_step.PolicyInfo(log_probability=np.math.log(0.5))
+        del observation
+        if self.emit_log_probability:
+            policy_info = {"log_probability": np.array(np.log(1.0), dtype=np.float32)}
+        else:
+            policy_info = {}
 
         try:
             action = next(self._iterator)
         except StopIteration:
             self._iterator = iter(self._actions)
             action = next(self._iterator)
-
-        return policy_step.PolicyStep(np.array(action, dtype=np.int32), state, info)
+        return core.PolicyStep(
+            action=action,
+            state=policy_state,
+            info=policy_info,
+        )
 
 
 def identity(value: Any) -> Any:
@@ -232,7 +233,7 @@ def item(value: np.ndarray) -> Any:
     return value
 
 
-def batch(*args: Any):
+def array(*args: Any):
     """
     Collects a sequence of values into an np.ndarray.
     """
@@ -243,25 +244,3 @@ def batch(*args: Any):
     if isinstance(sample, int):
         return np.array(args, dtype=np.int32)
     return np.array(args)
-
-
-def policy_info(log_probability: float):
-    """
-    Creates a policy_step.PolicyInfo instance from a given log_probability.
-    """
-    return policy_step.PolicyInfo(log_probability=log_probability)
-
-
-def log_prob_policy_info_spec() -> array_spec.BoundedArraySpec:
-    """
-    Creates policy_step.PolicyInfo spec.
-    """
-    return policy_step.PolicyInfo(
-        log_probability=array_spec.BoundedArraySpec(
-            shape=(),
-            dtype=np.float32,
-            maximum=0,
-            minimum=-float("inf"),
-            name="log_probability",
-        )
-    )

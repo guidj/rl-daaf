@@ -8,33 +8,31 @@ They can process batched transitions, but emit them as single events.
 
 import abc
 import copy
+import dataclasses
 import logging
-from typing import Any, Callable, Generator, List, Optional, Set, Tuple
+from typing import Any, Callable, Iterator, List, Optional, Set, Tuple
 
 import numpy as np
-from rlplg import envplay
-from tf_agents.trajectories import trajectory
+from rlplg import core
 
 from daaf import math_ops
 
 
 class TrajMapper(abc.ABC):
     """
-    Base class that provides an interface for modifying trajectory events.
-    Modifies a trajectory instance, and produces new ones.
+    Base class that provides an interface for modifying trajectory steps.
+    Modifies a trajectory.
     """
 
     @abc.abstractmethod
     def apply(
-        self, traj: trajectory.Trajectory
-    ) -> Generator[trajectory.Trajectory, None, None]:
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            traj: A `trajectory.Trajectory` instance.
-        Yields:
-            A modified trajectory.
+            trajectory: A iterator of trajectory steps.
         """
-        del self, traj
+        del self, trajectory
         return NotImplemented
 
 
@@ -44,35 +42,14 @@ class IdentifyMapper(TrajMapper):
     """
 
     def apply(
-        self, traj: trajectory.Trajectory
-    ) -> Generator[trajectory.Trajectory, None, None]:
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            traj: A `trajectory.Trajectory` instance.
-
-        Yields:
-            The input trajectory.
+            trajectory: A iterator of trajectory steps.
         """
-        yield traj
-
-
-class SingleStepMapper(TrajMapper):
-    """
-    Unbatches an `trajectory.Trajectory` into single steps.
-    """
-
-    def apply(
-        self, traj: trajectory.Trajectory
-    ) -> Generator[trajectory.Trajectory, None, None]:
-        """
-        Args:
-            traj: A `trajectory.Trajectory` instance.
-
-        Yields:
-            Individual steps from a batched trajectory.
-        """
-        del self
-        yield from envplay.unroll_trajectory(traj)
+        for traj_step in trajectory:
+            yield traj_step
 
 
 class AverageRewardMapper(TrajMapper):
@@ -89,32 +66,28 @@ class AverageRewardMapper(TrajMapper):
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
-
         self.reward_period = reward_period
-        self._event_buffer: List[trajectory.Trajectory] = list()
 
     def apply(
-        self, traj: trajectory.Trajectory
-    ) -> Generator[trajectory.Trajectory, None, None]:
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            traj: A `trajectory.Trajectory` instance.
-
-        Yields:
-            Steps of the trajectory with the reward averaged across the `reward_period`.
+            trajectory: A iterator of trajectory steps.
         """
-        # Append events to buffer
-        for single_step_traj in envplay.unroll_trajectory(traj):
-            self._event_buffer.append(single_step_traj)
 
-        # Yield new events with average reward
-        while len(self._event_buffer) >= self.reward_period:
-            events = [self._event_buffer.pop(0) for _ in range(self.reward_period)]
-            average_reward = np.sum(
-                [event.reward for event in events], dtype=traj.reward.dtype
-            ) / np.array(self.reward_period, dtype=traj.reward.dtype)
-            for event in events:
-                yield event.replace(reward=average_reward)
+        buffer: List[core.TrajectoryStep] = []
+        reward_sum = 0.0
+        for step, traj_step in enumerate(trajectory):
+            buffer.append(traj_step)
+            reward_sum += traj_step.reward
+            if (step + 1) % self.reward_period == 0:
+                average_reward = reward_sum / self.reward_period
+                for buffer_traj_step in buffer:
+                    yield dataclasses.replace(buffer_traj_step, reward=average_reward)
+                # reset
+                buffer.clear()
+                reward_sum = 0.0
 
 
 class ImputeMissingRewardMapper(TrajMapper):
@@ -139,68 +112,23 @@ class ImputeMissingRewardMapper(TrajMapper):
 
         self.reward_period = reward_period
         self.impute_value = impute_value
-        self._cu_reward_sum = 0.0
-        self._step_counter = 0
 
     def apply(
-        self, traj: trajectory.Trajectory
-    ) -> Generator[trajectory.Trajectory, None, None]:
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            traj: A `trajectory.Trajectory` instance.
-
-        Yields:
-            Steps of the trajectory with `impute_value` as the reward
-            for steps where the cumulative reward isn't generated.
+            trajectory: A iterator of trajectory steps.
         """
-        for single_step_traj in envplay.unroll_trajectory(traj):
-            self._step_counter += 1
-            self._cu_reward_sum += single_step_traj.reward
-            if self._step_counter % self.reward_period == 0:
-                reward = np.array(self._cu_reward_sum, dtype=traj.reward.dtype)
-                # reset rewards
-                self._cu_reward_sum = 0.0
+        reward_sum = 0.0
+
+        for step, traj_step in enumerate(trajectory):
+            reward_sum += traj_step.reward
+            if (step + 1) % self.reward_period == 0:
+                reward, reward_sum = reward_sum, 0.0
             else:
-                reward = np.array(self.impute_value, dtype=traj.reward.dtype)
-            yield single_step_traj.replace(reward=reward)
-
-
-class SkipMissingRewardMapper(TrajMapper):
-    """
-    Returns the k-th event with a cumulative reward.
-    """
-
-    def __init__(self, reward_period: int):
-        """
-        Args:
-            reward_period: the interval for cumulative rewards.
-        """
-        if reward_period < 1:
-            raise ValueError(f"Reward period must be positive. Got {reward_period}.")
-        self.reward_period = reward_period
-        self._event_buffer: List[trajectory.Trajectory] = list()
-
-    def apply(
-        self, traj: trajectory.Trajectory
-    ) -> Generator[trajectory.Trajectory, None, None]:
-        """
-        Args:
-            traj: A `trajectory.Trajectory` instance.
-
-        Yields:
-            Steps of the trajectory where the cumulative reward
-            is generated.
-        """
-        for single_step_traj in envplay.unroll_trajectory(traj):
-            self._event_buffer.append(single_step_traj)
-        while len(self._event_buffer) >= self.reward_period:
-            # accumulate earliest K events, and emit last event
-            events = [self._event_buffer.pop(0) for _ in range(self.reward_period)]
-            cumulative_reward = np.sum([event.reward for event in events])
-            last_event = events[-1]
-            events[-1] = last_event.replace(reward=cumulative_reward)
-            for event in events:
-                yield event
+                reward = self.impute_value
+            yield dataclasses.replace(traj_step, reward=reward)
 
 
 class LeastSquaresAttributionMapper(TrajMapper):
@@ -260,50 +188,41 @@ class LeastSquaresAttributionMapper(TrajMapper):
         self._estimation_buffer = AbQueueBuffer(
             self.buffer_size, num_factors=num_factors
         )
-        self._event_buffer: List[trajectory.Trajectory] = list()
+        # self._traj_step_buffer: List[core.TrajectoryStep] = []
+        # self._mapped_traj_step_buffer: List[core.TrajectoryStep] = []
         self.rtable = copy.deepcopy(init_rtable)
 
-        self._state_action_mask = np.zeros(
-            shape=(self.num_states, self.num_actions), dtype=np.float32
-        )
-        self._rewards = 0.0
-        self._period_steps = 0
-        self._steps = 0
-
     def apply(
-        self, traj: trajectory.Trajectory
-    ) -> Generator[trajectory.Trajectory, None, None]:
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Args:
-            traj: A `trajectory.Trajectory` instance.
-
-        Yields:
-            Steps of the trajectory with the rewards replaced by
-            their estimated value.
+            trajectory: A iterator of trajectory steps.
         """
-        for step_traj in envplay.unroll_trajectory(traj):
-            # for step in range(steps):
-            state_id = self.state_id_fn(step_traj.observation)
-            action_id = self.action_id_fn(step_traj.action)
-            self._state_action_mask[state_id, action_id] += 1
-            self._rewards += step_traj.reward
-            self._period_steps += 1
+        state_action_mask = np.zeros(
+            shape=(self.num_states, self.num_actions), dtype=np.float32
+        )
+        rewards = 0.0
+
+        for step, traj_step in enumerate(trajectory):
+            state_id = self.state_id_fn(traj_step.observation)
+            action_id = self.action_id_fn(traj_step.action)
+            state_action_mask[state_id, action_id] += 1
+            rewards += traj_step.reward
             # snapshot rtable for the current traj
             rtable_snapshot = copy.deepcopy(self.rtable)
-            self._steps += 1
 
-            if self.num_updates == 0 and self._period_steps == self.reward_period:
+            if self.num_updates == 0 and (step + 1) % self.reward_period == 0:
                 # Grab info about event for reward estimation
-                matrix_entry = np.reshape(self._state_action_mask, newshape=[-1])
-                self._estimation_buffer.add(matrix_entry, rhs=self._rewards)
+                matrix_entry = np.reshape(state_action_mask, newshape=[-1])
+                self._estimation_buffer.add(matrix_entry, rhs=rewards)
                 # reset
-                self._state_action_mask = np.zeros(
+                state_action_mask = np.zeros(
                     shape=(self.num_states, self.num_actions), dtype=np.float32
                 )
-                self._rewards = 0.0
-                self._period_steps = 0
+                rewards = 0.0
 
-            # First time, just run estimation
+            # Run estimation at the first possible moment,
             if (
                 self.num_updates == 0
                 and not self._estimation_buffer.empty
@@ -329,14 +248,8 @@ class LeastSquaresAttributionMapper(TrajMapper):
                     # the computation failed, likely due to the matix being unsuitable (no solution).
                     logging.debug("Reward estimation failed: %s", err)
 
-            yield trajectory.Trajectory(
-                step_type=step_traj.step_type,
-                observation=step_traj.observation,
-                action=step_traj.action,
-                policy_info=step_traj.policy_info,
-                next_step_type=step_traj.next_step_type,
-                reward=rtable_snapshot[state_id, action_id],
-                discount=step_traj.discount,
+            yield dataclasses.replace(
+                traj_step, reward=rtable_snapshot[state_id, action_id]
             )
 
 

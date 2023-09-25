@@ -31,4 +31,6 @@ pytest-cov==3.0.0
 sortedcontainers==2.4.0
     # via hypothesis
 tomli==2.0.1
-    # via pytest
+    # via
+    #   coverage
+    #   pytest

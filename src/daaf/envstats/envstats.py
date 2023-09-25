@@ -107,8 +107,6 @@ def generate_mdp_stats(
     Computes MDP stats for an environment using a random policy.
     """
     policy = policies.PyRandomPolicy(
-        time_step_spec=env_spec.environment.time_step_spec(),
-        action_spec=env_spec.environment.action_spec(),
         num_actions=env_spec.env_desc.num_actions,
     )
     return empiricmdp.collect_mdp_stats(
