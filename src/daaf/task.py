@@ -6,16 +6,17 @@ import argparse
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Mapping, Optional, Tuple
+from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Tuple
 
 import gymnasium as gym
 import numpy as np
 from rlplg import core, envplay, envspec, envsuite, runtime
 from rlplg.learning import utils
+from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import dynamicprog, markovdp, policies
+from rlplg.learning.tabular.evaluation import onpolicy
 
 from daaf import constants, progargs, replay_mapper
-from daaf.envstats import envstats
 
 
 @dataclasses.dataclass(frozen=True)
@@ -59,8 +60,6 @@ def parse_args() -> progargs.ExperimentArgs:
     arg_parser.add_argument("--buffer-size", type=int, default=None)
     arg_parser.add_argument("--buffer-size-multiplier", type=int, default=None)
     arg_parser.add_argument("--log-episode-frequency", type=int, default=1)
-    arg_parser.add_argument("--mdp-stats-path", type=str, default=None)
-    arg_parser.add_argument("--mdp-stats-num-episodes", type=int, default=None)
 
     known_args, _ = arg_parser.parse_known_args()
     mutable_args = vars(known_args)
@@ -79,24 +78,64 @@ def parse_args() -> progargs.ExperimentArgs:
     )
 
 
-def create_env_spec_and_mdp(
+def run_fn(
+    policy: policies.PyQGreedyPolicy,
+    env_spec: envspec.EnvSpec,
+    num_episodes: int,
+    algorithm: str,
+    initial_state_values: np.ndarray,
+    control_args: progargs.ControlArgs,
+    generate_steps_fn: Callable[
+        [gym.Env, core.PyPolicy, int],
+        Generator[core.TrajectoryStep, None, None],
+    ],
+) -> Iterator[Tuple[int, np.ndarray]]:
+    """
+    Runs policy evaluation with given algorithm, env, and policy spec.
+    """
+    if algorithm == constants.ONE_STEP_TD:
+        results = onpolicy.one_step_td_state_values(
+            policy=policy,
+            environment=env_spec.environment,
+            num_episodes=num_episodes,
+            lrs=schedules.LearningRateSchedule(
+                initial_learning_rate=control_args.alpha,
+                schedule=constant_learning_rate,
+            ),
+            gamma=control_args.gamma,
+            state_id_fn=env_spec.discretizer.state,
+            initial_values=initial_state_values,
+            generate_episodes=generate_steps_fn,
+        )
+    elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
+        results = onpolicy.first_visit_monte_carlo_state_values(
+            policy=policy,
+            environment=env_spec.environment,
+            num_episodes=num_episodes,
+            gamma=control_args.gamma,
+            state_id_fn=env_spec.discretizer.state,
+            initial_values=initial_state_values,
+            generate_episodes=generate_steps_fn,
+        )
+    else:
+        raise ValueError(f"Unsupported algorithm {algorithm}")
+
+    return results
+
+
+def create_env_spec(
     problem: str,
     env_args: Mapping[str, Any],
-    mdp_stats_path: str,
-    mdp_stats_num_episodes: Optional[int],
-) -> Tuple[envspec.EnvSpec, markovdp.MDP]:
+) -> envspec.EnvSpec:
     """
-    Creates a environment spec and MDP for a problem.
+    Creates a environment spec for a problem.
 
     Args:
         problem: problem name.
         args: mapping of experiment parameters.
     """
-    env_spec = envsuite.load(name=problem, **env_args)
-    mdp = envstats.load_or_generate_inferred_mdp(
-        path=mdp_stats_path, env_spec=env_spec, num_episodes=mdp_stats_num_episodes
-    )
-    return env_spec, mdp
+
+    return envsuite.load(name=problem, **env_args)
 
 
 def dynamic_prog_estimation(
@@ -209,3 +248,19 @@ def create_generate_nstep_episodes_fn(
                 yield traj_step
 
     return generate_nstep_episodes
+
+
+def constant_learning_rate(initial_lr: float, episode: int, step: int):
+    """
+    Returns the initial learning rate.
+    """
+    del episode
+    del step
+    return initial_lr
+
+
+def noop_replay_mapper() -> replay_mapper.TrajMapper:
+    """
+    A no-op trajectory mapper.
+    """
+    return replay_mapper.IdentifyMapper()

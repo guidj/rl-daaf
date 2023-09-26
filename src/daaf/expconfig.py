@@ -32,8 +32,6 @@ class ExperimentConfig:
     env_name: str
     level: str
     env_args: Mapping[str, Any]
-    mdp_stats_path: str
-    mdp_stats_num_episodes: int
     daaf_config: DaafConfig
     tags: Sequence[str]
 
@@ -116,8 +114,6 @@ def create_experiment_runs_from_configs(
                 num_episodes=num_episodes,
                 algorithm=algorithm,
                 log_episode_frequency=10,
-                mdp_stats_path=config.mdp_stats_path,
-                mdp_stats_num_episodes=config.mdp_stats_num_episodes,
                 daaf_args=daaf_args,
                 control_args=control_args,
                 env_args=config.env_args,

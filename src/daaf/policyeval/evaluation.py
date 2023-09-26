@@ -23,11 +23,9 @@ from typing import Optional, Set
 
 import numpy as np
 from rlplg import envspec, metrics, tracking
-from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import policies
-from rlplg.learning.tabular.evaluation import onpolicy
 
-from daaf import constants, progargs, task
+from daaf import progargs, constants, task
 
 
 def daaf_policy_evalution(
@@ -40,7 +38,6 @@ def daaf_policy_evalution(
     num_actions: int,
     control_args: progargs.ControlArgs,
     daaf_args: progargs.DaafArgs,
-    ref_state_values: np.ndarray,
     output_dir: str,
     log_episode_frequency: int,
 ) -> None:
@@ -55,7 +52,6 @@ def daaf_policy_evalution(
         num_actions: number of actions in the problem.
         control_args: algorithm arguments, e.g. discount factor.
         daaf_args: configuration of cumulative rewards, e.g. rewad period.
-        ref_state_values: the known value of the policy, to compare with the estimate.
         output_dir: a path to write execution logs.
         log_episode_frequency: frequency for writing execution logs.
     """
@@ -70,42 +66,45 @@ def daaf_policy_evalution(
             daaf_args.buffer_size_multiplier,
         ),
     )
-    generate_steps_fn = task.create_generate_nstep_episodes_fn(mapper=traj_mapper)
 
     logging.info("Starting DAAF Evaluation")
 
-    # Policy Eval with DAAF
-    if algorithm == constants.ONE_STEP_TD:
-        results = onpolicy.one_step_td_state_values(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            lrs=schedules.LearningRateSchedule(
-                initial_learning_rate=control_args.alpha,
-                schedule=constant_learning_rate,
-            ),
-            gamma=control_args.gamma,
-            state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_values(
-                num_states=num_states,
-            ),
-            generate_episodes=generate_steps_fn,
-        )
-    elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
-        results = onpolicy.first_visit_monte_carlo_state_values(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            gamma=control_args.gamma,
-            state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_values(
-                num_states=num_states,
-            ),
-            generate_episodes=generate_steps_fn,
-        )
-    else:
-        raise ValueError(f"Unsupported algorithm {algorithm}")
+    ref_results = task.run_fn(
+        policy=policy,
+        env_spec=env_spec,
+        num_episodes=100,
+        # max(num_episodes, constants.DEFAULT_NUM_EPISODES_FOR_REF_ESTIMATION),
+        algorithm=algorithm,
+        initial_state_values=initial_values(num_states),
+        control_args=control_args,
+        generate_steps_fn=task.create_generate_nstep_episodes_fn(
+            mapper=task.noop_replay_mapper()
+        ),
+    )
 
+    # Run eval to get ref state values
+    ref_state_values: Optional[np.ndarray] = None
+    for episode, (steps, ref_state_values) in enumerate(ref_results):
+        if episode % 1000 == 0:
+            logging.info(
+                "Task %s, Reference run, Episode %d: %d steps",
+                run_id,
+                episode,
+                steps,
+            )
+
+    logging.info("Reference state-values estimation completed: %s", ref_state_values)
+
+    # Policy Eval with DAAF
+    results = task.run_fn(
+        policy=policy,
+        env_spec=env_spec,
+        num_episodes=num_episodes,
+        algorithm=algorithm,
+        initial_state_values=initial_values(num_states),
+        control_args=control_args,
+        generate_steps_fn=task.create_generate_nstep_episodes_fn(mapper=traj_mapper),
+    )
     with tracking.ExperimentLogger(
         output_dir,
         name=f"qpolicy/daaf/mapper-{daaf_args.cu_step_mapper}",
@@ -115,6 +114,7 @@ def daaf_policy_evalution(
             "gamma": control_args.gamma,
             "epsilon": control_args.epsilon,
             "buffer_size": daaf_args.buffer_size_multiplier,
+            "reference_state_values": ref_state_values.tolist(),
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
@@ -167,17 +167,12 @@ def main(args: progargs.ExperimentArgs):
         args: configuration for execution.
     """
     # init env and agent
-    env_spec, mdp = task.create_env_spec_and_mdp(
+    env_spec = task.create_env_spec(
         problem=args.env_name,
         env_args=args.env_args,
-        mdp_stats_path=args.mdp_stats_path,
-        mdp_stats_num_episodes=args.mdp_stats_num_episodes,
-    )
-    state_action_values = task.dynamic_prog_estimation(
-        mdp=mdp, control_args=args.control_args
     )
     policy = policies.PyRandomPolicy(
-        num_actions=mdp.env_desc().num_actions,
+        num_actions=env_spec.env_desc.num_actions,
         emit_log_probability=True,
     )
     daaf_policy_evalution(
@@ -186,29 +181,19 @@ def main(args: progargs.ExperimentArgs):
         env_spec=env_spec,
         num_episodes=args.num_episodes,
         algorithm=args.algorithm,
-        num_states=mdp.env_desc().num_states,
-        num_actions=mdp.env_desc().num_actions,
+        num_states=env_spec.env_desc.num_states,
+        num_actions=env_spec.env_desc.num_actions,
         control_args=args.control_args,
         daaf_args=args.daaf_args,
-        ref_state_values=state_action_values.state_values,
         output_dir=args.output_dir,
         log_episode_frequency=args.log_episode_frequency,
     )
     env_spec.environment.close()
 
 
-def constant_learning_rate(initial_lr: float, episode: int, step: int):
-    """
-    Returns the initial learning rate.
-    """
-    del episode
-    del step
-    return initial_lr
-
-
 def initial_values(
     num_states: int,
-    dtype: np.dtype = np.float32,
+    dtype: np.dtype = np.float64,
     random: bool = False,
     terminal_states: Optional[Set[int]] = None,
 ) -> np.ndarray:

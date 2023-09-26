@@ -74,8 +74,6 @@ class ExperimentArgs:
     num_episodes: int
     algorithm: str
     log_episode_frequency: int
-    mdp_stats_path: str
-    mdp_stats_num_episodes: Optional[int]
 
     @staticmethod
     def from_flat_dict(args: Mapping[str, Any]) -> "ExperimentArgs":
