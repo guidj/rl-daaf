@@ -22,10 +22,10 @@ import logging
 from typing import Optional, Set
 
 import numpy as np
-from rlplg import envspec, metrics, tracking
+from rlplg import envspec, tracking
 from rlplg.learning.tabular import policies
 
-from daaf import progargs, constants, task
+from daaf import progargs, task
 
 
 def daaf_policy_evalution(
@@ -67,35 +67,8 @@ def daaf_policy_evalution(
         ),
     )
 
-    logging.info("Starting DAAF Evaluation")
-
-    ref_results = task.run_fn(
-        policy=policy,
-        env_spec=env_spec,
-        num_episodes=100,
-        # max(num_episodes, constants.DEFAULT_NUM_EPISODES_FOR_REF_ESTIMATION),
-        algorithm=algorithm,
-        initial_state_values=initial_values(num_states),
-        control_args=control_args,
-        generate_steps_fn=task.create_generate_nstep_episodes_fn(
-            mapper=task.noop_replay_mapper()
-        ),
-    )
-
-    # Run eval to get ref state values
-    ref_state_values: Optional[np.ndarray] = None
-    for episode, (steps, ref_state_values) in enumerate(ref_results):
-        if episode % 1000 == 0:
-            logging.info(
-                "Task %s, Reference run, Episode %d: %d steps",
-                run_id,
-                episode,
-                steps,
-            )
-
-    logging.info("Reference state-values estimation completed: %s", ref_state_values)
-
     # Policy Eval with DAAF
+    logging.info("Starting DAAF Evaluation")
     results = task.run_fn(
         policy=policy,
         env_spec=env_spec,
@@ -114,30 +87,16 @@ def daaf_policy_evalution(
             "gamma": control_args.gamma,
             "epsilon": control_args.epsilon,
             "buffer_size": daaf_args.buffer_size_multiplier,
-            "reference_state_values": ref_state_values.tolist(),
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
         for episode, (steps, state_values) in enumerate(results):
-            rmse = metrics.rmse(pred=state_values, actual=ref_state_values)
-            rmsle = metrics.rmsle(
-                pred=state_values, actual=ref_state_values, translate=True
-            )
-            mean_error = metrics.mean_error(pred=state_values, actual=ref_state_values)
-            pearson_corr, _ = metrics.pearson_correlation(
-                pred=state_values, actual=ref_state_values
-            )
-            spearman_corr, _ = metrics.spearman_correlation(
-                pred=state_values, actual=ref_state_values
-            )
             if episode % log_episode_frequency == 0:
                 logging.info(
-                    "Task %s, Episode %d: %d steps, %f RMSLE, %f RMSE",
+                    "Task %s, Episode %d: %d steps",
                     run_id,
                     episode,
                     steps,
-                    rmsle,
-                    rmse,
                 )
                 exp_logger.log(
                     episode=episode,
@@ -145,15 +104,9 @@ def daaf_policy_evalution(
                     returns=0.0,
                     metadata={
                         "qtable": state_values.tolist(),
-                        "rmse": str(rmse),
-                        "rmsle": str(rmsle),
-                        "mean_error": str(mean_error),
-                        "pearson_corr": str(pearson_corr),
-                        "spearman_corr": str(spearman_corr),
                     },
                 )
         try:
-            logging.info("\nBaseline values\n%s", ref_state_values)
             logging.info("\nEstimated values\n%s", state_values)
         except NameError:
             logging.info("Zero episodes!")
