@@ -59,7 +59,7 @@ def daaf_policy_evalution(
         output_dir: a path to write execution logs.
         log_episode_frequency: frequency for writing execution logs.
     """
-    mapper_fn = task.create_aggregate_reward_step_mapper_fn(
+    traj_mapper = task.create_aggregate_reward_step_mapper_fn(
         env_spec=env_spec,
         num_states=num_states,
         num_actions=num_actions,
@@ -70,7 +70,7 @@ def daaf_policy_evalution(
             daaf_args.buffer_size_multiplier,
         ),
     )
-    generate_steps_fn = task.create_generate_nstep_episodes_fn(mapper=mapper_fn)
+    generate_steps_fn = task.create_generate_nstep_episodes_fn(mapper=traj_mapper)
 
     logging.info("Starting DAAF Evaluation")
 
