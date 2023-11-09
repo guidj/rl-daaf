@@ -166,8 +166,6 @@ def dynamic_prog_estimation(
 
 def create_aggregate_reward_step_mapper_fn(
     env_spec: envspec.EnvSpec,
-    num_states: int,
-    num_actions: int,
     reward_period: int,
     cu_step_method: str,
     buffer_size_or_multiplier: Tuple[Optional[int], Optional[int]],
@@ -195,19 +193,20 @@ def create_aggregate_reward_step_mapper_fn(
     elif cu_step_method == constants.REWARD_ESTIMATION_LSQ_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(
-            num_states
-            * num_actions
+            env_spec.env_desc.num_states
+            * env_spec.env_desc.num_actions
             * (_buffer_size_mult or constants.DEFAULT_BUFFER_SIZE_MULTIPLIER)
         )
         mapper = replay_mapper.LeastSquaresAttributionMapper(
-            num_states=num_states,
-            num_actions=num_actions,
+            num_states=env_spec.env_desc.num_states,
+            num_actions=env_spec.env_desc.num_actions,
             reward_period=reward_period,
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
             buffer_size=buffer_size,
             init_rtable=utils.initial_table(
-                num_states=num_states, num_actions=num_actions
+                num_states=env_spec.env_desc.num_states,
+                num_actions=env_spec.env_desc.num_actions,
             ),
         )
     else:

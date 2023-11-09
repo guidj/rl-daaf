@@ -34,8 +34,6 @@ def daaf_policy_evalution(
     env_spec: envspec.EnvSpec,
     num_episodes: int,
     algorithm: str,
-    num_states: int,
-    num_actions: int,
     control_args: progargs.ControlArgs,
     daaf_args: progargs.DaafArgs,
     output_dir: str,
@@ -49,7 +47,6 @@ def daaf_policy_evalution(
         policy: a policy to be estimated.
         env_spec: configuration of the environment, and state/action mapping functions.
         num_episodes: number of episodes to estimate the policy.
-        num_actions: number of actions in the problem.
         control_args: algorithm arguments, e.g. discount factor.
         daaf_args: configuration of cumulative rewards, e.g. rewad period.
         output_dir: a path to write execution logs.
@@ -57,8 +54,6 @@ def daaf_policy_evalution(
     """
     traj_mapper = task.create_aggregate_reward_step_mapper_fn(
         env_spec=env_spec,
-        num_states=num_states,
-        num_actions=num_actions,
         reward_period=daaf_args.reward_period,
         cu_step_method=daaf_args.cu_step_mapper,
         buffer_size_or_multiplier=(
@@ -134,8 +129,6 @@ def main(args: progargs.ExperimentArgs):
         env_spec=env_spec,
         num_episodes=args.num_episodes,
         algorithm=args.algorithm,
-        num_states=env_spec.env_desc.num_states,
-        num_actions=env_spec.env_desc.num_actions,
         control_args=args.control_args,
         daaf_args=args.daaf_args,
         output_dir=args.output_dir,
