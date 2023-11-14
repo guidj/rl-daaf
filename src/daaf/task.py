@@ -2,18 +2,21 @@
 Functions relying on ReplayBuffer are for TF classes (agents, environment, etc).
 Generators are for Py classes (agents, environment, etc).
 """
+
+
 import argparse
 import dataclasses
 import json
 import logging
+import uuid
 from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Tuple
 
 import gymnasium as gym
 import numpy as np
-from rlplg import core, envplay, envspec, envsuite, runtime
+from rlplg import core, envplay, envsuite
 from rlplg.learning import utils
 from rlplg.learning.opt import schedules
-from rlplg.learning.tabular import dynamicprog, markovdp, policies
+from rlplg.learning.tabular import dynamicprog, policies
 from rlplg.learning.tabular.evaluation import onpolicy
 
 from daaf import constants, progargs, replay_mapper
@@ -38,7 +41,7 @@ def parse_args() -> progargs.ExperimentArgs:
     )
     arg_parser.add_argument("--env-name", type=str, required=True)
     arg_parser.add_argument("--env-args", type=str, default=None)
-    arg_parser.add_argument("--run-id", type=str, default=runtime.run_id())
+    arg_parser.add_argument("--run-id", type=str, default=str(uuid.uuid4()))
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--reward-period", type=int, default=2)
     arg_parser.add_argument("--num-episodes", type=int, default=1000)
@@ -80,7 +83,7 @@ def parse_args() -> progargs.ExperimentArgs:
 
 def run_fn(
     policy: policies.PyQGreedyPolicy,
-    env_spec: envspec.EnvSpec,
+    env_spec: core.EnvSpec,
     num_episodes: int,
     algorithm: str,
     initial_state_values: np.ndarray,
@@ -126,7 +129,7 @@ def run_fn(
 def create_env_spec(
     problem: str,
     env_args: Mapping[str, Any],
-) -> envspec.EnvSpec:
+) -> core.EnvSpec:
     """
     Creates a environment spec for a problem.
 
@@ -139,7 +142,7 @@ def create_env_spec(
 
 
 def dynamic_prog_estimation(
-    mdp: markovdp.MDP, control_args: progargs.ControlArgs
+    mdp: core.Mdp, control_args: progargs.ControlArgs
 ) -> StateActionValues:
     """
     Runs dynamic programming on an MDP to generate state-value and action-value
@@ -151,7 +154,7 @@ def dynamic_prog_estimation(
         control_args: control arguments.
     """
     observable_random_policy = policies.PyObservableRandomPolicy(
-        num_actions=mdp.env_desc().num_actions,
+        num_actions=mdp.env_desc.num_actions,
     )
     state_values = dynamicprog.iterative_policy_evaluation(
         mdp=mdp, policy=observable_random_policy, gamma=control_args.gamma
@@ -165,7 +168,7 @@ def dynamic_prog_estimation(
 
 
 def create_aggregate_reward_step_mapper_fn(
-    env_spec: envspec.EnvSpec,
+    env_spec: core.EnvSpec,
     reward_period: int,
     cu_step_method: str,
     buffer_size_or_multiplier: Tuple[Optional[int], Optional[int]],
@@ -193,20 +196,20 @@ def create_aggregate_reward_step_mapper_fn(
     elif cu_step_method == constants.REWARD_ESTIMATION_LSQ_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(
-            env_spec.env_desc.num_states
-            * env_spec.env_desc.num_actions
+            env_spec.mdp.env_desc.num_states
+            * env_spec.mdp.env_desc.num_actions
             * (_buffer_size_mult or constants.DEFAULT_BUFFER_SIZE_MULTIPLIER)
         )
         mapper = replay_mapper.LeastSquaresAttributionMapper(
-            num_states=env_spec.env_desc.num_states,
-            num_actions=env_spec.env_desc.num_actions,
+            num_states=env_spec.mdp.env_desc.num_states,
+            num_actions=env_spec.mdp.env_desc.num_actions,
             reward_period=reward_period,
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
             buffer_size=buffer_size,
             init_rtable=utils.initial_table(
-                num_states=env_spec.env_desc.num_states,
-                num_actions=env_spec.env_desc.num_actions,
+                num_states=env_spec.mdp.env_desc.num_states,
+                num_actions=env_spec.mdp.env_desc.num_actions,
             ),
         )
     else:
@@ -256,10 +259,3 @@ def constant_learning_rate(initial_lr: float, episode: int, step: int):
     del episode
     del step
     return initial_lr
-
-
-def noop_replay_mapper() -> replay_mapper.TrajMapper:
-    """
-    A no-op trajectory mapper.
-    """
-    return replay_mapper.IdentifyMapper()

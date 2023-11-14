@@ -47,7 +47,7 @@ def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
         configs = json.load(readable)
 
     experiment_configs = []
-    for config in configs:
+    for env_name, config in configs.items():
         for experiment in config["experiments"]:
             for cu_mapping_method in experiment["daaf_config"]["methods"]:
                 exp_config_args = copy.deepcopy(experiment)
@@ -59,7 +59,7 @@ def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
                 experiment_configs.append(
                     ExperimentConfig(
                         **exp_config_args,
-                        env_name=config["env_name"],
+                        env_name=env_name,
                         tags=config["tags"],
                     )
                 )
