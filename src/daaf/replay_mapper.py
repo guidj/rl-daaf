@@ -33,7 +33,7 @@ class TrajMapper(abc.ABC):
             trajectory: A iterator of trajectory steps.
         """
         del self, trajectory
-        return NotImplemented
+        raise NotImplementedError
 
 
 class IdentifyMapper(TrajMapper):
