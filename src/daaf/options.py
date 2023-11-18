@@ -5,7 +5,7 @@ MDP with Options.
 
 import itertools
 import random
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 from rlplg import core
 from rlplg.core import ObsType
@@ -18,7 +18,7 @@ class UniformlyRandomCompositeActionPolicy(core.PyPolicy):
 
     def __init__(
         self,
-        num_actions: int,
+        actions: Iterable[Any],
         options_duration: int,
         emit_log_probability: bool = False,
     ):
@@ -27,7 +27,7 @@ class UniformlyRandomCompositeActionPolicy(core.PyPolicy):
         self._options = {}
 
         for idx, option in enumerate(
-            itertools.product(range(num_actions), repeat=options_duration)
+            itertools.product(actions, repeat=options_duration)
         ):
             self._options[idx] = option
 
@@ -41,7 +41,7 @@ class UniformlyRandomCompositeActionPolicy(core.PyPolicy):
           An initial policy state.
         """
         del batch_size
-        return {"current_step": 0, "current_option": None}
+        return {"option_id": None, "option_step": -1}
 
     def action(
         self,
@@ -65,20 +65,26 @@ class UniformlyRandomCompositeActionPolicy(core.PyPolicy):
         """
         del observation
         del seed
-
-        if policy_state and policy_state["current_step"] % self.options_duration == 0:
+        if policy_state and (
+            policy_state["option_step"] + 1 == self.options_duration
+            or policy_state["option_id"] is None
+        ):
             # Random policy chooses at random
-            option = self._options[random.randint(0, len(self._options))]
-            current_step = 0
+            option_id = random.randint(0, len(self._options) - 1)
+            option_step = 0
         else:
-            option = policy_state["current_option"]
-            current_step = policy_state["current_step"]
-        action = option[current_step]
+            option_id = policy_state["option_id"]
+            option_step = policy_state["option_step"] + 1
+        action = self._options[option_id][option_step]
         return core.PolicyStep(
             action=action,
             state={
-                "current_step": current_step + 1,
-                "current_option": option,
+                "option_id": option_id,
+                "option_step": option_step,
             },
-            info={},
+            # if the same option is played again?
+            info={
+                "option_id": option_id,
+                "option_terminated": option_step == self.options_duration - 1,
+            },
         )
