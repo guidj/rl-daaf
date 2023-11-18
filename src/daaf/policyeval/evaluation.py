@@ -71,7 +71,7 @@ def daaf_policy_evalution(
         algorithm=algorithm,
         initial_state_values=initial_values(env_spec.mdp.env_desc.num_states),
         control_args=control_args,
-        generate_steps_fn=task.create_generate_nstep_episodes_fn(mapper=traj_mapper),
+        generate_steps_fn=task.create_generate_episodes_fn(mapper=traj_mapper),
     )
     with tracking.ExperimentLogger(
         output_dir,

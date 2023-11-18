@@ -220,7 +220,7 @@ def create_aggregate_reward_step_mapper_fn(
     return mapper
 
 
-def create_generate_nstep_episodes_fn(
+def create_generate_episodes_fn(
     mapper: replay_mapper.TrajMapper,
 ) -> Callable[
     [gym.Env, core.PyPolicy, int],
@@ -234,7 +234,7 @@ def create_generate_nstep_episodes_fn(
         mapper: A TrajMapper that transforms trajectory events.
     """
 
-    def generate_nstep_episodes(
+    def generate_episodes(
         environment: gym.Env,
         policy: core.PyPolicy,
         num_episodes: int,
@@ -249,7 +249,7 @@ def create_generate_nstep_episodes_fn(
             ):
                 yield traj_step
 
-    return generate_nstep_episodes
+    return generate_episodes
 
 
 def constant_learning_rate(initial_lr: float, episode: int, step: int):
