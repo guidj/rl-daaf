@@ -82,7 +82,6 @@ class UniformlyRandomCompositeActionPolicy(core.PyPolicy):
                 "option_id": option_id,
                 "option_step": option_step,
             },
-            # if the same option is played again?
             info={
                 "option_id": option_id,
                 "option_terminated": option_step == self.options_duration - 1,
