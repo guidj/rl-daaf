@@ -19,7 +19,7 @@ from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import dynamicprog, policies
 from rlplg.learning.tabular.evaluation import onpolicy
 
-from daaf import constants, progargs, replay_mapper
+from daaf import constants, options, progargs, replay_mapper
 
 
 @dataclasses.dataclass(frozen=True)
@@ -82,7 +82,7 @@ def parse_args() -> progargs.ExperimentArgs:
 
 
 def run_fn(
-    policy: policies.PyQGreedyPolicy,
+    policy: core.PyPolicy,
     env_spec: core.EnvSpec,
     num_episodes: int,
     algorithm: str,
@@ -212,12 +212,29 @@ def create_aggregate_reward_step_mapper_fn(
                 num_actions=env_spec.mdp.env_desc.num_actions,
             ),
         )
+    elif cu_step_method == constants.MDP_WITH_OPTIONS_MAPPER:
+        mapper = replay_mapper.MdpWithOptionsMapper()
     else:
         raise ValueError(
             f"Unknown cu-step-method {cu_step_method}. Choices: {constants.CU_MAPPER_METHODS}"
         )
 
     return mapper
+
+
+def eval_policy(env_spec: core.EnvSpec, daaf_args: progargs.DaafArgs) -> core.PyPolicy:
+    """
+    Creates a policy to be evaluated.
+    """
+    if daaf_args.cu_step_mapper == constants.MDP_WITH_OPTIONS_MAPPER:
+        return options.UniformlyRandomCompositeActionPolicy(
+            actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
+            options_duration=daaf_args.reward_period,
+        )
+    return policies.PyRandomPolicy(
+        num_actions=env_spec.mdp.env_desc.num_actions,
+        emit_log_probability=True,
+    )
 
 
 def create_generate_episodes_fn(

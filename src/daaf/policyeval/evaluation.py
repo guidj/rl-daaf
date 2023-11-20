@@ -23,14 +23,12 @@ from typing import Optional, Set
 
 import numpy as np
 from rlplg import core, tracking
-from rlplg.learning.tabular import policies
 
 from daaf import progargs, task
 
 
 def daaf_policy_evalution(
     run_id: str,
-    policy: policies.PyQGreedyPolicy,
     env_spec: core.EnvSpec,
     num_episodes: int,
     algorithm: str,
@@ -64,6 +62,7 @@ def daaf_policy_evalution(
 
     # Policy Eval with DAAF
     logging.info("Starting DAAF Evaluation")
+    policy = task.eval_policy(env_spec=env_spec, daaf_args=daaf_args)
     results = task.run_fn(
         policy=policy,
         env_spec=env_spec,
@@ -119,13 +118,8 @@ def main(args: progargs.ExperimentArgs):
         problem=args.env_name,
         env_args=args.env_args,
     )
-    policy = policies.PyRandomPolicy(
-        num_actions=env_spec.mdp.env_desc.num_actions,
-        emit_log_probability=True,
-    )
     daaf_policy_evalution(
         run_id=args.run_id,
-        policy=policy,
         env_spec=env_spec,
         num_episodes=args.num_episodes,
         algorithm=args.algorithm,
