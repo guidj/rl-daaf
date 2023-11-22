@@ -1,5 +1,4 @@
-rlplg @ git+https://github.com/guidj/rlplg.git@v0.15.0
+rlplg @ git+https://github.com/guidj/rlplg.git@v0.16.1
 # dashboard + cluster
 ray[default]==2.4.0
-# https://github.com/tensorflow/agents/issues/807
 numpy==1.23.5
