@@ -33,7 +33,6 @@ class ExperimentConfig:
     level: str
     env_args: Mapping[str, Any]
     daaf_config: DaafConfig
-    tags: Sequence[str]
 
 
 def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
@@ -60,7 +59,6 @@ def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
                     ExperimentConfig(
                         **exp_config_args,
                         env_name=env_name,
-                        tags=config["tags"],
                     )
                 )
     return experiment_configs
@@ -82,12 +80,12 @@ def create_experiment_runs_from_configs(
     now = timestamp or int(time.time())
 
     for config in experiment_configs:
-        subdir = os.path.join(*config.tags)
-        task_name = "-".join(config.tags)
+        subdir = os.path.join(config.env_name, config.level)
         for reward_period in config.daaf_config.reward_periods:
-            exp_id = utils.create_task_id(now)
-            task_id = f"{task_name}-L{config.level}-P{reward_period}"
-            run_id = f"{task_id}-{exp_id}-{config.daaf_config.traj_mapping_method}"
+            task_id = utils.create_task_id(now)
+            run_id = (
+                f"{task_id}-{config.env_name}-{config.daaf_config.traj_mapping_method}"
+            )
 
             daaf_args = progargs.DaafArgs(
                 reward_period=reward_period,
@@ -106,10 +104,10 @@ def create_experiment_runs_from_configs(
                 output_dir=os.path.join(
                     output_dir,
                     subdir,
-                    str(now),
                     config.daaf_config.traj_mapping_method,
                     f"L{config.level}-P{reward_period}",
-                    exp_id,
+                    task_id,
+                    str(now),
                 ),
                 num_episodes=num_episodes,
                 algorithm=algorithm,
