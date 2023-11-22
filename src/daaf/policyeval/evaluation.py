@@ -50,10 +50,10 @@ def daaf_policy_evalution(
         output_dir: a path to write execution logs.
         log_episode_frequency: frequency for writing execution logs.
     """
-    traj_mapper = task.create_aggregate_reward_step_mapper_fn(
+    traj_mapper = task.create_trajectory_mapper(
         env_spec=env_spec,
         reward_period=daaf_args.reward_period,
-        cu_step_method=daaf_args.cu_step_mapper,
+        traj_mapping_method=daaf_args.traj_mapping_method,
         buffer_size_or_multiplier=(
             daaf_args.buffer_size,
             daaf_args.buffer_size_multiplier,
@@ -74,7 +74,7 @@ def daaf_policy_evalution(
     )
     with tracking.ExperimentLogger(
         output_dir,
-        name=f"qpolicy/daaf/mapper-{daaf_args.cu_step_mapper}",
+        name=f"qpolicy/daaf/mapper-{daaf_args.traj_mapping_method}",
         params={
             "algorithm": algorithm,
             "alpha": control_args.alpha,

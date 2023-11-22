@@ -188,8 +188,6 @@ class LeastSquaresAttributionMapper(TrajMapper):
         self._estimation_buffer = AbQueueBuffer(
             self.buffer_size, num_factors=num_factors
         )
-        # self._traj_step_buffer: List[core.TrajectoryStep] = []
-        # self._mapped_traj_step_buffer: List[core.TrajectoryStep] = []
         self.rtable = copy.deepcopy(init_rtable)
 
     def apply(

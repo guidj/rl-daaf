@@ -8,7 +8,7 @@ AVERAGE_REWARD_MAPPER = "average-reward-mapper"
 REWARD_ESTIMATION_LSQ_MAPPER = "reward-estimation-lsq-mapper"
 REWARD_IMPUTATION_MAPPER = "reward-imputation-mapper"
 MDP_WITH_OPTIONS_MAPPER = "mdp-with-options-mapper"
-CU_MAPPER_METHODS = (
+AGGREGATE_MAPPER_METHODS = (
     IDENTITY_MAPPER,
     AVERAGE_REWARD_MAPPER,
     REWARD_IMPUTATION_MAPPER,

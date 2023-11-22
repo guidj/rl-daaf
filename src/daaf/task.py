@@ -52,10 +52,10 @@ def parse_args() -> progargs.ExperimentArgs:
         default=constants.ONE_STEP_TD,
     )
     arg_parser.add_argument(
-        "--cu-step-mapper",
+        "--traj-mapping-method",
         type=str,
         default=constants.REWARD_ESTIMATION_LSQ_MAPPER,
-        choices=constants.CU_MAPPER_METHODS,
+        choices=constants.AGGREGATE_MAPPER_METHODS,
     )
     arg_parser.add_argument("--control-epsilon", type=float, default=1.0)
     arg_parser.add_argument("--control-alpha", type=float, default=0.1)
@@ -167,10 +167,10 @@ def dynamic_prog_estimation(
     return StateActionValues(state_values=state_values, action_values=action_values)
 
 
-def create_aggregate_reward_step_mapper_fn(
+def create_trajectory_mapper(
     env_spec: core.EnvSpec,
     reward_period: int,
-    cu_step_method: str,
+    traj_mapping_method: str,
     buffer_size_or_multiplier: Tuple[Optional[int], Optional[int]],
 ) -> replay_mapper.TrajMapper:
     """
@@ -181,19 +181,23 @@ def create_aggregate_reward_step_mapper_fn(
         num_states: number of states in the problem.
         num_actions: number of actions in the problem.
         reward_period: the frequency with which rewards are generated.
-        cu_step_method: the method to alter trajectory data.
+        traj_mapping_method: the method to alter trajectory data.
         buffer_size_or_multiplier: number of elements kept in buffer or multiple for |S|x|A|xMultiplier.
+
+    Returns:
+        A trajectory mapper.
     """
+
     mapper: Optional[replay_mapper.TrajMapper] = None
-    if cu_step_method == constants.IDENTITY_MAPPER:
+    if traj_mapping_method == constants.IDENTITY_MAPPER:
         mapper = replay_mapper.IdentifyMapper()
-    elif cu_step_method == constants.REWARD_IMPUTATION_MAPPER:
+    elif traj_mapping_method == constants.REWARD_IMPUTATION_MAPPER:
         mapper = replay_mapper.ImputeMissingRewardMapper(
             reward_period=reward_period, impute_value=0.0
         )
-    elif cu_step_method == constants.AVERAGE_REWARD_MAPPER:
+    elif traj_mapping_method == constants.AVERAGE_REWARD_MAPPER:
         mapper = replay_mapper.AverageRewardMapper(reward_period=reward_period)
-    elif cu_step_method == constants.REWARD_ESTIMATION_LSQ_MAPPER:
+    elif traj_mapping_method == constants.REWARD_ESTIMATION_LSQ_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(
             env_spec.mdp.env_desc.num_states
@@ -212,11 +216,11 @@ def create_aggregate_reward_step_mapper_fn(
                 num_actions=env_spec.mdp.env_desc.num_actions,
             ),
         )
-    elif cu_step_method == constants.MDP_WITH_OPTIONS_MAPPER:
+    elif traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
         mapper = replay_mapper.MdpWithOptionsMapper()
     else:
         raise ValueError(
-            f"Unknown cu-step-method {cu_step_method}. Choices: {constants.CU_MAPPER_METHODS}"
+            f"Unknown cu-step-method {traj_mapping_method}. Choices: {constants.AGGREGATE_MAPPER_METHODS}"
         )
 
     return mapper
@@ -226,7 +230,7 @@ def eval_policy(env_spec: core.EnvSpec, daaf_args: progargs.DaafArgs) -> core.Py
     """
     Creates a policy to be evaluated.
     """
-    if daaf_args.cu_step_mapper == constants.MDP_WITH_OPTIONS_MAPPER:
+    if daaf_args.traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
         return options.UniformlyRandomCompositeActionPolicy(
             actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
             options_duration=daaf_args.reward_period,

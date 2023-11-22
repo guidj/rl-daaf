@@ -29,7 +29,7 @@ class DaafArgs:
 
     Args:
         reward_period: the period for generating cumulative rewards.
-        cu_step_mapper: the method to handle cumulative rewards - generally estimating rewards.
+        traj_mapping_method: the method to modify a trajectory.
         buffer_size: how many steps to keep in memory for reward estimation, if applicable.
         buffer_size_multiplier: if provided, gets multiplied by (num_states x num_actions) to
             determine the `buffer_size` for the reward estimation, if applicable.
@@ -39,17 +39,18 @@ class DaafArgs:
     """
 
     reward_period: int
-    cu_step_mapper: str
+    traj_mapping_method: str
     buffer_size: Optional[int]
     buffer_size_multiplier: Optional[int]
 
     def __post_init__(self):
         if (
-            self.cu_step_mapper
-            and self.cu_step_mapper not in constants.CU_MAPPER_METHODS
+            self.traj_mapping_method
+            and self.traj_mapping_method not in constants.AGGREGATE_MAPPER_METHODS
         ):
             raise ValueError(
-                f"cu_step_mapper value `{self.cu_step_mapper}` is unknown. Should one of: {constants.CU_MAPPER_METHODS}"
+                f"""traj_mapping_method value `{self.traj_mapping_method}` is unknown.
+                Should one of: {constants.AGGREGATE_MAPPER_METHODS}"""
             )
 
         if self.buffer_size is not None and self.buffer_size_multiplier is not None:
@@ -88,7 +89,7 @@ class ExperimentArgs:
         )
         daaf_args = DaafArgs(
             reward_period=mutable_args.pop("reward_period"),
-            cu_step_mapper=mutable_args.pop("cu_step_mapper"),
+            traj_mapping_method=mutable_args.pop("traj_mapping_method"),
             buffer_size=mutable_args.pop("buffer_size"),
             buffer_size_multiplier=mutable_args.pop("buffer_size_multiplier"),
         )

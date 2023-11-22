@@ -20,7 +20,7 @@ class DaafConfig:
     """
 
     reward_periods: Sequence[int]
-    cu_step_mapper: str
+    traj_mapping_method: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -49,11 +49,11 @@ def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
     experiment_configs = []
     for env_name, config in configs.items():
         for experiment in config["experiments"]:
-            for cu_mapping_method in experiment["daaf_config"]["methods"]:
+            for traj_mapping_method in experiment["daaf_config"]["methods"]:
                 exp_config_args = copy.deepcopy(experiment)
                 daaf_config = DaafConfig(
                     reward_periods=experiment["daaf_config"]["reward_periods"],
-                    cu_step_mapper=cu_mapping_method,
+                    traj_mapping_method=traj_mapping_method,
                 )
                 exp_config_args["daaf_config"] = daaf_config
                 experiment_configs.append(
@@ -87,11 +87,11 @@ def create_experiment_runs_from_configs(
         for reward_period in config.daaf_config.reward_periods:
             exp_id = utils.create_task_id(now)
             task_id = f"{task_name}-L{config.level}-P{reward_period}"
-            run_id = f"{task_id}-{exp_id}-{config.daaf_config.cu_step_mapper}"
+            run_id = f"{task_id}-{exp_id}-{config.daaf_config.traj_mapping_method}"
 
             daaf_args = progargs.DaafArgs(
                 reward_period=reward_period,
-                cu_step_mapper=config.daaf_config.cu_step_mapper,
+                traj_mapping_method=config.daaf_config.traj_mapping_method,
                 buffer_size=None,
                 buffer_size_multiplier=None,
             )
@@ -107,7 +107,7 @@ def create_experiment_runs_from_configs(
                     output_dir,
                     subdir,
                     str(now),
-                    config.daaf_config.cu_step_mapper,
+                    config.daaf_config.traj_mapping_method,
                     f"L{config.level}-P{reward_period}",
                     exp_id,
                 ),
