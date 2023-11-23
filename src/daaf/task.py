@@ -178,15 +178,17 @@ def create_eval_policy(
     """
     Creates a policy to be evaluated.
     """
-    if daaf_config.traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
+    if daaf_config.policy_type == constants.OPTIONS_POLICY:
         return options.UniformlyRandomCompositeActionPolicy(
             actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
             options_duration=daaf_config.reward_period,
         )
-    return policies.PyRandomPolicy(
-        num_actions=env_spec.mdp.env_desc.num_actions,
-        emit_log_probability=True,
-    )
+    elif daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
+        return policies.PyRandomPolicy(
+            num_actions=env_spec.mdp.env_desc.num_actions,
+            emit_log_probability=True,
+        )
+    raise ValueError(f"Unknown policy {daaf_config.policy_type}")
 
 
 def create_generate_episodes_fn(

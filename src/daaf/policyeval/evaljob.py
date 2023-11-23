@@ -120,9 +120,9 @@ def create_tasks(
     worker_split_tasks = utils.split(items=experiment_tasks, num_partitions=num_tasks)
 
     logging.info(
-        "Parsed %d DAAF configs and %d experiments into %d tasks, split into %d groups",
+        "Parsed %d DAAF configs and %d environments into %d tasks, split into %d groups",
         len(experiment_configs),
-        len(experiments),
+        len(envs_configs),
         len(experiment_tasks),
         len(worker_split_tasks),
     )
