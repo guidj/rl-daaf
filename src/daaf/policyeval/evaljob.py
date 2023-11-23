@@ -12,7 +12,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 import ray
 
 import daaf
-from daaf import expconfig, progargs, utils
+from daaf import expconfig, utils
 from daaf.policyeval import evaluation
 
 
@@ -23,11 +23,12 @@ class EvalPipelineArgs:
     """
 
     # problem args
+    envs_path: str
     config_path: str
     num_runs: int
     num_episodes: int
-    algorithm: str
     output_dir: str
+    log_episode_frequency: int
     # ray args
     cluster_uri: Optional[str]
     num_tasks: int
@@ -47,11 +48,12 @@ def main(args: EvalPipelineArgs):
         logging.info("Ray Nodes: %s", ray.nodes())
 
         tasks_futures = create_tasks(
+            envs_path=args.envs_path,
             config_path=args.config_path,
             num_runs=args.num_runs,
             num_episodes=args.num_episodes,
-            algorithm=args.algorithm,
             output_dir=args.output_dir,
+            log_episode_frequency=args.log_episode_frequency,
             num_tasks=args.num_tasks,
         )
 
@@ -84,61 +86,73 @@ def main(args: EvalPipelineArgs):
 
 
 def create_tasks(
+    envs_path: str,
     config_path: str,
     num_runs: int,
     num_episodes: int,
-    algorithm: str,
     output_dir: str,
+    log_episode_frequency: int,
     num_tasks: int,
 ) -> Mapping[int, Tuple[ray.ObjectRef, Sequence[Any]]]:
     """
     Runs numerical experiments on policy evaluation.
     """
-    experiment_configs = expconfig.parse_experiments_config(
+    envs_configs = expconfig.parse_environments(envs_path=envs_path)
+    experiment_configs = expconfig.parse_experiment_configs(
         config_path=config_path,
     )
-    # expand each run into ift's own task
-    experiment_run_configs = tuple(
-        expconfig.create_experiment_runs_from_configs(
-            experiment_configs=experiment_configs,
-            num_runs=num_runs,
-            num_episodes=num_episodes,
-            algorithm=algorithm,
-            output_dir=output_dir,
+    experiments = tuple(
+        expconfig.create_experiments(
+            envs_configs=envs_configs, experiment_configs=experiment_configs
         )
     )
-    experiments: Sequence[progargs.ExperimentArgs] = tuple(
-        expconfig.generate_experiments_per_run_configs(experiment_run_configs)
+
+    experiment_tasks = tuple(
+        expconfig.generate_tasks_from_experiments_and_run_config(
+            run_config=expconfig.RunConfig(
+                num_episodes=num_episodes,
+                log_episode_frequency=log_episode_frequency,
+                output_dir=output_dir,
+            ),
+            experiments=experiments,
+            num_runs=num_runs,
+        )
     )
     # shuffle tasks to balance workload
-    experiments = random.sample(experiments, len(experiments))
-    worker_experiments = utils.split(items=experiments, num_partitions=num_tasks)
+    experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))
+    worker_split_tasks = utils.partition(
+        items=experiment_tasks, num_partitions=num_tasks
+    )
 
     logging.info(
-        "Parsed %d experiment run configs into %d experiments, split into %d tasks",
-        len(experiment_run_configs),
-        len(experiments),
-        len(worker_experiments),
+        "Parsed %d DAAF configs and %d environments into %d tasks, split into %d groups",
+        len(experiment_configs),
+        len(envs_configs),
+        len(experiment_tasks),
+        len(worker_split_tasks),
     )
     futures = {}
-    for task_id, experiments in enumerate(worker_experiments):
-        future = evaluate.remote(task_id, experiments)
-        futures[task_id] = (future, experiments)
+    for group_id, split_tasks in enumerate(worker_split_tasks):
+        future = evaluate.remote(group_id, split_tasks)
+        futures[group_id] = (future, split_tasks)
     return futures
 
 
 @ray.remote
-def evaluate(task_id: int, run_args: Sequence[Any]) -> int:
+def evaluate(group_id: int, experiment_tasks: Sequence[Any]) -> int:
     """
     Runs evaluation.
     """
-    logging.info("Task %d starting", task_id)
-    for idx, experiment_run_config in enumerate(run_args):
+    logging.info("Group %d starting", group_id)
+    for idx, experiment_task in enumerate(experiment_tasks):
         logging.info(
-            "Task %d starting work item %d out of %d", task_id, idx + 1, len(run_args)
+            "Task %d starting work item %d out of %d",
+            group_id,
+            idx + 1,
+            len(experiment_tasks),
         )
-        evaluation.main(experiment_run_config)
-    return task_id
+        evaluation.main(experiment_task)
+    return group_id
 
 
 def log_completion(
@@ -158,11 +172,12 @@ def parse_args() -> EvalPipelineArgs:
     Parses program arguments.
     """
     arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("--envs-path", type=str, required=True)
     arg_parser.add_argument("--config-path", type=str, required=True)
     arg_parser.add_argument("--num-runs", type=int, required=True)
     arg_parser.add_argument("--num-episodes", type=int, required=True)
-    arg_parser.add_argument("--algorithm", type=str, required=True)
     arg_parser.add_argument("--output-dir", type=str, required=True)
+    arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
     arg_parser.add_argument("--num-tasks", type=int, default=1)
     known_args, unknown_args = arg_parser.parse_known_args()

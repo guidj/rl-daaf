@@ -2,15 +2,28 @@
 Configuration to generate experiments.
 """
 
-import copy
 import dataclasses
 import json
 import os
 import os.path
 import time
-from typing import Any, Generator, Mapping, Optional, Sequence
+from typing import Any, Iterator, Mapping, Optional, Sequence, Tuple
 
-from daaf import progargs, utils
+import numpy as np
+import pandas as pd
+
+from daaf import utils
+
+
+@dataclasses.dataclass(frozen=True)
+class LearningArgs:
+    """
+    Class holds experiment arguments.
+    """
+
+    epsilon: float
+    learning_rate: float
+    discount_factor: float
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19,12 +32,15 @@ class DaafConfig:
     Configuration for cumulative periodic reward experiments.
     """
 
-    reward_periods: Sequence[int]
-    cu_step_mapper: str
+    policy_type: str
+    traj_mapping_method: str
+    algorithm: str
+    reward_period: int
+    drop_truncated_episodes: bool
 
 
 @dataclasses.dataclass(frozen=True)
-class ExperimentConfig:
+class EnvConfig:
     """
     Configuration parameters for an experiment.
     """
@@ -32,13 +48,64 @@ class ExperimentConfig:
     env_name: str
     level: str
     env_args: Mapping[str, Any]
-    mdp_stats_path: str
-    mdp_stats_num_episodes: int
+
+
+@dataclasses.dataclass(frozen=True)
+class RunConfig:
+    """
+    Configuration for experiment run.
+    """
+
+    num_episodes: int
+    log_episode_frequency: int
+    output_dir: str
+
+
+@dataclasses.dataclass(frozen=True)
+class Experiment:
+    """
+    Experiments definition.
+    """
+
+    env_config: EnvConfig
     daaf_config: DaafConfig
-    tags: Sequence[str]
+    learning_args: LearningArgs
 
 
-def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
+@dataclasses.dataclass(frozen=True)
+class ExperimentTask:
+    """
+    A single experiment task.
+    """
+
+    run_id: str
+    experiment: Experiment
+    run_config: RunConfig
+
+
+def parse_environments(envs_path: str) -> Sequence[EnvConfig]:
+    """
+    Parse environments from a file.
+
+    Yields:
+        A set of environments.
+    """
+    with open(envs_path, "r", encoding="UTF-8") as readable:
+        envs = json.load(readable)
+
+    return [
+        EnvConfig(
+            env_name=env_name,
+            level=fields["level"],
+            env_args=fields["env_args"],
+        )
+        for env_name, fields in envs.items()
+    ]
+
+
+def parse_experiment_configs(
+    config_path: str,
+) -> Sequence[Tuple[DaafConfig, LearningArgs]]:
     """
     Generates experiment configurations for a problem file.
 
@@ -46,94 +113,59 @@ def parse_experiments_config(config_path: str) -> Sequence[ExperimentConfig]:
         A set of experiments
     """
     with open(config_path, "r", encoding="UTF-8") as readable:
-        configs = json.load(readable)
+        df_config = pd.read_csv(
+            readable,
+            dtype={
+                "policy": str,
+                "traj_mapper": str,
+                "algorithm": str,
+                "reward_period": np.int64,
+                "drop_truncated_episodes": np.bool_,
+                "discount_factor": np.float64,
+                "learning_rate": np.float64,
+            },
+        )
+    configs = []
+    for entry in df_config.to_dict(orient="records"):
+        # epsilon has a default value - no exploration
+        learning_args = LearningArgs(
+            epsilon=entry.pop("epsilon", 0.0),
+            learning_rate=entry.pop("learning_rate"),
+            discount_factor=entry.pop("discount_factor"),
+        )
+        daaf_config = DaafConfig(**entry)
+        configs.append((daaf_config, learning_args))
 
-    experiment_configs = []
-    for config in configs:
-        for experiment in config["experiments"]:
-            for cu_mapping_method in experiment["daaf_config"]["methods"]:
-                exp_config_args = copy.deepcopy(experiment)
-                daaf_config = DaafConfig(
-                    reward_periods=experiment["daaf_config"]["reward_periods"],
-                    cu_step_mapper=cu_mapping_method,
-                )
-                exp_config_args["daaf_config"] = daaf_config
-                experiment_configs.append(
-                    ExperimentConfig(
-                        **exp_config_args,
-                        env_name=config["env_name"],
-                        tags=config["tags"],
-                    )
-                )
-    return experiment_configs
+    return tuple(configs)
 
 
-def create_experiment_runs_from_configs(
-    experiment_configs: Sequence[ExperimentConfig],
-    num_runs: int,
-    num_episodes: int,
-    algorithm: str,
-    output_dir: str,
-    timestamp: Optional[int] = None,
-) -> Generator[progargs.ExperimentRunConfig, None, None]:
+def create_experiments(
+    envs_configs: Sequence[EnvConfig],
+    experiment_configs: Sequence[Tuple[DaafConfig, LearningArgs]],
+) -> Iterator[Experiment]:
     """
     Generates experiments for a problem given the parameters (configs).
     Yields:
         Instances of `record.Experiment`.
     """
-    now = timestamp or int(time.time())
-
-    for config in experiment_configs:
-        subdir = os.path.join(*config.tags)
-        task_name = "-".join(config.tags)
-        for reward_period in config.daaf_config.reward_periods:
-            exp_id = utils.create_task_id(now)
-            task_id = f"{task_name}-L{config.level}-P{reward_period}"
-            run_id = f"{task_id}-{exp_id}-{config.daaf_config.cu_step_mapper}"
-
-            daaf_args = progargs.DaafArgs(
-                reward_period=reward_period,
-                cu_step_mapper=config.daaf_config.cu_step_mapper,
-                buffer_size=None,
-                buffer_size_multiplier=None,
-            )
-            control_args = progargs.ControlArgs(
-                epsilon=0.0,
-                alpha=0.1,
-                gamma=1.0,
-            )
-            exp_args = progargs.ExperimentArgs(
-                run_id=run_id,
-                env_name=config.env_name,
-                output_dir=os.path.join(
-                    output_dir,
-                    subdir,
-                    str(now),
-                    config.daaf_config.cu_step_mapper,
-                    f"L{config.level}-P{reward_period}",
-                    exp_id,
-                ),
-                num_episodes=num_episodes,
-                algorithm=algorithm,
-                log_episode_frequency=10,
-                mdp_stats_path=config.mdp_stats_path,
-                mdp_stats_num_episodes=config.mdp_stats_num_episodes,
-                daaf_args=daaf_args,
-                control_args=control_args,
-                env_args=config.env_args,
-            )
-            yield progargs.ExperimentRunConfig(
-                num_runs=num_runs,
-                args=exp_args,
+    for env_config in envs_configs:
+        for daaf_config, learning_args in experiment_configs:
+            yield Experiment(
+                env_config=env_config,
+                daaf_config=daaf_config,
+                learning_args=learning_args,
             )
 
 
-def generate_experiments_per_run_configs(
-    experiment_run_configs: Sequence[progargs.ExperimentRunConfig],
-) -> Generator[progargs.ExperimentArgs, None, None]:
+def generate_tasks_from_experiments_and_run_config(
+    run_config: RunConfig,
+    experiments: Sequence[Experiment],
+    num_runs: int,
+    timestamp: Optional[int] = None,
+) -> Iterator[ExperimentTask]:
     """
     Given a sequence of experiments, expands them
-    based on the number of runs per experiments.
+    to tasks.
     E.g.
     Input
     A, num_runs=2, key1=value1
@@ -145,20 +177,29 @@ def generate_experiments_per_run_configs(
     B, key1=value1
     """
 
-    def replace_run_and_output_with_local_values(
-        exp_args: progargs.ExperimentArgs, idx: int
-    ) -> progargs.ExperimentArgs:
-        return dataclasses.replace(
-            exp_args,
-            run_id=f"{exp_args.run_id}-{str(idx)}",
-            output_dir=os.path.join(exp_args.output_dir, str(idx)),
+    now = timestamp or int(time.time())
+    for experiment in experiments:
+        task_id = "-".join(
+            [
+                utils.create_task_id(now),
+                experiment.env_config.env_name,
+                experiment.env_config.level,
+            ]
         )
-
-    for experiment in experiment_run_configs:
-        runs_params_list = [
-            replace_run_and_output_with_local_values(experiment.args, idx)
-            for idx in range(experiment.num_runs)
-        ]
-        # Send a list of jobs for each worker once.
-        for runs_split in runs_params_list:
-            yield runs_split
+        for idx in range(num_runs):
+            yield ExperimentTask(
+                run_id=f"{task_id}-run{idx}",
+                experiment=experiment,
+                run_config=dataclasses.replace(
+                    run_config,
+                    # replace run output with run specific values
+                    output_dir=os.path.join(
+                        run_config.output_dir,
+                        str(now),
+                        task_id,
+                        f"run{idx}",
+                        experiment.daaf_config.traj_mapping_method,
+                        f"p{experiment.daaf_config.reward_period}",
+                    ),
+                ),
+            )

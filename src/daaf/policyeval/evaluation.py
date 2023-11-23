@@ -22,25 +22,17 @@ import logging
 from typing import Optional, Set
 
 import numpy as np
-from rlplg import envspec, metrics, tracking
-from rlplg.learning.opt import schedules
-from rlplg.learning.tabular import policies
-from rlplg.learning.tabular.evaluation import onpolicy
+from rlplg import core, tracking
 
-from daaf import constants, progargs, task
+from daaf import expconfig, task
 
 
 def daaf_policy_evalution(
     run_id: str,
-    policy: policies.PyQGreedyPolicy,
-    env_spec: envspec.EnvSpec,
+    env_spec: core.EnvSpec,
     num_episodes: int,
-    algorithm: str,
-    num_states: int,
-    num_actions: int,
-    control_args: progargs.ControlArgs,
-    daaf_args: progargs.DaafArgs,
-    ref_state_values: np.ndarray,
+    learning_args: expconfig.LearningArgs,
+    daaf_config: expconfig.DaafConfig,
     output_dir: str,
     log_episode_frequency: int,
 ) -> None:
@@ -52,114 +44,64 @@ def daaf_policy_evalution(
         policy: a policy to be estimated.
         env_spec: configuration of the environment, and state/action mapping functions.
         num_episodes: number of episodes to estimate the policy.
-        num_actions: number of actions in the problem.
-        control_args: algorithm arguments, e.g. discount factor.
+        learning_args: algorithm arguments, e.g. discount factor.
         daaf_args: configuration of cumulative rewards, e.g. rewad period.
-        ref_state_values: the known value of the policy, to compare with the estimate.
         output_dir: a path to write execution logs.
         log_episode_frequency: frequency for writing execution logs.
     """
-    mapper_fn = task.create_aggregate_reward_step_mapper_fn(
+    traj_mapper = task.create_trajectory_mapper(
         env_spec=env_spec,
-        num_states=num_states,
-        num_actions=num_actions,
-        reward_period=daaf_args.reward_period,
-        cu_step_method=daaf_args.cu_step_mapper,
-        buffer_size_or_multiplier=(
-            daaf_args.buffer_size,
-            daaf_args.buffer_size_multiplier,
-        ),
+        reward_period=daaf_config.reward_period,
+        traj_mapping_method=daaf_config.traj_mapping_method,
+        buffer_size_or_multiplier=(None, None),
     )
-    generate_steps_fn = task.create_generate_nstep_episodes_fn(mapper=mapper_fn)
-
-    logging.info("Starting DAAF Evaluation")
 
     # Policy Eval with DAAF
-    if algorithm == constants.ONE_STEP_TD:
-        results = onpolicy.one_step_td_state_values(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            lrs=schedules.LearningRateSchedule(
-                initial_learning_rate=control_args.alpha,
-                schedule=constant_learning_rate,
-            ),
-            gamma=control_args.gamma,
-            state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_values(
-                num_states=num_states,
-            ),
-            generate_episodes=generate_steps_fn,
-        )
-    elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
-        results = onpolicy.first_visit_monte_carlo_state_values(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            gamma=control_args.gamma,
-            state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_values(
-                num_states=num_states,
-            ),
-            generate_episodes=generate_steps_fn,
-        )
-    else:
-        raise ValueError(f"Unsupported algorithm {algorithm}")
-
+    logging.info("Starting DAAF Evaluation")
+    policy = task.create_eval_policy(env_spec=env_spec, daaf_config=daaf_config)
+    results = task.run_fn(
+        policy=policy,
+        env_spec=env_spec,
+        num_episodes=num_episodes,
+        algorithm=daaf_config.algorithm,
+        initial_state_values=initial_values(env_spec.mdp.env_desc.num_states),
+        learnign_args=learning_args,
+        generate_steps_fn=task.create_generate_episodes_fn(mapper=traj_mapper),
+    )
     with tracking.ExperimentLogger(
         output_dir,
-        name=f"qpolicy/daaf/mapper-{daaf_args.cu_step_mapper}",
+        name=run_id,
         params={
-            "algorithm": algorithm,
-            "alpha": control_args.alpha,
-            "gamma": control_args.gamma,
-            "epsilon": control_args.epsilon,
-            "buffer_size": daaf_args.buffer_size_multiplier,
+            "algorithm": daaf_config.algorithm,
+            "alpha": learning_args.learning_rate,
+            "gamma": learning_args.discount_factor,
+            "epsilon": learning_args.epsilon,
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
         for episode, (steps, state_values) in enumerate(results):
-            rmse = metrics.rmse(pred=state_values, actual=ref_state_values)
-            rmsle = metrics.rmsle(
-                pred=state_values, actual=ref_state_values, translate=True
-            )
-            mean_error = metrics.mean_error(pred=state_values, actual=ref_state_values)
-            pearson_corr, _ = metrics.pearson_correlation(
-                pred=state_values, actual=ref_state_values
-            )
-            spearman_corr, _ = metrics.spearman_correlation(
-                pred=state_values, actual=ref_state_values
-            )
             if episode % log_episode_frequency == 0:
                 logging.info(
-                    "Task %s, Episode %d: %d steps, %f RMSLE, %f RMSE",
+                    "Task %s, Episode %d: %d steps",
                     run_id,
                     episode,
                     steps,
-                    rmsle,
-                    rmse,
                 )
                 exp_logger.log(
                     episode=episode,
                     steps=steps,
-                    returns=0.0,
+                    returns=np.nan,
                     metadata={
-                        "qtable": state_values.tolist(),
-                        "rmse": str(rmse),
-                        "rmsle": str(rmsle),
-                        "mean_error": str(mean_error),
-                        "pearson_corr": str(pearson_corr),
-                        "spearman_corr": str(spearman_corr),
+                        "state_values": state_values.tolist(),
                     },
                 )
         try:
-            logging.info("\nBaseline values\n%s", ref_state_values)
             logging.info("\nEstimated values\n%s", state_values)
         except NameError:
             logging.info("Zero episodes!")
 
 
-def main(args: progargs.ExperimentArgs):
+def main(args: expconfig.ExperimentTask):
     """
     Entry point running online evaluation for DAAF.
 
@@ -167,48 +109,25 @@ def main(args: progargs.ExperimentArgs):
         args: configuration for execution.
     """
     # init env and agent
-    env_spec, mdp = task.create_env_spec_and_mdp(
-        problem=args.env_name,
-        env_args=args.env_args,
-        mdp_stats_path=args.mdp_stats_path,
-        mdp_stats_num_episodes=args.mdp_stats_num_episodes,
-    )
-    state_action_values = task.dynamic_prog_estimation(
-        mdp=mdp, control_args=args.control_args
-    )
-    policy = policies.PyRandomPolicy(
-        num_actions=mdp.env_desc().num_actions,
-        emit_log_probability=True,
+    env_spec = task.create_env_spec(
+        problem=args.experiment.env_config.env_name,
+        env_args=args.experiment.env_config.env_args,
     )
     daaf_policy_evalution(
         run_id=args.run_id,
-        policy=policy,
         env_spec=env_spec,
-        num_episodes=args.num_episodes,
-        algorithm=args.algorithm,
-        num_states=mdp.env_desc().num_states,
-        num_actions=mdp.env_desc().num_actions,
-        control_args=args.control_args,
-        daaf_args=args.daaf_args,
-        ref_state_values=state_action_values.state_values,
-        output_dir=args.output_dir,
-        log_episode_frequency=args.log_episode_frequency,
+        num_episodes=args.run_config.num_episodes,
+        learning_args=args.experiment.learning_args,
+        daaf_config=args.experiment.daaf_config,
+        output_dir=args.run_config.output_dir,
+        log_episode_frequency=args.run_config.log_episode_frequency,
     )
     env_spec.environment.close()
 
 
-def constant_learning_rate(initial_lr: float, episode: int, step: int):
-    """
-    Returns the initial learning rate.
-    """
-    del episode
-    del step
-    return initial_lr
-
-
 def initial_values(
     num_states: int,
-    dtype: np.dtype = np.float32,
+    dtype: np.dtype = np.float64,
     random: bool = False,
     terminal_states: Optional[Set[int]] = None,
 ) -> np.ndarray:
@@ -225,7 +144,3 @@ def initial_values(
         vtable[list(terminal_states or [])] = 0.0
         return vtable.astype(dtype)
     return np.zeros(shape=(num_states,), dtype=dtype)
-
-
-if __name__ == "__main__":
-    main(task.parse_args())

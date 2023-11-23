@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any, Mapping, Optional, Union
 
 import hypothesis
 import numpy as np
@@ -276,6 +276,145 @@ def test_least_squares_attribution_mapper():
         np.testing.assert_array_equal(output.truncated, expected.truncated)
 
 
+def test_mdp_with_options_mapper_given_truncated_options():
+    mapper = replay_mapper.MdpWithOptionsMapper()
+    inputs = [
+        # three step option
+        traj_step(
+            state=1,
+            action=0,
+            reward=2.0,
+            info={"option_id": 7, "option_terminated": False},
+        ),
+        traj_step(
+            state=2,
+            action=1,
+            reward=4.0,
+            info={"option_id": 7, "option_terminated": False},
+        ),
+        traj_step(
+            state=3,
+            action=2,
+            reward=6.0,
+            info={"option_id": 7, "option_terminated": True},
+        ),
+        # two step option
+        traj_step(
+            state=4,
+            action=1,
+            reward=1.0,
+            info={"option_id": 4, "option_terminated": False},
+        ),
+        traj_step(
+            state=5,
+            action=3,
+            reward=1.0,
+            info={"option_id": 4, "option_terminated": True},
+        ),
+        # single action option
+        traj_step(
+            state=6,
+            action=8,
+            reward=1.0,
+            info={"option_id": 0, "option_terminated": True},
+        ),
+        # unfinished option - omitted from trajectory
+        traj_step(
+            state=7,
+            action=8,
+            reward=1.0,
+            info={"option_id": 3, "option_terminated": False},
+        ),
+    ]
+
+    output = mapper.apply(inputs)
+    expectactions = [
+        traj_step(
+            state=1,
+            action=7,
+            reward=12.0,
+        ),
+        traj_step(
+            state=4,
+            action=4,
+            reward=2.0,
+        ),
+        traj_step(state=6, action=0, reward=1.0, truncated=True),
+    ]
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 3
+    for output, expected in zip(outputs, expectactions):
+        # reward can only be approximately equal
+        np.testing.assert_array_equal(output.observation, expected.observation)
+        np.testing.assert_array_equal(output.action, expected.action)
+        np.testing.assert_array_equal(output.policy_info, expected.policy_info)
+        np.testing.assert_array_almost_equal(output.reward, expected.reward)
+        np.testing.assert_array_equal(output.terminated, expected.terminated)
+        np.testing.assert_array_equal(output.truncated, expected.truncated)
+
+
+def test_mdp_with_options_mapper_given_terminating_option():
+    mapper = replay_mapper.MdpWithOptionsMapper()
+    inputs = [
+        # three step option
+        traj_step(
+            state=1,
+            action=0,
+            reward=2.0,
+            info={"option_id": 7, "option_terminated": False},
+        ),
+        traj_step(
+            state=2,
+            action=1,
+            reward=4.0,
+            info={"option_id": 7, "option_terminated": False},
+        ),
+        traj_step(
+            state=3,
+            action=2,
+            reward=6.0,
+            info={"option_id": 7, "option_terminated": True},
+        ),
+        # two step option
+        traj_step(
+            state=4,
+            action=1,
+            reward=1.0,
+            info={"option_id": 4, "option_terminated": False},
+        ),
+        traj_step(
+            state=5,
+            action=3,
+            reward=1.0,
+            info={"option_id": 4, "option_terminated": True},
+        ),
+    ]
+
+    output = mapper.apply(inputs)
+    expectactions = [
+        traj_step(
+            state=1,
+            action=7,
+            reward=12.0,
+        ),
+        traj_step(
+            state=4,
+            action=4,
+            reward=2.0,
+        ),
+    ]
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 2
+    for output, expected in zip(outputs, expectactions):
+        # reward can only be approximately equal
+        np.testing.assert_array_equal(output.observation, expected.observation)
+        np.testing.assert_array_equal(output.action, expected.action)
+        np.testing.assert_array_equal(output.policy_info, expected.policy_info)
+        np.testing.assert_array_almost_equal(output.reward, expected.reward)
+        np.testing.assert_array_equal(output.terminated, expected.terminated)
+        np.testing.assert_array_equal(output.truncated, expected.truncated)
+
+
 def test_counter_init():
     counter = replay_mapper.Counter()
     assert counter.value is None
@@ -309,14 +448,16 @@ def traj_step(
     state: int,
     action: int,
     reward: float,
-    prob: float,
+    prob: Optional[float] = None,
     terminated: bool = False,
     truncated: bool = False,
+    info: Mapping[str, Any] = {},
 ):
+    prob_info = {"log_probability": defaults.array(np.log(prob))} if prob else {}
     return core.TrajectoryStep(
         observation=defaults.array(state),
         action=defaults.array(action),
-        policy_info={"log_probability": defaults.array(np.log(prob))},
+        policy_info={**info, **prob_info},
         reward=defaults.array(reward),
         terminated=terminated,
         truncated=truncated,

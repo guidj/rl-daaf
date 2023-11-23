@@ -1,6 +1,8 @@
 """
 Utilities, helpers.
 """
+
+
 import dataclasses
 import math
 import uuid
@@ -13,12 +15,12 @@ def create_task_id(timestamp: int):
     and a partial uuid.
     """
     _uuid = next(iter(str(uuid.uuid4()).split("-")))
-    return f"{timestamp}_{_uuid}"
+    return f"{timestamp}-{_uuid}"
 
 
-def split(items: Sequence[Any], num_partitions: int) -> Sequence[Sequence[Any]]:
+def partition(items: Sequence[Any], num_partitions: int) -> Sequence[Sequence[Any]]:
     """
-    Attempts to split a list of items into sublists of equal size.
+    Attempts to partition a list of items into sublists of equal size.
 
     If the numbers of items is not divisible by the number of
     partition sizes, the first partitions will have more items.
