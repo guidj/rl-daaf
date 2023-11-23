@@ -24,16 +24,15 @@ from typing import Optional, Set
 import numpy as np
 from rlplg import core, tracking
 
-from daaf import progargs, task
+from daaf import expconfig, task
 
 
 def daaf_policy_evalution(
     run_id: str,
     env_spec: core.EnvSpec,
     num_episodes: int,
-    algorithm: str,
-    control_args: progargs.ControlArgs,
-    daaf_args: progargs.DaafArgs,
+    learning_args: expconfig.LearningArgs,
+    daaf_config: expconfig.DaafConfig,
     output_dir: str,
     log_episode_frequency: int,
 ) -> None:
@@ -45,42 +44,38 @@ def daaf_policy_evalution(
         policy: a policy to be estimated.
         env_spec: configuration of the environment, and state/action mapping functions.
         num_episodes: number of episodes to estimate the policy.
-        control_args: algorithm arguments, e.g. discount factor.
+        learning_args: algorithm arguments, e.g. discount factor.
         daaf_args: configuration of cumulative rewards, e.g. rewad period.
         output_dir: a path to write execution logs.
         log_episode_frequency: frequency for writing execution logs.
     """
     traj_mapper = task.create_trajectory_mapper(
         env_spec=env_spec,
-        reward_period=daaf_args.reward_period,
-        traj_mapping_method=daaf_args.traj_mapping_method,
-        buffer_size_or_multiplier=(
-            daaf_args.buffer_size,
-            daaf_args.buffer_size_multiplier,
-        ),
+        reward_period=daaf_config.reward_period,
+        traj_mapping_method=daaf_config.traj_mapping_method,
+        buffer_size_or_multiplier=(None, None),
     )
 
     # Policy Eval with DAAF
     logging.info("Starting DAAF Evaluation")
-    policy = task.eval_policy(env_spec=env_spec, daaf_args=daaf_args)
+    policy = task.create_eval_policy(env_spec=env_spec, daaf_config=daaf_config)
     results = task.run_fn(
         policy=policy,
         env_spec=env_spec,
         num_episodes=num_episodes,
-        algorithm=algorithm,
+        algorithm=daaf_config.algorithm,
         initial_state_values=initial_values(env_spec.mdp.env_desc.num_states),
-        control_args=control_args,
+        learnign_args=learning_args,
         generate_steps_fn=task.create_generate_episodes_fn(mapper=traj_mapper),
     )
     with tracking.ExperimentLogger(
         output_dir,
-        name=f"qpolicy/daaf/mapper-{daaf_args.traj_mapping_method}",
+        name=f"qpolicy/daaf/mapper-{daaf_config.traj_mapping_method}",
         params={
-            "algorithm": algorithm,
-            "alpha": control_args.alpha,
-            "gamma": control_args.gamma,
-            "epsilon": control_args.epsilon,
-            "buffer_size": daaf_args.buffer_size_multiplier,
+            "algorithm": daaf_config.algorithm,
+            "alpha": learning_args.learning_rate,
+            "gamma": learning_args.discount_factor,
+            "epsilon": learning_args.epsilon,
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
@@ -106,7 +101,7 @@ def daaf_policy_evalution(
             logging.info("Zero episodes!")
 
 
-def main(args: progargs.ExperimentArgs):
+def main(args: expconfig.ExperimentTask):
     """
     Entry point running online evaluation for DAAF.
 
@@ -115,18 +110,17 @@ def main(args: progargs.ExperimentArgs):
     """
     # init env and agent
     env_spec = task.create_env_spec(
-        problem=args.env_name,
-        env_args=args.env_args,
+        problem=args.experiment.env_config.env_name,
+        env_args=args.experiment.env_config.env_args,
     )
     daaf_policy_evalution(
         run_id=args.run_id,
         env_spec=env_spec,
-        num_episodes=args.num_episodes,
-        algorithm=args.algorithm,
-        control_args=args.control_args,
-        daaf_args=args.daaf_args,
-        output_dir=args.output_dir,
-        log_episode_frequency=args.log_episode_frequency,
+        num_episodes=args.run_config.num_episodes,
+        learning_args=args.experiment.learning_args,
+        daaf_config=args.experiment.daaf_config,
+        output_dir=args.run_config.output_dir,
+        log_episode_frequency=args.run_config.log_episode_frequency,
     )
     env_spec.environment.close()
 
@@ -150,7 +144,3 @@ def initial_values(
         vtable[list(terminal_states or [])] = 0.0
         return vtable.astype(dtype)
     return np.zeros(shape=(num_states,), dtype=dtype)
-
-
-if __name__ == "__main__":
-    main(task.parse_args())

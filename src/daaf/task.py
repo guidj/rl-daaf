@@ -4,11 +4,8 @@ Generators are for Py classes (agents, environment, etc).
 """
 
 
-import argparse
 import dataclasses
-import json
 import logging
-import uuid
 from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Tuple
 
 import gymnasium as gym
@@ -19,7 +16,7 @@ from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import dynamicprog, policies
 from rlplg.learning.tabular.evaluation import onpolicy
 
-from daaf import constants, options, progargs, replay_mapper
+from daaf import constants, expconfig, options, replay_mapper
 
 
 @dataclasses.dataclass(frozen=True)
@@ -32,62 +29,13 @@ class StateActionValues:
     action_values: Optional[np.ndarray]
 
 
-def parse_args() -> progargs.ExperimentArgs:
-    """
-    Parses experiment arguments.
-    """
-    arg_parser = argparse.ArgumentParser(
-        prog="Policy estimation with delayed aggregated anonymous feedback."
-    )
-    arg_parser.add_argument("--env-name", type=str, required=True)
-    arg_parser.add_argument("--env-args", type=str, default=None)
-    arg_parser.add_argument("--run-id", type=str, default=str(uuid.uuid4()))
-    arg_parser.add_argument("--output-dir", type=str, required=True)
-    arg_parser.add_argument("--reward-period", type=int, default=2)
-    arg_parser.add_argument("--num-episodes", type=int, default=1000)
-    arg_parser.add_argument(
-        "--algorithm",
-        type=str,
-        choices=constants.ALGORITHMS,
-        default=constants.ONE_STEP_TD,
-    )
-    arg_parser.add_argument(
-        "--traj-mapping-method",
-        type=str,
-        default=constants.REWARD_ESTIMATION_LSQ_MAPPER,
-        choices=constants.AGGREGATE_MAPPER_METHODS,
-    )
-    arg_parser.add_argument("--control-epsilon", type=float, default=1.0)
-    arg_parser.add_argument("--control-alpha", type=float, default=0.1)
-    arg_parser.add_argument("--control-gamma", type=float, default=1.0)
-    arg_parser.add_argument("--buffer-size", type=int, default=None)
-    arg_parser.add_argument("--buffer-size-multiplier", type=int, default=None)
-    arg_parser.add_argument("--log-episode-frequency", type=int, default=1)
-
-    known_args, _ = arg_parser.parse_known_args()
-    mutable_args = vars(known_args)
-    env_args_json_string = (
-        mutable_args.pop("env_args") if mutable_args["env_args"] is not None else "{}"
-    )
-    try:
-        env_args = json.loads(env_args_json_string)
-    except json.decoder.JSONDecodeError as err:
-        raise RuntimeError(
-            f"Failed to parse env-args json string: {env_args_json_string}",
-        ) from err
-
-    return progargs.ExperimentArgs.from_flat_dict(
-        {**mutable_args, **{"env_args": env_args}}
-    )
-
-
 def run_fn(
     policy: core.PyPolicy,
     env_spec: core.EnvSpec,
     num_episodes: int,
     algorithm: str,
     initial_state_values: np.ndarray,
-    control_args: progargs.ControlArgs,
+    learnign_args: expconfig.LearningArgs,
     generate_steps_fn: Callable[
         [gym.Env, core.PyPolicy, int],
         Generator[core.TrajectoryStep, None, None],
@@ -102,10 +50,10 @@ def run_fn(
             environment=env_spec.environment,
             num_episodes=num_episodes,
             lrs=schedules.LearningRateSchedule(
-                initial_learning_rate=control_args.alpha,
+                initial_learning_rate=learnign_args.learning_rate,
                 schedule=constant_learning_rate,
             ),
-            gamma=control_args.gamma,
+            gamma=learnign_args.discount_factor,
             state_id_fn=env_spec.discretizer.state,
             initial_values=initial_state_values,
             generate_episodes=generate_steps_fn,
@@ -115,7 +63,7 @@ def run_fn(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
-            gamma=control_args.gamma,
+            gamma=learnign_args.discount_factor,
             state_id_fn=env_spec.discretizer.state,
             initial_values=initial_state_values,
             generate_episodes=generate_steps_fn,
@@ -141,9 +89,7 @@ def create_env_spec(
     return envsuite.load(name=problem, **env_args)
 
 
-def dynamic_prog_estimation(
-    mdp: core.Mdp, control_args: progargs.ControlArgs
-) -> StateActionValues:
+def dynamic_prog_estimation(mdp: core.Mdp, gamma: float) -> StateActionValues:
     """
     Runs dynamic programming on an MDP to generate state-value and action-value
     functions.
@@ -151,17 +97,17 @@ def dynamic_prog_estimation(
     Args:
         env_spec: environment specification.
         mdp: Markov Decison Process dynamics
-        control_args: control arguments.
+        gamma: the discount factor.
     """
     observable_random_policy = policies.PyObservableRandomPolicy(
         num_actions=mdp.env_desc.num_actions,
     )
     state_values = dynamicprog.iterative_policy_evaluation(
-        mdp=mdp, policy=observable_random_policy, gamma=control_args.gamma
+        mdp=mdp, policy=observable_random_policy, gamma=gamma
     )
     logging.debug("State value V(s):\n%s", state_values)
     action_values = dynamicprog.action_values_from_state_values(
-        mdp=mdp, state_values=state_values, gamma=control_args.gamma
+        mdp=mdp, state_values=state_values, gamma=gamma
     )
     logging.debug("Action value Q(s,a):\n%s", action_values)
     return StateActionValues(state_values=state_values, action_values=action_values)
@@ -226,14 +172,16 @@ def create_trajectory_mapper(
     return mapper
 
 
-def eval_policy(env_spec: core.EnvSpec, daaf_args: progargs.DaafArgs) -> core.PyPolicy:
+def create_eval_policy(
+    env_spec: core.EnvSpec, daaf_config: expconfig.DaafConfig
+) -> core.PyPolicy:
     """
     Creates a policy to be evaluated.
     """
-    if daaf_args.traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
+    if daaf_config.traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
         return options.UniformlyRandomCompositeActionPolicy(
             actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
-            options_duration=daaf_args.reward_period,
+            options_duration=daaf_config.reward_period,
         )
     return policies.PyRandomPolicy(
         num_actions=env_spec.mdp.env_desc.num_actions,
