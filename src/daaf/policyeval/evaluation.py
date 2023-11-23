@@ -70,7 +70,7 @@ def daaf_policy_evalution(
     )
     with tracking.ExperimentLogger(
         output_dir,
-        name=f"qpolicy/daaf/mapper-{daaf_config.traj_mapping_method}",
+        name=run_id,
         params={
             "algorithm": daaf_config.algorithm,
             "alpha": learning_args.learning_rate,
@@ -90,9 +90,9 @@ def daaf_policy_evalution(
                 exp_logger.log(
                     episode=episode,
                     steps=steps,
-                    returns=0.0,
+                    returns=np.nan,
                     metadata={
-                        "qtable": state_values.tolist(),
+                        "state_values": state_values.tolist(),
                     },
                 )
         try:
