@@ -197,11 +197,9 @@ def generate_tasks_from_experiments_and_run_config(
                         run_config.output_dir,
                         str(now),
                         task_id,
-                        str(idx),
-                        experiment.env_config.env_name,
-                        experiment.env_config.level,
+                        f"run{idx}",
                         experiment.daaf_config.traj_mapping_method,
-                        str(experiment.daaf_config.reward_period),
+                        f"p{experiment.daaf_config.reward_period}",
                     ),
                 ),
             )
