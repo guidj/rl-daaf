@@ -120,7 +120,9 @@ def create_tasks(
     )
     # shuffle tasks to balance workload
     experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))
-    worker_split_tasks = utils.split(items=experiment_tasks, num_partitions=num_tasks)
+    worker_split_tasks = utils.partition(
+        items=experiment_tasks, num_partitions=num_tasks
+    )
 
     logging.info(
         "Parsed %d DAAF configs and %d environments into %d tasks, split into %d groups",
