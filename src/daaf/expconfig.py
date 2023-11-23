@@ -179,10 +179,16 @@ def generate_tasks_from_experiments_and_run_config(
 
     now = timestamp or int(time.time())
     for experiment in experiments:
-        task_id = utils.create_task_id(now)
+        task_id = "-".join(
+            [
+                utils.create_task_id(now),
+                experiment.env_config.env_name,
+                experiment.env_config.level,
+            ]
+        )
         for idx in range(num_runs):
             yield ExperimentTask(
-                run_id=f"{task_id}-{idx}",
+                run_id=f"{task_id}-run{idx}",
                 experiment=experiment,
                 run_config=dataclasses.replace(
                     run_config,

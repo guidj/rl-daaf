@@ -13,7 +13,7 @@ def create_task_id(timestamp: int):
     and a partial uuid.
     """
     _uuid = next(iter(str(uuid.uuid4()).split("-")))
-    return f"{timestamp}_{_uuid}"
+    return f"{timestamp}-{_uuid}"
 
 
 def split(items: Sequence[Any], num_partitions: int) -> Sequence[Sequence[Any]]:
