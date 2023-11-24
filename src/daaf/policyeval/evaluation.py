@@ -25,6 +25,7 @@ import numpy as np
 from rlplg import core, tracking
 
 from daaf import expconfig, task
+import dataclasses
 
 
 def daaf_policy_evalution(
@@ -71,12 +72,7 @@ def daaf_policy_evalution(
     with tracking.ExperimentLogger(
         output_dir,
         name=run_id,
-        params={
-            "algorithm": daaf_config.algorithm,
-            "alpha": learning_args.learning_rate,
-            "gamma": learning_args.discount_factor,
-            "epsilon": learning_args.epsilon,
-        },
+        params={**dataclasses.asdict(daaf_config), **dataclasses.asdict(learning_args)},
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
         for episode, (steps, state_values) in enumerate(results):
