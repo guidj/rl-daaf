@@ -63,17 +63,8 @@ def main(args: EvalPipelineArgs):
         futures_experiments = {
             future: experiments for _, (future, experiments) in tasks_futures.items()
         }
-        finished, unfinished = ray.wait(futures)
-        log_completion(finished, futures_experiments)
-        for task in finished:
-            logging.info(
-                "Completed task %s, %d left out of %d.",
-                ray.get(task),
-                len(unfinished),
-                len(futures),
-            )
-
-        while len(unfinished) > 0:
+        unfinished = futures
+        while True:
             finished, unfinished = ray.wait(unfinished)
             log_completion(finished, futures_experiments)
             for task in finished:
@@ -83,6 +74,9 @@ def main(args: EvalPipelineArgs):
                     len(unfinished),
                     len(futures),
                 )
+
+            if len(unfinished) == 0:
+                break
 
 
 def create_tasks(
