@@ -18,6 +18,7 @@ Generally, we estimate rewards to then estimate Q.
 """
 
 
+import dataclasses
 import logging
 from typing import Optional, Set
 
@@ -25,7 +26,6 @@ import numpy as np
 from rlplg import core, tracking
 
 from daaf import expconfig, task
-import dataclasses
 
 
 def daaf_policy_evalution(
