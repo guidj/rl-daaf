@@ -55,7 +55,7 @@ CLASSIFIERS = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS :: MacOS X",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
 META_FILE = read(META_PATH)
@@ -75,7 +75,6 @@ setup(
     include_package_data=True,
     classifiers=CLASSIFIERS,
     zip_safe=False,
-    install_requires=read_requirements("requirements.txt"),
+    install_requires=read_requirements("requirements.in"),
     test_suite="tests",
-    tests_require=read_requirements("test-requirements.txt"),
 )
