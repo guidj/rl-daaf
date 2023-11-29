@@ -1,5 +1,5 @@
 -r requirements.txt
 
-jupyterlab==3.4.3
+jupyterlab>=3.6.6
 matplotlib
 seaborn

@@ -1,4 +1,6 @@
-coverage==6.3.2
-pytest==7.1.2
-pytest-cov==3.0.0
-hypothesis==6.45.0
+-r requirements.txt
+
+coverage>=7.2.1
+pytest>=7.2.1
+pytest-cov>=4.0.0
+hypothesis>=6.65.1
