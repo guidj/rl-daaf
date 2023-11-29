@@ -23,9 +23,9 @@ import logging
 from typing import Optional, Set
 
 import numpy as np
-from rlplg import core, tracking
+from rlplg import core
 
-from daaf import expconfig, task
+from daaf import expconfig, task, utils
 
 
 def daaf_policy_evalution(
@@ -69,7 +69,7 @@ def daaf_policy_evalution(
         learnign_args=learning_args,
         generate_steps_fn=task.create_generate_episodes_fn(mapper=traj_mapper),
     )
-    with tracking.ExperimentLogger(
+    with utils.ExperimentLogger(
         output_dir,
         name=run_id,
         params={**dataclasses.asdict(daaf_config), **dataclasses.asdict(learning_args)},
@@ -87,7 +87,7 @@ def daaf_policy_evalution(
                     episode=episode,
                     steps=steps,
                     returns=np.nan,
-                    metadata={
+                    info={
                         "state_values": state_values.tolist(),
                     },
                 )

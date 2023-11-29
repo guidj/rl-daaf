@@ -3,10 +3,86 @@ Utilities, helpers.
 """
 
 
+import contextlib
 import dataclasses
+import json
 import math
+import os.path
+import types
 import uuid
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Optional, Sequence, Type, Union
+
+import tensorflow as tf
+
+
+class ExperimentLogger(contextlib.AbstractContextManager):
+    """
+    Logs info for an experiment for given episodes.
+    """
+
+    LOG_FILE_NAME = "experiment-logs.jsonl"
+    PARAM_FILE_NAME = "experiment-params.json"
+
+    def __init__(
+        self, log_dir: str, name: str, params: Mapping[str, Union[int, float, str]]
+    ):
+        self.log_file = os.path.join(log_dir, self.LOG_FILE_NAME)
+        self.param_file = os.path.join(log_dir, self.PARAM_FILE_NAME)
+        if not tf.io.gfile.exists(log_dir):
+            tf.io.gfile.makedirs(log_dir)
+
+        with tf.io.gfile.GFile(self.param_file, "w") as writer:
+            writer.write(json.dumps(dict(params, name=name)))
+
+        self._writer: Optional[tf.io.gfile.GFile] = None
+
+    def open(self) -> None:
+        """
+        Opens the log file for writing.
+        """
+        self._writer = tf.io.gfile.GFile(self.log_file, "w")
+
+    def close(self) -> None:
+        """
+        Closes the log file.
+        """
+        if self._writer is None:
+            raise RuntimeError("File is not opened")
+        self._writer.close()
+
+    def __enter__(self) -> "ExperimentLogger":
+        self.open()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[types.TracebackType],
+    ) -> None:
+        self.close()
+        super().__exit__(exc_type, exc_value, traceback)
+
+    def log(
+        self,
+        episode: int,
+        steps: int,
+        returns: float,
+        info: Optional[Mapping[str, Any]] = None,
+    ):
+        """
+        Logs an experiment entry for an episode.
+        """
+        entry = {
+            "episode": episode,
+            "steps": steps,
+            "returns": returns,
+            "info": info if info is not None else {},
+        }
+
+        if self._writer is None:
+            raise RuntimeError("File is not opened")
+        self._writer.write(f"{json.dumps(entry)}\n")
 
 
 def create_task_id(timestamp: int):
