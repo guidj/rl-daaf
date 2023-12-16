@@ -53,7 +53,6 @@ attrs==22.2.0
     #   -r requirements.txt
     #   aiohttp
     #   jsonschema
-    #   ray
 babel==2.12.1
     # via jupyterlab-server
 backcall==0.2.0
@@ -392,6 +391,7 @@ packaging==23.2
     #   jupyterlab-server
     #   matplotlib
     #   nbconvert
+    #   ray
     #   tensorflow
 pandas==1.5.3
     # via seaborn
@@ -498,7 +498,7 @@ pyzmq==25.0.1
     #   jupyter-server
     #   nbclassic
     #   notebook
-ray[default]==2.4.0
+ray[default]==2.6.3
     # via -r requirements.txt
 requests==2.28.2
     # via
