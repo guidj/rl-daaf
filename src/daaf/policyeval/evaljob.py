@@ -63,19 +63,19 @@ def main(args: EvalPipelineArgs):
         futures_experiments = {
             future: experiments for _, (future, experiments) in tasks_futures.items()
         }
-        unfinished = futures
+        unfinished_tasks = futures
         while True:
-            finished, unfinished = ray.wait(unfinished)
-            log_completion(finished, futures_experiments)
-            for task in finished:
+            finished_tasks, unfinished_tasks = ray.wait(unfinished_tasks)
+            log_completion(finished_tasks, futures_experiments)
+            for finished_task in finished_tasks:
                 logging.info(
                     "Completed task %s, %d left out of %d.",
-                    ray.get(task),
-                    len(unfinished),
+                    ray.get(finished_task),
+                    len(unfinished_tasks),
                     len(futures),
                 )
 
-            if len(unfinished) == 0:
+            if len(unfinished_tasks) == 0:
                 break
 
 
@@ -100,7 +100,6 @@ def create_tasks(
             envs_configs=envs_configs, experiment_configs=experiment_configs
         )
     )
-
     experiment_tasks = tuple(
         expconfig.generate_tasks_from_experiments_and_run_config(
             run_config=expconfig.RunConfig(
@@ -145,7 +144,7 @@ def evaluate(group_id: int, experiment_tasks: Sequence[Any]) -> int:
             idx + 1,
             len(experiment_tasks),
         )
-        evaluation.main(experiment_task)
+        evaluation.run_fn(experiment_task)
     return group_id
 
 
@@ -156,8 +155,8 @@ def log_completion(
     """
     Logs completed tasks's configuration, for tracing.
     """
-    for task in finished_tasks:
-        for experiment in tasks_experiments[task]:
+    for finished_task in finished_tasks:
+        for experiment in tasks_experiments[finished_task]:
             logging.info("Completed experiment: %s", vars(experiment))
 
 

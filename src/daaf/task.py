@@ -6,15 +6,13 @@ Generators are for Py classes (agents, environment, etc).
 
 import dataclasses
 import logging
-from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Tuple
+from typing import Any, Callable, Generator, Mapping, Optional, Tuple
 
 import gymnasium as gym
 import numpy as np
 from rlplg import core, envplay, envsuite
 from rlplg.learning import utils
-from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import dynamicprog, policies
-from rlplg.learning.tabular.evaluation import onpolicy
 
 from daaf import constants, expconfig, options, replay_mapper
 
@@ -27,51 +25,6 @@ class StateActionValues:
 
     state_values: Optional[np.ndarray]
     action_values: Optional[np.ndarray]
-
-
-def run_fn(
-    policy: core.PyPolicy,
-    env_spec: core.EnvSpec,
-    num_episodes: int,
-    algorithm: str,
-    initial_state_values: np.ndarray,
-    learnign_args: expconfig.LearningArgs,
-    generate_steps_fn: Callable[
-        [gym.Env, core.PyPolicy, int],
-        Generator[core.TrajectoryStep, None, None],
-    ],
-) -> Iterator[Tuple[int, np.ndarray]]:
-    """
-    Runs policy evaluation with given algorithm, env, and policy spec.
-    """
-    if algorithm == constants.ONE_STEP_TD:
-        results = onpolicy.one_step_td_state_values(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            lrs=schedules.LearningRateSchedule(
-                initial_learning_rate=learnign_args.learning_rate,
-                schedule=constant_learning_rate,
-            ),
-            gamma=learnign_args.discount_factor,
-            state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_state_values,
-            generate_episodes=generate_steps_fn,
-        )
-    elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
-        results = onpolicy.first_visit_monte_carlo_state_values(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            gamma=learnign_args.discount_factor,
-            state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_state_values,
-            generate_episodes=generate_steps_fn,
-        )
-    else:
-        raise ValueError(f"Unsupported algorithm {algorithm}")
-
-    return results
 
 
 def create_env_spec(
@@ -99,7 +52,7 @@ def dynamic_prog_estimation(mdp: core.Mdp, gamma: float) -> StateActionValues:
         mdp: Markov Decison Process dynamics
         gamma: the discount factor.
     """
-    observable_random_policy = policies.PyObservableRandomPolicy(
+    observable_random_policy = policies.PyRandomPolicy(
         num_actions=mdp.env_desc.num_actions,
     )
     state_values = dynamicprog.iterative_policy_evaluation(
