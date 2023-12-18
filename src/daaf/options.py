@@ -9,9 +9,12 @@ from typing import Any, Iterable, Optional
 
 from rlplg import core
 from rlplg.core import ObsType
+from rlplg.learning.tabular import policies
 
 
-class UniformlyRandomCompositeActionPolicy(core.PyPolicy):
+class UniformlyRandomCompositeActionPolicy(
+    core.PyPolicy, policies.SupportsStateActionProbability
+):
     """
     A stateful composition action options policy.
     """
@@ -87,3 +90,11 @@ class UniformlyRandomCompositeActionPolicy(core.PyPolicy):
                 "option_terminated": option_step == self.options_duration - 1,
             },
         )
+
+    def state_action_prob(self, state, action) -> float:
+        """
+        Returns the probability of choosing an arm.
+        """
+        del state
+        del action
+        return 1.0 / len(self._options)

@@ -10,7 +10,7 @@ import math
 import os.path
 import types
 import uuid
-from typing import Any, Mapping, Optional, Sequence, Type, Union, Callable
+from typing import Any, Callable, Mapping, Optional, Sequence, Type, Union
 
 import tensorflow as tf
 

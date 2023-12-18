@@ -59,3 +59,20 @@ def test_uniformly_random_composite_actions_options_policy_action():
     assert output.state["option_step"] == 0
     assert output.info["option_id"] in range(4)
     assert output.info["option_terminated"] is False
+
+
+@hypothesis.given(
+    num_actions=st.integers(min_value=2, max_value=5),
+    options_duration=st.integers(min_value=2, max_value=5),
+    num_trials=st.integers(min_value=2, max_value=5),
+)
+def test_uniformly_random_composite_actions_options_policy_state_action_prob(
+    num_actions: int, options_duration: int, num_trials: int
+):
+    policy = options.UniformlyRandomCompositeActionPolicy(
+        actions=tuple(range(num_actions)), options_duration=options_duration
+    )
+    for _ in range(num_trials):
+        assert policy.state_action_prob((), ()) == 1.0 / (
+            num_actions**options_duration
+        )
