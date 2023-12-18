@@ -10,7 +10,7 @@ import math
 import os.path
 import types
 import uuid
-from typing import Any, Mapping, Optional, Sequence, Type, Union
+from typing import Any, Mapping, Optional, Sequence, Type, Union, Callable
 
 import tensorflow as tf
 
@@ -111,7 +111,7 @@ def partition(items: Sequence[Any], num_partitions: int) -> Sequence[Sequence[An
     return [partition for partition in splits if partition]
 
 
-def dataclass_from_dict(clazz: Any, data: Mapping[str, Any]):  # type: ignore [arg-type]
+def dataclass_from_dict(clazz: Callable, data: Mapping[str, Any]):  # type: ignore [arg-type]
     """
     Creates an instance of a dataclass from a dictionary.
     """
