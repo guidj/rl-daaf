@@ -17,7 +17,7 @@ from rlplg.learning.tabular.evaluation import onpolicy
 from daaf import constants, expconfig, task, utils
 
 
-def run_fn(args: expconfig.ExperimentTask):
+def run_fn(experiment_task: expconfig.ExperimentTask):
     """
     Entry point running on-policy evaluation for DAAF.
 
@@ -26,43 +26,43 @@ def run_fn(args: expconfig.ExperimentTask):
     """
     # init env and agent
     env_spec = task.create_env_spec(
-        problem=args.experiment.env_config.env_name,
-        env_args=args.experiment.env_config.env_args,
+        problem=experiment_task.experiment.env_config.env_name,
+        env_args=experiment_task.experiment.env_config.env_args,
     )
     traj_mapper = task.create_trajectory_mapper(
         env_spec=env_spec,
-        reward_period=args.experiment.daaf_config.reward_period,
-        traj_mapping_method=args.experiment.daaf_config.traj_mapping_method,
+        reward_period=experiment_task.experiment.daaf_config.reward_period,
+        traj_mapping_method=experiment_task.experiment.daaf_config.traj_mapping_method,
         buffer_size_or_multiplier=(None, None),
     )
     # Policy Eval with DAAF
     logging.info("Starting DAAF Evaluation")
     policy = task.create_eval_policy(
-        env_spec=env_spec, daaf_config=args.experiment.daaf_config
+        env_spec=env_spec, daaf_config=experiment_task.experiment.daaf_config
     )
     results = evaluate_policy(
         policy=policy,
         env_spec=env_spec,
-        num_episodes=args.run_config.num_episodes,
-        algorithm=args.experiment.daaf_config.algorithm,
+        num_episodes=experiment_task.run_config.num_episodes,
+        algorithm=experiment_task.experiment.daaf_config.algorithm,
         initial_state_values=initial_values(env_spec.mdp.env_desc.num_states),
-        learnign_args=args.experiment.learning_args,
+        learnign_args=experiment_task.experiment.learning_args,
         generate_steps_fn=task.create_generate_episodes_fn(mapper=traj_mapper),
     )
     with utils.ExperimentLogger(
-        args.run_config.output_dir,
-        name=args.run_id,
+        experiment_task.run_config.output_dir,
+        name=experiment_task.run_id,
         params={
-            **dataclasses.asdict(args.experiment.daaf_config),
-            **dataclasses.asdict(args.experiment.learning_args),
+            **dataclasses.asdict(experiment_task.experiment.daaf_config),
+            **dataclasses.asdict(experiment_task.experiment.learning_args),
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
         for episode, (steps, state_values) in enumerate(results):
-            if episode % args.run_config.log_episode_frequency == 0:
+            if episode % experiment_task.run_config.log_episode_frequency == 0:
                 logging.info(
                     "Task %s, Episode %d: %d steps",
-                    args.run_id,
+                    experiment_task.run_id,
                     episode,
                     steps,
                 )
