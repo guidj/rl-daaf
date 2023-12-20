@@ -166,7 +166,9 @@ def add_experiment_context(
             (
                 experiment,
                 {
-                    "dyna_prog_state_values": dyna_prog_index.get(name, level, gamma),
+                    "dyna_prog_state_values": dyna_prog_index.get(
+                        name, level, gamma
+                    ).tolist(),  # so it can be serialized
                 },
             )
         )

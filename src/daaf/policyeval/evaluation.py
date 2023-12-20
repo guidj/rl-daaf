@@ -55,6 +55,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         params={
             **dataclasses.asdict(experiment_task.experiment.daaf_config),
             **dataclasses.asdict(experiment_task.experiment.learning_args),
+            **experiment_task.context,
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
