@@ -18,14 +18,18 @@ def test_experiment_logger():
             experiment_logger.log(episode=2, steps=4, returns=40, info={"error": 0.123})
 
         with open(
-            os.path.join(tempdir, utils.ExperimentLogger.PARAM_FILE_NAME)
+            os.path.join(tempdir, utils.ExperimentLogger.PARAM_FILE_NAME),
+            "r",
+            encoding="UTF-8",
         ) as readable:
             output_params = json.load(readable)
             expected_params = {**params, "name": name}
             assert output_params == expected_params
 
         with open(
-            os.path.join(tempdir, utils.ExperimentLogger.LOG_FILE_NAME)
+            os.path.join(tempdir, utils.ExperimentLogger.LOG_FILE_NAME),
+            "r",
+            encoding="UTF-8",
         ) as readable:
             expected_output = [
                 {
@@ -64,14 +68,18 @@ def test_experiment_logger_with_nonexisitng_dir():
             experiment_logger.log(episode=2, steps=4, returns=40, info={"error": 0.123})
 
         with open(
-            os.path.join(log_dir, utils.ExperimentLogger.PARAM_FILE_NAME)
+            os.path.join(log_dir, utils.ExperimentLogger.PARAM_FILE_NAME),
+            "r",
+            encoding="UTF-8",
         ) as readable:
             output_params = json.load(readable)
             expected_params = {**params, "name": name}
             assert output_params == expected_params
 
         with open(
-            os.path.join(log_dir, utils.ExperimentLogger.LOG_FILE_NAME)
+            os.path.join(log_dir, utils.ExperimentLogger.LOG_FILE_NAME),
+            "r",
+            encoding="UTF-8",
         ) as readable:
             expected_output = [
                 {

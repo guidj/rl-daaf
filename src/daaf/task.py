@@ -4,27 +4,14 @@ Generators are for Py classes (agents, environment, etc).
 """
 
 
-import dataclasses
-import logging
 from typing import Any, Callable, Generator, Mapping, Optional, Tuple
 
 import gymnasium as gym
-import numpy as np
 from rlplg import core, envplay, envsuite
 from rlplg.learning import utils
-from rlplg.learning.tabular import dynamicprog, policies
+from rlplg.learning.tabular import policies
 
 from daaf import constants, expconfig, options, replay_mapper
-
-
-@dataclasses.dataclass(frozen=True)
-class StateActionValues:
-    """
-    Class holds state-value and action-value functions.
-    """
-
-    state_values: Optional[np.ndarray]
-    action_values: Optional[np.ndarray]
 
 
 def create_env_spec(
@@ -40,30 +27,6 @@ def create_env_spec(
     """
 
     return envsuite.load(name=problem, **env_args)
-
-
-def dynamic_prog_estimation(mdp: core.Mdp, gamma: float) -> StateActionValues:
-    """
-    Runs dynamic programming on an MDP to generate state-value and action-value
-    functions.
-
-    Args:
-        env_spec: environment specification.
-        mdp: Markov Decison Process dynamics
-        gamma: the discount factor.
-    """
-    observable_random_policy = policies.PyRandomPolicy(
-        num_actions=mdp.env_desc.num_actions,
-    )
-    state_values = dynamicprog.iterative_policy_evaluation(
-        mdp=mdp, policy=observable_random_policy, gamma=gamma
-    )
-    logging.debug("State value V(s):\n%s", state_values)
-    action_values = dynamicprog.action_values_from_state_values(
-        mdp=mdp, state_values=state_values, gamma=gamma
-    )
-    logging.debug("Action value Q(s,a):\n%s", action_values)
-    return StateActionValues(state_values=state_values, action_values=action_values)
 
 
 def create_trajectory_mapper(

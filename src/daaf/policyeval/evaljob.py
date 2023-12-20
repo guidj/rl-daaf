@@ -12,7 +12,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 import ray
 
 import daaf
-from daaf import expconfig, utils
+from daaf import expconfig, task, utils
 from daaf.policyeval import evaluation
 
 
@@ -27,6 +27,7 @@ class EvalPipelineArgs:
     config_path: str
     num_runs: int
     num_episodes: int
+    assets_dir: int
     output_dir: str
     log_episode_frequency: int
     # ray args
@@ -52,6 +53,7 @@ def main(args: EvalPipelineArgs):
             config_path=args.config_path,
             num_runs=args.num_runs,
             num_episodes=args.num_episodes,
+            assets_dir=args.assets_dir,
             output_dir=args.output_dir,
             log_episode_frequency=args.log_episode_frequency,
             num_tasks=args.num_tasks,
@@ -84,6 +86,7 @@ def create_tasks(
     config_path: str,
     num_runs: int,
     num_episodes: int,
+    assets_dir: str,
     output_dir: str,
     log_episode_frequency: int,
     num_tasks: int,
@@ -97,17 +100,19 @@ def create_tasks(
     )
     experiments = tuple(
         expconfig.create_experiments(
-            envs_configs=envs_configs, experiment_configs=experiment_configs
+            envs_configs=envs_configs,
+            experiment_configs=experiment_configs,
         )
     )
+    experiments_and_context = add_experiment_context(experiments, assets_dir=assets_dir)
     experiment_tasks = tuple(
-        expconfig.generate_tasks_from_experiments_and_run_config(
+        expconfig.generate_tasks_from_experiments_context_and_run_config(
             run_config=expconfig.RunConfig(
                 num_episodes=num_episodes,
                 log_episode_frequency=log_episode_frequency,
                 output_dir=output_dir,
             ),
-            experiments=experiments,
+            experiments_and_context=experiments_and_context,
             num_runs=num_runs,
         )
     )
@@ -129,6 +134,43 @@ def create_tasks(
         future = evaluate.remote(group_id, split_tasks)
         futures[group_id] = (future, split_tasks)
     return futures
+
+
+def add_experiment_context(
+    experiments: Sequence[expconfig.Experiment], assets_dir: str
+) -> Sequence[Tuple[expconfig.Experiment, Mapping[str, Any]]]:
+    """
+    Enriches expeirment config with context.
+    """
+    dyna_prog_specs = []
+    for experiment in experiments:
+        env_spec = task.create_env_spec(
+            problem=experiment.env_config.name, env_args=experiment.env_config.args
+        )
+        dyna_prog_specs.append(
+            (
+                env_spec.name,
+                env_spec.level,
+                experiment.learning_args.discount_factor,
+                env_spec.mdp,
+            )
+        )
+
+    dyna_prog_index = utils.DynaProgStateValueIndex.build_index(
+        specs=dyna_prog_specs, path=assets_dir
+    )
+
+    experiments_and_context = []
+    for experiment, (name, level, gamma, _) in zip(experiments, dyna_prog_specs):
+        experiments_and_context.append(
+            (
+                experiment,
+                {
+                    "dyna_prog_state_values": dyna_prog_index.get(name, level, gamma),
+                },
+            )
+        )
+    return experiments_and_context
 
 
 @ray.remote
@@ -157,7 +199,7 @@ def log_completion(
     """
     for finished_task in finished_tasks:
         for experiment in tasks_experiments[finished_task]:
-            logging.info("Completed experiment: %s", vars(experiment))
+            logging.info("Completed experiment: %s", getattr(experiment, "run_id"))
 
 
 def parse_args() -> EvalPipelineArgs:
@@ -169,6 +211,7 @@ def parse_args() -> EvalPipelineArgs:
     arg_parser.add_argument("--config-path", type=str, required=True)
     arg_parser.add_argument("--num-runs", type=int, required=True)
     arg_parser.add_argument("--num-episodes", type=int, required=True)
+    arg_parser.add_argument("--assets-dir", type=str, required=True)
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)

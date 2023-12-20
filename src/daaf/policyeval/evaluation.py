@@ -26,8 +26,8 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
     """
     # init env and agent
     env_spec = task.create_env_spec(
-        problem=experiment_task.experiment.env_config.env_name,
-        env_args=experiment_task.experiment.env_config.env_args,
+        problem=experiment_task.experiment.env_config.name,
+        env_args=experiment_task.experiment.env_config.args,
     )
     traj_mapper = task.create_trajectory_mapper(
         env_spec=env_spec,
