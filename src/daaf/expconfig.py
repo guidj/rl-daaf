@@ -36,7 +36,7 @@ class DaafConfig:
     traj_mapping_method: str
     algorithm: str
     reward_period: int
-    drop_truncated_episodes: bool
+    drop_truncated_feedback_episodes: bool
 
 
 @dataclasses.dataclass(frozen=True)
@@ -113,7 +113,7 @@ def parse_experiment_configs(
                 "traj_mapper": str,
                 "algorithm": str,
                 "reward_period": np.int64,
-                "drop_truncated_episodes": np.bool_,
+                "drop_truncated_feedback_episodes": np.bool_,
                 "discount_factor": np.float64,
                 "learning_rate": np.float64,
             },
