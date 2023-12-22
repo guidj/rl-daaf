@@ -45,7 +45,8 @@ def create_trajectory_mappers(
         num_actions: number of actions in the problem.
         reward_period: the frequency with which rewards are generated.
         traj_mapping_method: the method to alter trajectory data.
-        buffer_size_or_multiplier: number of elements kept in buffer or multiple for |S|x|A|xMultiplier.
+        buffer_size_or_multiplier: number of elements kept in buffer
+            or multiple for |S|x|A|xMultiplier.
 
     Returns:
         A trajectory mapper.
@@ -97,7 +98,8 @@ def create_trajectory_mappers(
         )
     else:
         raise ValueError(
-            f"Unknown cu-step-method {traj_mapping_method}. Choices: {constants.AGGREGATE_MAPPER_METHODS}"
+            f"""Unknown cu-step-method {traj_mapping_method}.
+            Choices: {constants.AGGREGATE_MAPPER_METHODS}"""
         )
     return mappers
 
