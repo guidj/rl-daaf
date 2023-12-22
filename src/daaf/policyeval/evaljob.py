@@ -12,7 +12,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 import ray
 
 import daaf
-from daaf import expconfig, utils
+from daaf import expconfig, task, utils
 from daaf.policyeval import evaluation
 
 
@@ -27,6 +27,7 @@ class EvalPipelineArgs:
     config_path: str
     num_runs: int
     num_episodes: int
+    assets_dir: int
     output_dir: str
     log_episode_frequency: int
     # ray args
@@ -52,6 +53,7 @@ def main(args: EvalPipelineArgs):
             config_path=args.config_path,
             num_runs=args.num_runs,
             num_episodes=args.num_episodes,
+            assets_dir=args.assets_dir,
             output_dir=args.output_dir,
             log_episode_frequency=args.log_episode_frequency,
             num_tasks=args.num_tasks,
@@ -63,26 +65,20 @@ def main(args: EvalPipelineArgs):
         futures_experiments = {
             future: experiments for _, (future, experiments) in tasks_futures.items()
         }
-        finished, unfinished = ray.wait(futures)
-        log_completion(finished, futures_experiments)
-        for task in finished:
-            logging.info(
-                "Completed task %s, %d left out of %d.",
-                ray.get(task),
-                len(unfinished),
-                len(futures),
-            )
-
-        while len(unfinished) > 0:
-            finished, unfinished = ray.wait(unfinished)
-            log_completion(finished, futures_experiments)
-            for task in finished:
+        unfinished_tasks = futures
+        while True:
+            finished_tasks, unfinished_tasks = ray.wait(unfinished_tasks)
+            log_completion(finished_tasks, futures_experiments)
+            for finished_task in finished_tasks:
                 logging.info(
                     "Completed task %s, %d left out of %d.",
-                    ray.get(task),
-                    len(unfinished),
+                    ray.get(finished_task),
+                    len(unfinished_tasks),
                     len(futures),
                 )
+
+            if len(unfinished_tasks) == 0:
+                break
 
 
 def create_tasks(
@@ -90,6 +86,7 @@ def create_tasks(
     config_path: str,
     num_runs: int,
     num_episodes: int,
+    assets_dir: str,
     output_dir: str,
     log_episode_frequency: int,
     num_tasks: int,
@@ -103,18 +100,19 @@ def create_tasks(
     )
     experiments = tuple(
         expconfig.create_experiments(
-            envs_configs=envs_configs, experiment_configs=experiment_configs
+            envs_configs=envs_configs,
+            experiment_configs=experiment_configs,
         )
     )
-
+    experiments_and_context = add_experiment_context(experiments, assets_dir=assets_dir)
     experiment_tasks = tuple(
-        expconfig.generate_tasks_from_experiments_and_run_config(
+        expconfig.generate_tasks_from_experiments_context_and_run_config(
             run_config=expconfig.RunConfig(
                 num_episodes=num_episodes,
                 log_episode_frequency=log_episode_frequency,
                 output_dir=output_dir,
             ),
-            experiments=experiments,
+            experiments_and_context=experiments_and_context,
             num_runs=num_runs,
         )
     )
@@ -138,6 +136,45 @@ def create_tasks(
     return futures
 
 
+def add_experiment_context(
+    experiments: Sequence[expconfig.Experiment], assets_dir: str
+) -> Sequence[Tuple[expconfig.Experiment, Mapping[str, Any]]]:
+    """
+    Enriches expeirment config with context.
+    """
+    dyna_prog_specs = []
+    for experiment in experiments:
+        env_spec = task.create_env_spec(
+            problem=experiment.env_config.name, env_args=experiment.env_config.args
+        )
+        dyna_prog_specs.append(
+            (
+                env_spec.name,
+                env_spec.level,
+                experiment.learning_args.discount_factor,
+                env_spec.mdp,
+            )
+        )
+
+    dyna_prog_index = utils.DynaProgStateValueIndex.build_index(
+        specs=dyna_prog_specs, path=assets_dir
+    )
+
+    experiments_and_context = []
+    for experiment, (name, level, gamma, _) in zip(experiments, dyna_prog_specs):
+        experiments_and_context.append(
+            (
+                experiment,
+                {
+                    "dyna_prog_state_values": dyna_prog_index.get(
+                        name, level, gamma
+                    ).tolist(),  # so it can be serialized
+                },
+            )
+        )
+    return experiments_and_context
+
+
 @ray.remote
 def evaluate(group_id: int, experiment_tasks: Sequence[Any]) -> int:
     """
@@ -151,7 +188,7 @@ def evaluate(group_id: int, experiment_tasks: Sequence[Any]) -> int:
             idx + 1,
             len(experiment_tasks),
         )
-        evaluation.main(experiment_task)
+        evaluation.run_fn(experiment_task)
     return group_id
 
 
@@ -162,9 +199,9 @@ def log_completion(
     """
     Logs completed tasks's configuration, for tracing.
     """
-    for task in finished_tasks:
-        for experiment in tasks_experiments[task]:
-            logging.info("Completed experiment: %s", vars(experiment))
+    for finished_task in finished_tasks:
+        for experiment in tasks_experiments[finished_task]:
+            logging.info("Completed experiment: %s", getattr(experiment, "run_id"))
 
 
 def parse_args() -> EvalPipelineArgs:
@@ -176,6 +213,7 @@ def parse_args() -> EvalPipelineArgs:
     arg_parser.add_argument("--config-path", type=str, required=True)
     arg_parser.add_argument("--num-runs", type=int, required=True)
     arg_parser.add_argument("--num-episodes", type=int, required=True)
+    arg_parser.add_argument("--assets-dir", type=str, required=True)
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)

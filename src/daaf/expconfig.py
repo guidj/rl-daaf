@@ -36,7 +36,7 @@ class DaafConfig:
     traj_mapping_method: str
     algorithm: str
     reward_period: int
-    drop_truncated_episodes: bool
+    drop_truncated_feedback_episodes: bool
 
 
 @dataclasses.dataclass(frozen=True)
@@ -45,9 +45,8 @@ class EnvConfig:
     Configuration parameters for an experiment.
     """
 
-    env_name: str
-    level: str
-    env_args: Mapping[str, Any]
+    name: str
+    args: Mapping[str, Any]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -81,6 +80,7 @@ class ExperimentTask:
     run_id: str
     experiment: Experiment
     run_config: RunConfig
+    context: Mapping[str, Any]
 
 
 def parse_environments(envs_path: str) -> Sequence[EnvConfig]:
@@ -93,14 +93,7 @@ def parse_environments(envs_path: str) -> Sequence[EnvConfig]:
     with open(envs_path, "r", encoding="UTF-8") as readable:
         envs = json.load(readable)
 
-    return [
-        EnvConfig(
-            env_name=env_name,
-            level=fields["level"],
-            env_args=fields["env_args"],
-        )
-        for env_name, fields in envs.items()
-    ]
+    return [EnvConfig(name=entry["name"], args=entry["args"]) for entry in envs]
 
 
 def parse_experiment_configs(
@@ -120,7 +113,7 @@ def parse_experiment_configs(
                 "traj_mapper": str,
                 "algorithm": str,
                 "reward_period": np.int64,
-                "drop_truncated_episodes": np.bool_,
+                "drop_truncated_feedback_episodes": np.bool_,
                 "discount_factor": np.float64,
                 "learning_rate": np.float64,
             },
@@ -157,9 +150,9 @@ def create_experiments(
             )
 
 
-def generate_tasks_from_experiments_and_run_config(
+def generate_tasks_from_experiments_context_and_run_config(
     run_config: RunConfig,
-    experiments: Sequence[Experiment],
+    experiments_and_context: Sequence[Tuple[Experiment, Mapping[str, Any]]],
     num_runs: int,
     timestamp: Optional[int] = None,
 ) -> Iterator[ExperimentTask]:
@@ -178,12 +171,11 @@ def generate_tasks_from_experiments_and_run_config(
     """
 
     now = timestamp or int(time.time())
-    for experiment in experiments:
+    for experiment, context in experiments_and_context:
         task_id = "-".join(
             [
                 utils.create_task_id(now),
-                experiment.env_config.env_name,
-                experiment.env_config.level,
+                experiment.env_config.name,
             ]
         )
         for idx in range(num_runs):
@@ -202,4 +194,5 @@ def generate_tasks_from_experiments_and_run_config(
                         f"p{experiment.daaf_config.reward_period}",
                     ),
                 ),
+                context=context,
             )
