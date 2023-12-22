@@ -5,7 +5,9 @@ runs from each experiment.
 """
 
 
+import argparse
 import copy
+import dataclasses
 import json
 import logging
 import os.path
@@ -20,6 +22,16 @@ import tensorflow as tf
 from ray.data import aggregate
 
 import daaf
+
+
+@dataclasses.dataclass(frozen=True)
+class PipelineArgs:
+    """
+    Pipeline arguments.
+    """
+
+    input_dir: str
+    output_dir: str
 
 
 class StateValueAggretator(aggregate.AggregateFn):
@@ -80,7 +92,8 @@ def main():
     """
     Entry point
     """
-    paths = tf.io.gfile.glob("/tmp/daaf/exp/logs/1701280078/**/**/**/**")
+    args = parse_args()
+    paths = tf.io.gfile.glob(os.path.join(args.input_dir, "**/**/**/**"))
     logging.info("Found the following input paths: %s", paths)
     ray_env = {
         "py_modules": [daaf],
@@ -95,8 +108,10 @@ def main():
                 datasets[0].union(*datasets[1:]) if len(datasets) > 1 else datasets[0]
             )
 
-        output = pipeline.remote(ds_logs)
-        ray.get(output).write_json(f"/tmp/output/{int(time.time())}")
+        output: ray.data.Dataset = ray.get(pipeline.remote(ds_logs))
+        now = int(time.time())
+        # TODO: save as parquet
+        output.write_json(os.path.join(args.output_dir, str(now)))
 
 
 @ray.remote
@@ -140,6 +155,18 @@ def pipeline(ds_logs: ray.data.Dataset) -> ray.data.Dataset:
             ]
         )
     )
+
+
+def parse_args() -> PipelineArgs:
+    """
+    Parses program arguments.
+    """
+    arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("--input-dir", type=str)
+    arg_parser.add_argument("--output-dir", type=str)
+    known_args, unknown_args = arg_parser.parse_known_args()
+    logging.info("Unknown args: %s", unknown_args)
+    return PipelineArgs(**vars(known_args))
 
 
 if __name__ == "__main__":
