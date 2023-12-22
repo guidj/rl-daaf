@@ -119,17 +119,43 @@ def test_impute_missing_reward_mapper():
     inputs = [
         traj_step(state=0, action=0, reward=-1.0, prob=0.3),
         traj_step(state=1, action=1, reward=-7.0, prob=0.8),
-        traj_step(state=0, action=0, reward=3.0, prob=0.3),
+        traj_step(
+            state=0,
+            action=0,
+            reward=3.0,
+            prob=0.3,
+            info={"prior": "entry"},
+        ),
         traj_step(state=1, action=1, reward=6.0, prob=0.8, truncated=True),
         traj_step(state=1, action=1, reward=11.0, prob=0.9, terminated=True),
     ]
 
     expectactions = [
-        traj_step(state=0, action=0, reward=0.0, prob=0.3),
-        traj_step(state=1, action=1, reward=-8.0, prob=0.8),
-        traj_step(state=0, action=0, reward=0.0, prob=0.3),
-        traj_step(state=1, action=1, reward=9.0, prob=0.8, truncated=True),
-        traj_step(state=1, action=1, reward=0.0, prob=0.9, terminated=True),
+        traj_step(state=0, action=0, reward=0.0, prob=0.3, info={"imputed": True}),
+        traj_step(state=1, action=1, reward=-8.0, prob=0.8, info={"imputed": False}),
+        traj_step(
+            state=0,
+            action=0,
+            reward=0.0,
+            prob=0.3,
+            info={"imputed": True, "prior": "entry"},
+        ),
+        traj_step(
+            state=1,
+            action=1,
+            reward=9.0,
+            prob=0.8,
+            truncated=True,
+            info={"imputed": False},
+        ),
+        traj_step(
+            state=1,
+            action=1,
+            reward=0.0,
+            prob=0.9,
+            terminated=True,
+            info={"imputed": True},
+        ),
     ]
 
     outputs = tuple(mapper.apply(inputs))
@@ -284,46 +310,46 @@ def test_mdp_with_options_mapper_given_truncated_options():
             state=1,
             action=0,
             reward=2.0,
-            info={"option_id": 7, "option_terminated": False},
+            policy_info={"option_id": 7, "option_terminated": False},
         ),
         traj_step(
             state=2,
             action=1,
             reward=4.0,
-            info={"option_id": 7, "option_terminated": False},
+            policy_info={"option_id": 7, "option_terminated": False},
         ),
         traj_step(
             state=3,
             action=2,
             reward=6.0,
-            info={"option_id": 7, "option_terminated": True},
+            policy_info={"option_id": 7, "option_terminated": True},
         ),
         # two step option
         traj_step(
             state=4,
             action=1,
             reward=1.0,
-            info={"option_id": 4, "option_terminated": False},
+            policy_info={"option_id": 4, "option_terminated": False},
         ),
         traj_step(
             state=5,
             action=3,
             reward=1.0,
-            info={"option_id": 4, "option_terminated": True},
+            policy_info={"option_id": 4, "option_terminated": True},
         ),
         # single action option
         traj_step(
             state=6,
             action=8,
             reward=1.0,
-            info={"option_id": 0, "option_terminated": True},
+            policy_info={"option_id": 0, "option_terminated": True},
         ),
         # unfinished option - omitted from trajectory
         traj_step(
             state=7,
             action=8,
             reward=1.0,
-            info={"option_id": 3, "option_terminated": False},
+            policy_info={"option_id": 3, "option_terminated": False},
         ),
     ]
 
@@ -361,32 +387,32 @@ def test_mdp_with_options_mapper_given_terminating_option():
             state=1,
             action=0,
             reward=2.0,
-            info={"option_id": 7, "option_terminated": False},
+            policy_info={"option_id": 7, "option_terminated": False},
         ),
         traj_step(
             state=2,
             action=1,
             reward=4.0,
-            info={"option_id": 7, "option_terminated": False},
+            policy_info={"option_id": 7, "option_terminated": False},
         ),
         traj_step(
             state=3,
             action=2,
             reward=6.0,
-            info={"option_id": 7, "option_terminated": True},
+            policy_info={"option_id": 7, "option_terminated": True},
         ),
         # two step option
         traj_step(
             state=4,
             action=1,
             reward=1.0,
-            info={"option_id": 4, "option_terminated": False},
+            policy_info={"option_id": 4, "option_terminated": False},
         ),
         traj_step(
             state=5,
             action=3,
             reward=1.0,
-            info={"option_id": 4, "option_terminated": True},
+            policy_info={"option_id": 4, "option_terminated": True},
         ),
     ]
 
@@ -451,16 +477,18 @@ def traj_step(
     prob: Optional[float] = None,
     terminated: bool = False,
     truncated: bool = False,
+    policy_info: Mapping[str, Any] = {},
     info: Mapping[str, Any] = {},
 ):
     prob_info = {"log_probability": defaults.array(np.log(prob))} if prob else {}
     return core.TrajectoryStep(
         observation=defaults.array(state),
         action=defaults.array(action),
-        policy_info={**info, **prob_info},
+        policy_info={**policy_info, **prob_info},
         reward=defaults.array(reward),
         terminated=terminated,
         truncated=truncated,
+        info=info,
     )
 
 
@@ -473,3 +501,4 @@ def assert_trajectory(
     np.testing.assert_array_equal(output.reward, expected.reward)
     np.testing.assert_array_equal(output.terminated, expected.terminated)
     np.testing.assert_array_equal(output.truncated, expected.truncated)
+    np.testing.assert_array_equal(output.info, expected.info)

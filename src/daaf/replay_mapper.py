@@ -125,10 +125,12 @@ class ImputeMissingRewardMapper(TrajMapper):
         for step, traj_step in enumerate(trajectory):
             reward_sum += traj_step.reward
             if (step + 1) % self.reward_period == 0:
-                reward, reward_sum = reward_sum, 0.0
+                reward, reward_sum, imputed = reward_sum, 0.0, False
             else:
-                reward = self.impute_value
-            yield dataclasses.replace(traj_step, reward=reward)
+                reward, imputed = self.impute_value, True
+            yield dataclasses.replace(
+                traj_step, reward=reward, info={**traj_step.info, "imputed": imputed}
+            )
 
 
 class LeastSquaresAttributionMapper(TrajMapper):
