@@ -80,6 +80,10 @@ def create_trajectory_mapper(
         )
     elif traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
         mapper = replay_mapper.MdpWithOptionsMapper()
+    elif traj_mapping_method == constants.NSTEP_AGGREGATE_MAPPER:
+        mapper = replay_mapper.NStepTdAggregateFeedbackMapper(
+            reward_period=reward_period
+        )
     else:
         raise ValueError(
             f"Unknown cu-step-method {traj_mapping_method}. Choices: {constants.AGGREGATE_MAPPER_METHODS}"
