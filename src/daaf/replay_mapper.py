@@ -54,7 +54,7 @@ class IdentifyMapper(TrajMapper):
 
 class AverageRewardMapper(TrajMapper):
     """
-    Simulates a trajectory of periodic cumulative rewards:
+    Simulates a trajectory of periodic aggregate anonymous feedback:
       - For a set of actions, K, we take their reward, add it up, and divide it equally.
       - Each K action is emitted as is.
     """
@@ -62,7 +62,7 @@ class AverageRewardMapper(TrajMapper):
     def __init__(self, reward_period: int):
         """
         Args:
-            reward_period: the interval for cumulative rewards.
+            reward_period: the interval for aggregate rewards.
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
@@ -92,7 +92,7 @@ class AverageRewardMapper(TrajMapper):
 
 class ImputeMissingRewardMapper(TrajMapper):
     """
-    Simulates a trajectory of periodic cumulative rewards:
+    Simulates a trajectory of aggregate anonymous feedback:
       - For a set of actions, K, we take their reward, and sum them up.
       - The last event gets the sum of the rewards
       - The others get an imputed value.
@@ -101,9 +101,9 @@ class ImputeMissingRewardMapper(TrajMapper):
     def __init__(self, reward_period: int, impute_value: float):
         """
         Args:
-            reward_period: the interval for cumulative rewards.
+            reward_period: the interval for aggregate rewards.
             impute_value: the reward value to apply in steps where there
-                cumulative reward isn't generated.
+                aggregate reward isn't generated.
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
@@ -135,13 +135,13 @@ class ImputeMissingRewardMapper(TrajMapper):
 
 class LeastSquaresAttributionMapper(TrajMapper):
     """
-    Simulates a trajectory of periodic cumulative rewards:
+    Simulates a trajectory of aggregate anonymous feedback:
       - It accumulates transitions until it reaches a size M
       - Given M transitions, it estimates R(s, a) using the Least Squares method.
 
     This means that updates can be delayed up until M transitions are observed.
     Because we use Least-Squares, a problem can have multiple solutions.
-    And since the reward is only constrained on meeting the cumulative reward conditions,
+    And since the reward is only constrained on meeting the aggregate reward conditions,
     the estimated values might not even correspond to the true rewards.
 
     We use a decaying learning rate to merge consecutive reward estimates.
@@ -161,7 +161,7 @@ class LeastSquaresAttributionMapper(TrajMapper):
         Args:
             num_states: The number of finite states in the MDP.
             num_actions: The number of finite actions in the MDP.
-            reward_period: The interval at which cumulative reward is obsered.
+            reward_period: The interval at which aggregate reward is obsered.
             state_id_fn: A function that maps observations from trajectories into a state ID (int).
             action_id_fn: A function that maps actions from the trajectories into an action ID (int).
             init_rtable: A table shaped [num_states, num_actions], encoding prior beliefs about the rewards for each (S, A) pair.
@@ -351,6 +351,38 @@ class NStepTdAggregateFeedbackMapper(TrajMapper):
                 info={**traj_step.info, "imputed": imputed, "ok_nstep_tau": False},
             )
         yield from traj_steps
+
+
+class DropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
+    """
+    In DAAF, the ending of an episode can coincide
+    with feedback.
+
+    When that's not the case, this mapper
+    drops the episode, i.e. it emits no steps.
+
+    Note: this mapper does not modify the trajectory.
+    """
+
+    def __init__(self, reward_period: int):
+        """
+        Args:
+            reward_period: the interval for aggregate rewards.
+        """
+        if reward_period < 1:
+            raise ValueError(f"Reward period must be positive. Got {reward_period}.")
+        self.reward_period = reward_period
+
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
+        """
+        Args:
+            trajectory: A iterator of trajectory steps.
+        """
+        traj_steps = list(trajectory)
+        if len(traj_steps) % self.reward_period == 0:
+            yield from traj_steps
 
 
 class AbQueueBuffer:

@@ -4,7 +4,7 @@ Generators are for Py classes (agents, environment, etc).
 """
 
 
-from typing import Any, Callable, Generator, Mapping, Optional, Tuple
+from typing import Any, Callable, Generator, Mapping, Optional, Sequence, Tuple
 
 import gymnasium as gym
 from rlplg import core, envplay, envsuite
@@ -29,11 +29,12 @@ def create_env_spec(
     return envsuite.load(name=problem, **env_args)
 
 
-def create_trajectory_mapper(
+def create_trajectory_mappers(
     env_spec: core.EnvSpec,
     reward_period: int,
     traj_mapping_method: str,
     buffer_size_or_multiplier: Tuple[Optional[int], Optional[int]],
+    drop_truncated_feedback_episodes: bool,
 ) -> replay_mapper.TrajMapper:
     """
     Creates an object that alters the trajectory data.
@@ -50,15 +51,23 @@ def create_trajectory_mapper(
         A trajectory mapper.
     """
 
-    mapper: Optional[replay_mapper.TrajMapper] = None
+    mappers: Sequence[replay_mapper.TrajMapper] = []
+    if drop_truncated_feedback_episodes:
+        mappers.append(
+            replay_mapper.DropEpisodeWithTruncatedFeedbackMapper(
+                reward_period=reward_period
+            )
+        )
     if traj_mapping_method == constants.IDENTITY_MAPPER:
-        mapper = replay_mapper.IdentifyMapper()
+        mappers.append(replay_mapper.IdentifyMapper())
     elif traj_mapping_method == constants.REWARD_IMPUTATION_MAPPER:
-        mapper = replay_mapper.ImputeMissingRewardMapper(
-            reward_period=reward_period, impute_value=0.0
+        mappers.append(
+            replay_mapper.ImputeMissingRewardMapper(
+                reward_period=reward_period, impute_value=0.0
+            )
         )
     elif traj_mapping_method == constants.AVERAGE_REWARD_MAPPER:
-        mapper = replay_mapper.AverageRewardMapper(reward_period=reward_period)
+        mappers.append(replay_mapper.AverageRewardMapper(reward_period=reward_period))
     elif traj_mapping_method == constants.REWARD_ESTIMATION_LSQ_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(
@@ -66,30 +75,31 @@ def create_trajectory_mapper(
             * env_spec.mdp.env_desc.num_actions
             * (_buffer_size_mult or constants.DEFAULT_BUFFER_SIZE_MULTIPLIER)
         )
-        mapper = replay_mapper.LeastSquaresAttributionMapper(
-            num_states=env_spec.mdp.env_desc.num_states,
-            num_actions=env_spec.mdp.env_desc.num_actions,
-            reward_period=reward_period,
-            state_id_fn=env_spec.discretizer.state,
-            action_id_fn=env_spec.discretizer.action,
-            buffer_size=buffer_size,
-            init_rtable=utils.initial_table(
+        mappers.append(
+            replay_mapper.LeastSquaresAttributionMapper(
                 num_states=env_spec.mdp.env_desc.num_states,
                 num_actions=env_spec.mdp.env_desc.num_actions,
-            ),
+                reward_period=reward_period,
+                state_id_fn=env_spec.discretizer.state,
+                action_id_fn=env_spec.discretizer.action,
+                buffer_size=buffer_size,
+                init_rtable=utils.initial_table(
+                    num_states=env_spec.mdp.env_desc.num_states,
+                    num_actions=env_spec.mdp.env_desc.num_actions,
+                ),
+            )
         )
     elif traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
-        mapper = replay_mapper.MdpWithOptionsMapper()
+        mappers.append(replay_mapper.MdpWithOptionsMapper())
     elif traj_mapping_method == constants.NSTEP_AGGREGATE_MAPPER:
-        mapper = replay_mapper.NStepTdAggregateFeedbackMapper(
-            reward_period=reward_period
+        mappers.append(
+            replay_mapper.NStepTdAggregateFeedbackMapper(reward_period=reward_period)
         )
     else:
         raise ValueError(
             f"Unknown cu-step-method {traj_mapping_method}. Choices: {constants.AGGREGATE_MAPPER_METHODS}"
         )
-
-    return mapper
+    return mappers
 
 
 def create_eval_policy(
@@ -112,7 +122,7 @@ def create_eval_policy(
 
 
 def create_generate_episodes_fn(
-    mapper: replay_mapper.TrajMapper,
+    mappers: Sequence[replay_mapper.TrajMapper],
 ) -> Callable[
     [gym.Env, core.PyPolicy, int],
     Generator[core.TrajectoryStep, None, None],
@@ -135,10 +145,10 @@ def create_generate_episodes_fn(
         """
         # Unroll one trajectory at a time
         for _ in range(num_episodes):
-            for traj_step in mapper.apply(
-                envplay.generate_episodes(environment, policy, num_episodes=1)
-            ):
-                yield traj_step
+            trajectory = envplay.generate_episodes(environment, policy, num_episodes=1)
+            for mapper in mappers:
+                trajectory = mapper.apply(trajectory)
+            yield from trajectory
 
     return generate_episodes
 

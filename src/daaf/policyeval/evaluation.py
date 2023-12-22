@@ -30,11 +30,12 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         problem=experiment_task.experiment.env_config.name,
         env_args=experiment_task.experiment.env_config.args,
     )
-    traj_mapper = task.create_trajectory_mapper(
+    traj_mappers = task.create_trajectory_mappers(
         env_spec=env_spec,
         reward_period=experiment_task.experiment.daaf_config.reward_period,
         traj_mapping_method=experiment_task.experiment.daaf_config.traj_mapping_method,
         buffer_size_or_multiplier=(None, None),
+        drop_truncated_feedback_episodes=experiment_task.experiment.daaf_config.drop_truncated_feedback_episodes,
     )
     # Policy Eval with DAAF
     logging.info("Starting DAAF Evaluation")
@@ -49,7 +50,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         algorithm=experiment_task.experiment.daaf_config.algorithm,
         initial_state_values=create_initial_values(env_spec.mdp.env_desc.num_states),
         learnign_args=experiment_task.experiment.learning_args,
-        generate_steps_fn=task.create_generate_episodes_fn(mapper=traj_mapper),
+        generate_steps_fn=task.create_generate_episodes_fn(mappers=traj_mappers),
     )
     with utils.ExperimentLogger(
         experiment_task.run_config.output_dir,

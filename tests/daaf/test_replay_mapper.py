@@ -515,6 +515,41 @@ def test_nstep_td_aggreate_feedback_mapper_apply():
         assert_trajectory(output=output, expected=expected)
 
 
+def test_drop_episode_with_truncated_feedback_mapper_init():
+    mapper = replay_mapper.DropEpisodeWithTruncatedFeedbackMapper(reward_period=2)
+    assert mapper.reward_period == 2
+
+
+def test_drop_episode_with_truncated_feedback_mapper_apply():
+    mapper = replay_mapper.DropEpisodeWithTruncatedFeedbackMapper(reward_period=2)
+
+    inputs = [
+        # single step traj
+        traj_step(state=1, action=2, reward=-7.0, prob=0.8),
+        traj_step(state=0, action=0, reward=-1.0, prob=0.3),
+        traj_step(
+            state=1, action=2, reward=-7.0, prob=0.8, terminated=True, truncated=True
+        ),
+        traj_step(state=2, action=4, reward=5.0, prob=0.7, terminated=True),
+        traj_step(state=3, action=6, reward=-7.0, prob=0.2, truncated=True),
+    ]
+
+    expectations = [
+        traj_step(state=1, action=2, reward=-7.0, prob=0.8),
+        traj_step(state=0, action=0, reward=-1.0, prob=0.3),
+        traj_step(
+            state=1, action=2, reward=-7.0, prob=0.8, terminated=True, truncated=True
+        ),
+        traj_step(state=2, action=4, reward=5.0, prob=0.7, terminated=True),
+    ]
+
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 0
+    outputs = tuple(mapper.apply(inputs[:4]))
+    for output, expected in zip(outputs, expectations):
+        assert_trajectory(output=output, expected=expected)
+
+
 def test_counter_init():
     counter = replay_mapper.Counter()
     assert counter.value is None
