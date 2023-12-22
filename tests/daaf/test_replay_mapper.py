@@ -11,7 +11,7 @@ from daaf import replay_mapper
 from tests import defaults
 
 
-def test_identity_mapper():
+def test_identity_mapper_apply():
     mapper = replay_mapper.IdentifyMapper()
 
     inputs = [
@@ -53,7 +53,7 @@ def test_average_reward_mapper_init_with_invalid_reward_period(reward_period: in
         replay_mapper.AverageRewardMapper(reward_period=reward_period)
 
 
-def test_average_reward_mapper():
+def test_average_reward_mapper_apply():
     """
     Each step is unpacked into its own Trajectory object.
     The reward is divided equally.
@@ -113,7 +113,7 @@ def test_impute_missing_reward_mapper_init_with_invalid_impute_value():
         replay_mapper.ImputeMissingRewardMapper(reward_period=1, impute_value=np.inf)
 
 
-def test_impute_missing_reward_mapper():
+def test_impute_missing_reward_mapper_apply():
     mapper = replay_mapper.ImputeMissingRewardMapper(reward_period=2, impute_value=0.0)
 
     inputs = [
@@ -209,7 +209,7 @@ def test_least_squares_attribution_mapper_init_with_small_buffer_size():
         )
 
 
-def test_least_squares_attribution_mapper():
+def test_least_squares_attribution_mapper_apply():
     """
     Initial events will have reward values from rtable.
     Once there are enough samples, Least Square Estimates are used instead.
@@ -302,7 +302,7 @@ def test_least_squares_attribution_mapper():
         np.testing.assert_array_equal(output.truncated, expected.truncated)
 
 
-def test_mdp_with_options_mapper_given_truncated_options():
+def test_mdp_with_options_mapper_apply_given_truncated_options():
     mapper = replay_mapper.MdpWithOptionsMapper()
     inputs = [
         # three step option
@@ -379,7 +379,7 @@ def test_mdp_with_options_mapper_given_truncated_options():
         np.testing.assert_array_equal(output.truncated, expected.truncated)
 
 
-def test_mdp_with_options_mapper_given_terminating_option():
+def test_mdp_with_options_mapper_apply_given_terminating_option():
     mapper = replay_mapper.MdpWithOptionsMapper()
     inputs = [
         # three step option
@@ -439,6 +439,80 @@ def test_mdp_with_options_mapper_given_terminating_option():
         np.testing.assert_array_almost_equal(output.reward, expected.reward)
         np.testing.assert_array_equal(output.terminated, expected.terminated)
         np.testing.assert_array_equal(output.truncated, expected.truncated)
+
+
+def test_nstep_td_aggreate_feedback_mapper_init():
+    mapper = replay_mapper.NStepTdAggregateFeedbackMapper(
+        reward_period=2, impute_value=0.0
+    )
+    assert mapper.reward_period == 2
+    assert mapper.nstep == 2
+    assert mapper.impute_value == 0.0
+
+
+def test_nstep_td_aggreate_feedback_mapper_apply():
+    mapper = replay_mapper.NStepTdAggregateFeedbackMapper(
+        reward_period=2, impute_value=0.0
+    )
+
+    inputs = [
+        traj_step(state=0, action=0, reward=-1.0, prob=0.3),
+        traj_step(state=1, action=1, reward=-7.0, prob=0.8),
+        traj_step(
+            state=0,
+            action=0,
+            reward=3.0,
+            prob=0.3,
+            info={"prior": "entry"},
+        ),
+        traj_step(state=1, action=1, reward=6.0, prob=0.8, truncated=True),
+        traj_step(state=1, action=1, reward=11.0, prob=0.9, terminated=True),
+    ]
+
+    expectactions = [
+        traj_step(
+            state=0,
+            action=0,
+            reward=0.0,
+            prob=0.3,
+            info={"imputed": True, "ok_nstep_tau": True},
+        ),
+        traj_step(
+            state=1,
+            action=1,
+            reward=-8.0,
+            prob=0.8,
+            info={"imputed": False, "ok_nstep_tau": False},
+        ),
+        traj_step(
+            state=0,
+            action=0,
+            reward=0.0,
+            prob=0.3,
+            info={"prior": "entry", "imputed": True, "ok_nstep_tau": True},
+        ),
+        traj_step(
+            state=1,
+            action=1,
+            reward=9.0,
+            prob=0.8,
+            truncated=True,
+            info={"imputed": False, "ok_nstep_tau": False},
+        ),
+        traj_step(
+            state=1,
+            action=1,
+            reward=0.0,
+            prob=0.9,
+            terminated=True,
+            info={"imputed": True, "ok_nstep_tau": False},
+        ),
+    ]
+
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 5
+    for output, expected in zip(outputs, expectactions):
+        assert_trajectory(output=output, expected=expected)
 
 
 def test_counter_init():

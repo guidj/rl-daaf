@@ -299,6 +299,60 @@ class MdpWithOptionsMapper(TrajMapper):
             yield traj_step
 
 
+class NStepTdAggregateFeedbackMapper(TrajMapper):
+    """
+    Flags which steps an n-step TD learning
+    algorithm can update based on the availability
+    of aggregate feedback.
+
+    n-step TD uses the next n steps to sum
+    up rewards and then value of the final step.
+
+    In a DAAF setting, that means that only
+    steps that lie n-t+1 behind the step
+    where feedback is observed can be updated
+    with an accurate value - provided the in-between
+    steps are imputed with zero.
+    """
+
+    def __init__(self, reward_period: int, impute_value: float = 0.0):
+        """
+        Args:
+            reward_period: the interval for cumulative rewards.
+        """
+        if reward_period < 1:
+            raise ValueError(f"Reward period must be positive. Got {reward_period}.")
+        self.reward_period = reward_period
+        self.nstep = reward_period
+        self.impute_value = impute_value
+
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
+        """
+        Args:
+            trajectory: A iterator of trajectory steps.
+        """
+        reward_sum = 0.0
+        traj_steps = list(trajectory)
+        for step, traj_step in enumerate(traj_steps):
+            reward_sum += traj_step.reward
+            if (step + 1) % self.reward_period == 0:
+                tau = step - self.nstep + 1
+                if tau >= 0:
+                    traj_steps[tau].info["ok_nstep_tau"] = True
+                reward, reward_sum, imputed = reward_sum, 0.0, False
+            else:
+                reward, imputed = self.impute_value, True
+
+            traj_steps[step] = dataclasses.replace(
+                traj_step,
+                reward=reward,
+                info={**traj_step.info, "imputed": imputed, "ok_nstep_tau": False},
+            )
+        yield from traj_steps
+
+
 class AbQueueBuffer:
     """
     A buffer to store entries for a matrix A and vector b.
