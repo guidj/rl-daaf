@@ -586,18 +586,18 @@ def traj_step(
     prob: Optional[float] = None,
     terminated: bool = False,
     truncated: bool = False,
-    policy_info: Mapping[str, Any] = {},
-    info: Mapping[str, Any] = {},
+    policy_info: Optional[Mapping[str, Any]] = None,
+    info: Optional[Mapping[str, Any]] = None,
 ):
     prob_info = {"log_probability": defaults.array(np.log(prob))} if prob else {}
     return core.TrajectoryStep(
         observation=defaults.array(state),
         action=defaults.array(action),
-        policy_info={**policy_info, **prob_info},
+        policy_info={**policy_info, **prob_info} if policy_info else prob_info,
         reward=defaults.array(reward),
         terminated=terminated,
         truncated=truncated,
-        info=info,
+        info=info if info else {},
     )
 
 
