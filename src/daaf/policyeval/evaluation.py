@@ -62,26 +62,29 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
-        for episode, (steps, state_values) in enumerate(results):
-            if episode % experiment_task.run_config.log_episode_frequency == 0:
-                logging.info(
-                    "Task %s, Episode %d: %d steps",
-                    experiment_task.run_id,
-                    episode,
-                    steps,
-                )
-                exp_logger.log(
-                    episode=episode,
-                    steps=steps,
-                    returns=np.nan,
-                    info={
-                        "state_values": state_values.tolist(),
-                    },
-                )
         try:
+            for episode, (steps, state_values) in enumerate(results):
+                if episode % experiment_task.run_config.log_episode_frequency == 0:
+                    logging.info(
+                        "Task %s, Episode %d: %d steps",
+                        experiment_task.run_id,
+                        episode,
+                        steps,
+                    )
+                    exp_logger.log(
+                        episode=episode,
+                        steps=steps,
+                        returns=np.nan,
+                        info={
+                            "state_values": state_values.tolist(),
+                        },
+                    )
+
             logging.info("\nEstimated values\n%s", state_values)
-        except NameError:
-            logging.info("Zero episodes!")
+        except Exception as err:
+            # logging.error("Task %s failed", experiment_task.run_id)
+            raise RuntimeError(f"Task {experiment_task.run_id} failed") from err
+
     env_spec.environment.close()
 
 
