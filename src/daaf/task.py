@@ -55,21 +55,23 @@ def create_trajectory_mappers(
     mappers: Sequence[replay_mapper.TrajMapper] = []
     if drop_truncated_feedback_episodes:
         mappers.append(
-            replay_mapper.DropEpisodeWithTruncatedFeedbackMapper(
+            replay_mapper.DaafDropEpisodeWithTruncatedFeedbackMapper(
                 reward_period=reward_period
             )
         )
     if traj_mapping_method == constants.IDENTITY_MAPPER:
-        mappers.append(replay_mapper.IdentifyMapper())
-    elif traj_mapping_method == constants.REWARD_IMPUTATION_MAPPER:
+        mappers.append(replay_mapper.IdentityMapper())
+    elif traj_mapping_method == constants.DAAF_IMPUTE_REWARD_MAPPER:
         mappers.append(
-            replay_mapper.ImputeMissingRewardMapper(
+            replay_mapper.DaafImputeMissingRewardMapper(
                 reward_period=reward_period, impute_value=0.0
             )
         )
-    elif traj_mapping_method == constants.AVERAGE_REWARD_MAPPER:
-        mappers.append(replay_mapper.AverageRewardMapper(reward_period=reward_period))
-    elif traj_mapping_method == constants.REWARD_ESTIMATION_LSQ_MAPPER:
+    elif traj_mapping_method == constants.DAAF_AVERAGE_REWARD_MAPPER:
+        mappers.append(
+            replay_mapper.DaafAverageRewardMapper(reward_period=reward_period)
+        )
+    elif traj_mapping_method == constants.DAAF_LSQ_REWARD_ATTRIBUTION_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(
             env_spec.mdp.env_desc.num_states
@@ -77,7 +79,7 @@ def create_trajectory_mappers(
             * (_buffer_size_mult or constants.DEFAULT_BUFFER_SIZE_MULTIPLIER)
         )
         mappers.append(
-            replay_mapper.LeastSquaresAttributionMapper(
+            replay_mapper.DaafLsqRewardAttributionMapper(
                 num_states=env_spec.mdp.env_desc.num_states,
                 num_actions=env_spec.mdp.env_desc.num_actions,
                 reward_period=reward_period,
@@ -92,9 +94,9 @@ def create_trajectory_mappers(
         )
     elif traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
         mappers.append(replay_mapper.MdpWithOptionsMapper())
-    elif traj_mapping_method == constants.NSTEP_AGGREGATE_MAPPER:
+    elif traj_mapping_method == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER:
         mappers.append(
-            replay_mapper.NStepTdAggregateFeedbackMapper(reward_period=reward_period)
+            replay_mapper.DaafNStepTdUpdateMarkMapper(reward_period=reward_period)
         )
     else:
         raise ValueError(

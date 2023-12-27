@@ -4,17 +4,18 @@ Experiment constants.
 
 
 IDENTITY_MAPPER = "identity-mapper"
-AVERAGE_REWARD_MAPPER = "average-reward-mapper"
-REWARD_ESTIMATION_LSQ_MAPPER = "reward-estimation-lsq-mapper"
-REWARD_IMPUTATION_MAPPER = "reward-imputation-mapper"
+DAAF_AVERAGE_REWARD_MAPPER = "daaf-average-reward-mapper"
+DAAF_IMPUTE_REWARD_MAPPER = "daaf-impute-missing-reward-mapper"
+DAAF_LSQ_REWARD_ATTRIBUTION_MAPPER = "daaf-lsq-reward-attribution-mapper"
 MDP_WITH_OPTIONS_MAPPER = "mdp-with-options-mapper"
-NSTEP_AGGREGATE_MAPPER = "nstep-aggregate-feedback-mapper"
+DAAF_NSTEP_TD_UPDATE_MARK_MAPPER = "daaf-nstep-up-update-mark-mapper"
 AGGREGATE_MAPPER_METHODS = (
     IDENTITY_MAPPER,
-    AVERAGE_REWARD_MAPPER,
-    REWARD_IMPUTATION_MAPPER,
-    REWARD_ESTIMATION_LSQ_MAPPER,
+    DAAF_AVERAGE_REWARD_MAPPER,
+    DAAF_IMPUTE_REWARD_MAPPER,
+    DAAF_LSQ_REWARD_ATTRIBUTION_MAPPER,
     MDP_WITH_OPTIONS_MAPPER,
+    DAAF_NSTEP_TD_UPDATE_MARK_MAPPER,
 )
 OPTIONS_POLICY = "options"
 SINGLE_STEP_POLICY = "single-step"

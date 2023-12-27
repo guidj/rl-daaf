@@ -119,7 +119,10 @@ def evaluate_policy(
         # To avoid misconfigured experiments (e.g. using an identity mapper
         # with the n-step DAAF aware evaluation fn) we verify the
         # mapper and functions match.
-        if daaf_config.traj_mapping_method == constants.NSTEP_AGGREGATE_MAPPER:
+        if (
+            daaf_config.traj_mapping_method
+            == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER
+        ):
             return nstep_td_state_values_on_aggregate_start_steps(
                 policy=policy,
                 environment=env_spec.environment,

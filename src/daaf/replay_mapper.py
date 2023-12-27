@@ -36,7 +36,7 @@ class TrajMapper(abc.ABC):
         raise NotImplementedError
 
 
-class IdentifyMapper(TrajMapper):
+class IdentityMapper(TrajMapper):
     """
     Makes no changes to the a trajectory.
     """
@@ -52,7 +52,7 @@ class IdentifyMapper(TrajMapper):
             yield traj_step
 
 
-class AverageRewardMapper(TrajMapper):
+class DaafAverageRewardMapper(TrajMapper):
     """
     Simulates a trajectory of periodic aggregate anonymous feedback:
       - For a set of actions, K, we take their reward, add it up, and divide it equally.
@@ -90,7 +90,7 @@ class AverageRewardMapper(TrajMapper):
                 reward_sum = 0.0
 
 
-class ImputeMissingRewardMapper(TrajMapper):
+class DaafImputeMissingRewardMapper(TrajMapper):
     """
     Simulates a trajectory of aggregate anonymous feedback:
       - For a set of actions, K, we take their reward, and sum them up.
@@ -133,7 +133,7 @@ class ImputeMissingRewardMapper(TrajMapper):
             )
 
 
-class LeastSquaresAttributionMapper(TrajMapper):
+class DaafLsqRewardAttributionMapper(TrajMapper):
     """
     Simulates a trajectory of aggregate anonymous feedback:
       - It accumulates transitions until it reaches a size M
@@ -305,9 +305,9 @@ class MdpWithOptionsMapper(TrajMapper):
             yield traj_step
 
 
-class NStepTdAggregateFeedbackMapper(TrajMapper):
+class DaafNStepTdUpdateMarkMapper(TrajMapper):
     """
-    Flags which steps an n-step TD learning
+    Marks which steps an n-step TD learning
     algorithm can update based on the availability
     of aggregate feedback.
 
@@ -359,7 +359,7 @@ class NStepTdAggregateFeedbackMapper(TrajMapper):
         yield from traj_steps
 
 
-class DropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
+class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
     """
     In DAAF, the ending of an episode can coincide
     with feedback.
