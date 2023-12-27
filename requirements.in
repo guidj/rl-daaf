@@ -1,4 +1,4 @@
-rlplg @ git+https://github.com/guidj/rlplg.git@v0.17.4
+rlplg @ git+https://github.com/guidj/rlplg.git@v0.17.5
 # dashboard + cluster
 ray[default]==2.6.3
 numpy==1.23.5

@@ -793,7 +793,7 @@ rfc3986-validator==0.1.1
     #   -r nb-requirements.txt
     #   jsonschema
     #   jupyter-events
-rlplg @ git+https://github.com/guidj/rlplg.git@v0.17.4
+rlplg @ git+https://github.com/guidj/rlplg.git@v0.17.5
     # via
     #   -r nb-requirements.txt
     #   -r requirements.txt
