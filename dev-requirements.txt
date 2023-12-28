@@ -545,7 +545,6 @@ numpy==1.23.5
     #   matplotlib
     #   opt-einsum
     #   pandas
-    #   ray
     #   rlplg
     #   scipy
     #   seaborn
@@ -762,7 +761,7 @@ pyzmq==25.0.1
     #   jupyter-server
     #   nbclassic
     #   notebook
-ray[default]==2.6.3
+ray[default]==2.9.0
     # via
     #   -r nb-requirements.txt
     #   -r requirements.txt
