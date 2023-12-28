@@ -36,7 +36,7 @@ class TrajMapper(abc.ABC):
         raise NotImplementedError
 
 
-class IdentifyMapper(TrajMapper):
+class IdentityMapper(TrajMapper):
     """
     Makes no changes to the a trajectory.
     """
@@ -52,7 +52,7 @@ class IdentifyMapper(TrajMapper):
             yield traj_step
 
 
-class AverageRewardMapper(TrajMapper):
+class DaafAverageRewardMapper(TrajMapper):
     """
     Simulates a trajectory of periodic aggregate anonymous feedback:
       - For a set of actions, K, we take their reward, add it up, and divide it equally.
@@ -90,7 +90,7 @@ class AverageRewardMapper(TrajMapper):
                 reward_sum = 0.0
 
 
-class ImputeMissingRewardMapper(TrajMapper):
+class DaafImputeMissingRewardMapper(TrajMapper):
     """
     Simulates a trajectory of aggregate anonymous feedback:
       - For a set of actions, K, we take their reward, and sum them up.
@@ -133,7 +133,7 @@ class ImputeMissingRewardMapper(TrajMapper):
             )
 
 
-class LeastSquaresAttributionMapper(TrajMapper):
+class DaafLsqRewardAttributionMapper(TrajMapper):
     """
     Simulates a trajectory of aggregate anonymous feedback:
       - It accumulates transitions until it reaches a size M
@@ -162,10 +162,14 @@ class LeastSquaresAttributionMapper(TrajMapper):
             num_states: The number of finite states in the MDP.
             num_actions: The number of finite actions in the MDP.
             reward_period: The interval at which aggregate reward is obsered.
-            state_id_fn: A function that maps observations from trajectories into a state ID (int).
-            action_id_fn: A function that maps actions from the trajectories into an action ID (int).
-            init_rtable: A table shaped [num_states, num_actions], encoding prior beliefs about the rewards for each (S, A) pair.
-            buffer_size: The maximum number of trajectories to keep in the buffer - each one should contain `reward_period` steps.
+            state_id_fn: A function that maps observations from trajectories
+                into a state ID (int).
+            action_id_fn: A function that maps actions from the trajectories
+                into an action ID (int).
+            init_rtable: A table shaped [num_states, num_actions],
+                encoding prior beliefs about the rewards for each (S, A) pair.
+            buffer_size: The maximum number of trajectories to keep
+                in the buffer - each one should contain `reward_period` steps.
 
         Note: decay isn't used when summing up the rewards for K steps.
         """
@@ -176,7 +180,8 @@ class LeastSquaresAttributionMapper(TrajMapper):
 
         if init_rtable.shape != (num_states, num_actions):
             raise ValueError(
-                f"Tensor initial_rtable must have shape [{num_states},{num_actions}]. Got [{init_rtable}]."
+                f"""Tensor initial_rtable must have shape[{num_states},{num_actions}].
+                Got [{init_rtable}]."""
             )
 
         num_factors = num_states * num_actions
@@ -245,7 +250,8 @@ class LeastSquaresAttributionMapper(TrajMapper):
                     self.num_updates += 1
 
                 except ValueError as err:
-                    # the computation failed, likely due to the matix being unsuitable (no solution).
+                    # the computation failed, likely due to the
+                    # matix being unsuitable (no solution).
                     logging.debug("Reward estimation failed: %s", err)
 
             yield dataclasses.replace(
@@ -299,9 +305,9 @@ class MdpWithOptionsMapper(TrajMapper):
             yield traj_step
 
 
-class NStepTdAggregateFeedbackMapper(TrajMapper):
+class DaafNStepTdUpdateMarkMapper(TrajMapper):
     """
-    Flags which steps an n-step TD learning
+    Marks which steps an n-step TD learning
     algorithm can update based on the availability
     of aggregate feedback.
 
@@ -353,7 +359,7 @@ class NStepTdAggregateFeedbackMapper(TrajMapper):
         yield from traj_steps
 
 
-class DropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
+class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
     """
     In DAAF, the ending of an episode can coincide
     with feedback.
@@ -400,7 +406,8 @@ class AbQueueBuffer:
         """
         if buffer_size < num_factors:
             raise ValueError(
-                f"Buffer size is too small for Least Squares estimate: {buffer_size}, should be >= {num_factors}"
+                f"""Buffer size is too small for Least Squares estimate.
+                 Got {buffer_size}, should be >= {num_factors}"""
             )
 
         self.buffer_size = buffer_size

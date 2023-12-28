@@ -12,7 +12,7 @@ from tests import defaults
 
 
 def test_identity_mapper_apply():
-    mapper = replay_mapper.IdentifyMapper()
+    mapper = replay_mapper.IdentityMapper()
 
     inputs = [
         # single step traj
@@ -42,24 +42,24 @@ def test_identity_mapper_apply():
 
 
 @hypothesis.given(reward_period=st.integers(min_value=2))
-def test_average_reward_mapper_init(reward_period: int):
-    mapper = replay_mapper.AverageRewardMapper(reward_period=reward_period)
+def test_daaf_average_reward_mapper_init(reward_period: int):
+    mapper = replay_mapper.DaafAverageRewardMapper(reward_period=reward_period)
     assert mapper.reward_period == reward_period
 
 
 @hypothesis.given(reward_period=st.integers(max_value=0))
-def test_average_reward_mapper_init_with_invalid_reward_period(reward_period: int):
+def test_daaf_average_reward_mapper_init_with_invalid_reward_period(reward_period: int):
     with pytest.raises(ValueError):
-        replay_mapper.AverageRewardMapper(reward_period=reward_period)
+        replay_mapper.DaafAverageRewardMapper(reward_period=reward_period)
 
 
-def test_average_reward_mapper_apply():
+def test_daaf_average_reward_mapper_apply():
     """
     Each step is unpacked into its own Trajectory object.
     The reward is divided equally.
     Everything else is the same.
     """
-    mapper = replay_mapper.AverageRewardMapper(reward_period=2)
+    mapper = replay_mapper.DaafAverageRewardMapper(reward_period=2)
 
     inputs = [
         traj_step(state=0, action=0, reward=-1.0, prob=0.3),
@@ -87,8 +87,10 @@ def test_average_reward_mapper_apply():
     reward_period=st.integers(min_value=1),
     impute_value=st.floats(allow_nan=False, allow_infinity=False),
 )
-def test_impute_missing_reward_mapper_init(reward_period: int, impute_value: float):
-    mapper = replay_mapper.ImputeMissingRewardMapper(
+def test_daaf_impute_missing_reward_mapper_init(
+    reward_period: int, impute_value: float
+):
+    mapper = replay_mapper.DaafImputeMissingRewardMapper(
         reward_period=reward_period, impute_value=impute_value
     )
     assert mapper.reward_period == reward_period
@@ -96,25 +98,31 @@ def test_impute_missing_reward_mapper_init(reward_period: int, impute_value: flo
 
 
 @hypothesis.given(reward_period=st.integers(max_value=0))
-def test_impute_missing_reward_mapper_init_with_invalid_reward_period(
+def test_daaf_impute_missing_reward_mapper_init_with_invalid_reward_period(
     reward_period: int,
 ):
     with pytest.raises(ValueError):
-        replay_mapper.ImputeMissingRewardMapper(
+        replay_mapper.DaafImputeMissingRewardMapper(
             reward_period=reward_period, impute_value=0.0
         )
 
 
-def test_impute_missing_reward_mapper_init_with_invalid_impute_value():
+def test_daaf_impute_missing_reward_mapper_init_with_invalid_impute_value():
     with pytest.raises(ValueError):
-        replay_mapper.ImputeMissingRewardMapper(reward_period=1, impute_value=np.nan)
+        replay_mapper.DaafImputeMissingRewardMapper(
+            reward_period=1, impute_value=np.nan
+        )
 
     with pytest.raises(ValueError):
-        replay_mapper.ImputeMissingRewardMapper(reward_period=1, impute_value=np.inf)
+        replay_mapper.DaafImputeMissingRewardMapper(
+            reward_period=1, impute_value=np.inf
+        )
 
 
-def test_impute_missing_reward_mapper_apply():
-    mapper = replay_mapper.ImputeMissingRewardMapper(reward_period=2, impute_value=0.0)
+def test_daaf_impute_missing_reward_mapper_apply():
+    mapper = replay_mapper.DaafImputeMissingRewardMapper(
+        reward_period=2, impute_value=0.0
+    )
 
     inputs = [
         traj_step(state=0, action=0, reward=-1.0, prob=0.3),
@@ -164,9 +172,9 @@ def test_impute_missing_reward_mapper_apply():
         assert_trajectory(output=output, expected=expected)
 
 
-def test_least_squares_attribution_mapper_init():
+def test_daaf_lsq_reward_attribution_mapper_init():
     rtable = [[0, 1], [0, 1], [0, 1], [0, 1]]
-    mapper = replay_mapper.LeastSquaresAttributionMapper(
+    mapper = replay_mapper.DaafLsqRewardAttributionMapper(
         num_states=4,
         num_actions=2,
         reward_period=2,
@@ -183,9 +191,9 @@ def test_least_squares_attribution_mapper_init():
     np.testing.assert_array_equal(mapper.rtable, rtable)
 
 
-def test_least_squares_attribution_mapper_init_with_mismatched_table():
+def test_daaf_lsq_reward_attribution_mapper_init_with_mismatched_table():
     with pytest.raises(ValueError):
-        replay_mapper.LeastSquaresAttributionMapper(
+        replay_mapper.DaafLsqRewardAttributionMapper(
             num_states=4,
             num_actions=2,
             reward_period=2,
@@ -196,9 +204,9 @@ def test_least_squares_attribution_mapper_init_with_mismatched_table():
         )
 
 
-def test_least_squares_attribution_mapper_init_with_small_buffer_size():
+def test_daaf_lsq_reward_attribution_mapper_init_with_small_buffer_size():
     with pytest.raises(ValueError):
-        replay_mapper.LeastSquaresAttributionMapper(
+        replay_mapper.DaafLsqRewardAttributionMapper(
             num_states=4,
             num_actions=2,
             reward_period=2,
@@ -209,7 +217,7 @@ def test_least_squares_attribution_mapper_init_with_small_buffer_size():
         )
 
 
-def test_least_squares_attribution_mapper_apply():
+def test_daaf_lsq_reward_attribution_mapper_apply():
     """
     Initial events will have reward values from rtable.
     Once there are enough samples, Least Square Estimates are used instead.
@@ -235,7 +243,7 @@ def test_least_squares_attribution_mapper_apply():
     rhs: 1, 1, 1, 2
     """
 
-    mapper = replay_mapper.LeastSquaresAttributionMapper(
+    mapper = replay_mapper.DaafLsqRewardAttributionMapper(
         num_states=2,
         num_actions=2,
         reward_period=2,
@@ -441,8 +449,8 @@ def test_mdp_with_options_mapper_apply_given_terminating_option():
         np.testing.assert_array_equal(output.truncated, expected.truncated)
 
 
-def test_nstep_td_aggreate_feedback_mapper_init():
-    mapper = replay_mapper.NStepTdAggregateFeedbackMapper(
+def test_daaf_nstep_td_update_mark_mapper_init():
+    mapper = replay_mapper.DaafNStepTdUpdateMarkMapper(
         reward_period=2, impute_value=0.0
     )
     assert mapper.reward_period == 2
@@ -450,8 +458,8 @@ def test_nstep_td_aggreate_feedback_mapper_init():
     assert mapper.impute_value == 0.0
 
 
-def test_nstep_td_aggreate_feedback_mapper_apply():
-    mapper = replay_mapper.NStepTdAggregateFeedbackMapper(
+def test_daaf_nstep_td_update_mark_mapper_apply():
+    mapper = replay_mapper.DaafNStepTdUpdateMarkMapper(
         reward_period=2, impute_value=0.0
     )
 
@@ -515,13 +523,13 @@ def test_nstep_td_aggreate_feedback_mapper_apply():
         assert_trajectory(output=output, expected=expected)
 
 
-def test_drop_episode_with_truncated_feedback_mapper_init():
-    mapper = replay_mapper.DropEpisodeWithTruncatedFeedbackMapper(reward_period=2)
+def test_daaf_drop_episode_with_truncated_feedback_mapper_init():
+    mapper = replay_mapper.DaafDropEpisodeWithTruncatedFeedbackMapper(reward_period=2)
     assert mapper.reward_period == 2
 
 
-def test_drop_episode_with_truncated_feedback_mapper_apply():
-    mapper = replay_mapper.DropEpisodeWithTruncatedFeedbackMapper(reward_period=2)
+def test_daaf_drop_episode_with_truncated_feedback_mapper_apply():
+    mapper = replay_mapper.DaafDropEpisodeWithTruncatedFeedbackMapper(reward_period=2)
 
     inputs = [
         # single step traj

@@ -8,13 +8,12 @@ runs from each experiment.
 import argparse
 import copy
 import dataclasses
-import json
 import logging
 import os.path
-import time
 from typing import Any, Mapping, Sequence, Tuple
 
 import numpy as np
+import pandas as pd
 import ray
 import ray.data
 import ray.data.datasource
@@ -77,7 +76,7 @@ class StateValueAggretator(aggregate.AggregateFn):
         acc = copy.deepcopy(acc_left)
         for key, value in acc_right.items():
             if key not in acc:
-                acc[key] = copy.deepcopy(acc_right[key])
+                acc[key] = copy.deepcopy(value)
             acc[key]["state_values"].extend(value["state_values"])
         return acc
 
@@ -94,49 +93,96 @@ def main():
     """
     args = parse_args()
     paths = tf.io.gfile.glob(os.path.join(args.input_dir, "**/**/**/**"))
-    logging.info("Found the following input paths: %s", paths)
     ray_env = {
         "py_modules": [daaf],
     }
+
+    logging.info("Running with args: %s", vars(args))
+    logging.info("Found a total of %d paths", len(paths))
     logging.info("Ray environment: %s", ray_env)
+
     with ray.init(runtime_env=ray_env) as context:
         logging.info("Ray Context: %s", context)
         logging.info("Ray Nodes: %s", ray.nodes())
-        datasets = ray.get([parse_experiment_logs.remote(path) for path in paths])
-        if len(datasets) > 1:
-            ds_logs = (
-                datasets[0].union(*datasets[1:]) if len(datasets) > 1 else datasets[0]
-            )
 
-        output: ray.data.Dataset = ray.get(pipeline.remote(ds_logs))
-        now = int(time.time())
-        # TODO: save as parquet
-        output.write_json(os.path.join(args.output_dir, str(now)))
+        ds_metadata = parse_experiment_metadata(paths)
+        ds_logs = parse_experiment_logs(paths)
+
+        logging.info("Metadata size: %fMB", ds_metadata.size_bytes() / 1024 / 1024)
+        logging.info("Datalogs size: %fMB", ds_logs.size_bytes() / 1024 / 1024)
+
+        metadata = convert_metadata_to_mapping(ds_metadata.to_pandas())
+        logging.info("Metadata # keys: %d", len(metadata))
+        ds_logs_and_metadata = join_logs_and_metadata(ds_logs, metadata)
+
+        output: ray.data.Dataset = ray.get(pipeline.remote(ds_logs_and_metadata))
+        output.write_parquet(args.output_dir)
 
 
-@ray.remote
-def parse_experiment_logs(path: str) -> ray.data.Dataset:
+def parse_experiment_metadata(paths: Sequence[str]) -> ray.data.Dataset:
     """
     Parses logs for an experiment.
     """
-    metadata_file = os.path.join(path, "experiment-params.json")
-    logs_file = os.path.join(path, "experiment-logs.jsonl")
-    with tf.io.gfile.GFile(metadata_file, mode="r") as readable:
-        meta = json.load(readable)
-        ds_exp_logs = ray.data.read_json(
-            logs_file,
-            partition_filter=ray.data.datasource.FileExtensionFilter(
-                file_extensions=["jsonl"]
-            ),
-        )
-        tokens = meta["name"].split("-")
-        experiment_id = "-".join(tokens[:-1])
-        run_id = tokens[-1]
-        return (
-            ds_exp_logs.add_column(col="experiment_id", fn=lambda _: experiment_id)
-            .add_column(col="run_id", fn=lambda _: run_id)
-            .add_column(col="meta", fn=lambda df: [meta] * len(df))
-        )
+    metadata_files = [os.path.join(path, "experiment-params.json") for path in paths]
+    ds_metadata = ray.data.read_json(metadata_files, include_paths=True)
+    return ds_metadata
+
+
+def parse_experiment_logs(paths: Sequence[str]) -> ray.data.Dataset:
+    """
+    Parses logs for an experiment.
+    """
+    logs_files = [os.path.join(path, "experiment-logs.jsonl") for path in paths]
+    ds_logs = ray.data.read_json(
+        logs_files,
+        include_paths=True,
+        partition_filter=ray.data.datasource.FileExtensionFilter(
+            file_extensions=["jsonl"]
+        ),
+    )
+    return ds_logs
+
+
+def join_logs_and_metadata(
+    ds_logs: ray.data.Dataset, metadata: Mapping[str, Any]
+) -> ray.data.Dataset:
+    """
+    Parses logs for an experiment.
+    """
+
+    def get_experiment_id(df: pd.DataFrame) -> pd.Series:
+        return df["meta"].apply(lambda meta: "-".join(meta["name"].split("-")[:-1]))
+
+    def get_run_id(df: pd.DataFrame) -> pd.Series:
+        return df["meta"].apply(lambda meta: meta["name"].split("-")[-1])
+
+    def get_metadata(df: pd.DataFrame) -> pd.Series:
+        paths = df["path"].apply(parse_path_from_filename)
+        return paths.apply(lambda path: metadata[path])
+
+    ds_logs_and_meta = ds_logs.add_column("meta", get_metadata)
+    return ds_logs_and_meta.add_column("experiment_id", get_experiment_id).add_column(
+        "run_id", get_run_id
+    )
+
+
+def convert_metadata_to_mapping(df_metadata: pd.DataFrame) -> Mapping[str, Any]:
+    """
+    Converts the metadata into a mapping.
+    """
+    mapping = {}
+    for row in df_metadata.to_dict(orient="records"):
+        path = parse_path_from_filename(row["path"])
+        mapping[path] = row
+    return mapping
+
+
+def parse_path_from_filename(file_name: str) -> str:
+    """
+    Returns the path.
+    """
+    dir_name, _ = os.path.split(file_name)
+    return dir_name
 
 
 @ray.remote
