@@ -77,7 +77,8 @@ class ExperimentTask:
     A single experiment task.
     """
 
-    run_id: str
+    exp_id: str
+    run_id: int
     experiment: Experiment
     run_config: RunConfig
     context: Mapping[str, Any]
@@ -172,7 +173,7 @@ def generate_tasks_from_experiments_context_and_run_config(
 
     now = timestamp or int(time.time())
     for experiment, context in experiments_and_context:
-        task_id = "-".join(
+        exp_id = "-".join(
             [
                 utils.create_task_id(now),
                 experiment.env_config.name,
@@ -180,7 +181,8 @@ def generate_tasks_from_experiments_context_and_run_config(
         )
         for idx in range(num_runs):
             yield ExperimentTask(
-                run_id=f"{task_id}-run{idx}",
+                exp_id=exp_id,
+                run_id=idx,
                 experiment=experiment,
                 run_config=dataclasses.replace(
                     run_config,
@@ -188,7 +190,7 @@ def generate_tasks_from_experiments_context_and_run_config(
                     output_dir=os.path.join(
                         run_config.output_dir,
                         str(now),
-                        task_id,
+                        exp_id,
                         f"run{idx}",
                         experiment.daaf_config.traj_mapping_method,
                         f"p{experiment.daaf_config.reward_period}",

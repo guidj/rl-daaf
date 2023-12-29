@@ -53,8 +53,9 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         generate_steps_fn=task.create_generate_episodes_fn(mappers=traj_mappers),
     )
     with utils.ExperimentLogger(
-        experiment_task.run_config.output_dir,
-        name=experiment_task.run_id,
+        log_dir=experiment_task.run_config.output_dir,
+        exp_id=experiment_task.exp_id,
+        run_id=experiment_task.run_id,
         params={
             **dataclasses.asdict(experiment_task.experiment.daaf_config),
             **dataclasses.asdict(experiment_task.experiment.learning_args),

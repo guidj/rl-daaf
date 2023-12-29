@@ -59,14 +59,12 @@ class StateValueAggretator(aggregate.AggregateFn):
         Add a single row to aggregation.
         """
         new_acc = copy.deepcopy(acc)
-        if row["experiment_id"] not in acc:
-            new_acc[row["experiment_id"]] = {
+        if row["exp_id"] not in acc:
+            new_acc[row["exp_id"]] = {
                 "meta": row["meta"],
                 "state_values": [],
             }
-        new_acc[row["experiment_id"]]["state_values"].append(
-            row["info"]["state_values"]
-        )
+        new_acc[row["exp_id"]]["state_values"].append(row["info"]["state_values"])
         return new_acc
 
     def _merge(self, acc_left: AggType, acc_right: AggType) -> AggType:
@@ -150,18 +148,18 @@ def join_logs_and_metadata(
     Parses logs for an experiment.
     """
 
-    def get_experiment_id(df: pd.DataFrame) -> pd.Series:
-        return df["meta"].apply(lambda meta: "-".join(meta["name"].split("-")[:-1]))
+    def get_exp_id(df: pd.DataFrame) -> pd.Series:
+        return df["meta"].apply(lambda meta: meta["exp_id"])
 
     def get_run_id(df: pd.DataFrame) -> pd.Series:
-        return df["meta"].apply(lambda meta: meta["name"].split("-")[-1])
+        return df["meta"].apply(lambda meta: meta["run_id"])
 
     def get_metadata(df: pd.DataFrame) -> pd.Series:
         paths = df["path"].apply(parse_path_from_filename)
         return paths.apply(lambda path: metadata[path])
 
     ds_logs_and_meta = ds_logs.add_column("meta", get_metadata)
-    return ds_logs_and_meta.add_column("experiment_id", get_experiment_id).add_column(
+    return ds_logs_and_meta.add_column("exp_id", get_exp_id).add_column(
         "run_id", get_run_id
     )
 
@@ -196,8 +194,8 @@ def pipeline(ds_logs: ray.data.Dataset) -> ray.data.Dataset:
         .aggregate(StateValueAggretator(name="state_value_agg"))
         .flat_map(
             lambda row: [
-                {"episode": row["episode"], "experiment_id": experiment_id, **data}
-                for experiment_id, data in row["state_value_agg"].items()
+                {"episode": row["episode"], "exp_id": exp_id, **data}
+                for exp_id, data in row["state_value_agg"].items()
             ]
         )
     )

@@ -30,7 +30,11 @@ class ExperimentLogger(contextlib.AbstractContextManager):
     PARAM_FILE_NAME = "experiment-params.json"
 
     def __init__(
-        self, log_dir: str, name: str, params: Mapping[str, Union[int, float, str]]
+        self,
+        log_dir: str,
+        exp_id: str,
+        run_id: int,
+        params: Mapping[str, Union[int, float, str]],
     ):
         self.log_file = os.path.join(log_dir, self.LOG_FILE_NAME)
         self.param_file = os.path.join(log_dir, self.PARAM_FILE_NAME)
@@ -38,7 +42,7 @@ class ExperimentLogger(contextlib.AbstractContextManager):
             tf.io.gfile.makedirs(log_dir)
 
         with tf.io.gfile.GFile(self.param_file, "w") as writer:
-            writer.write(json.dumps(dict(params, name=name)))
+            writer.write(json.dumps(dict(params, exp_id=exp_id, run_id=run_id)))
 
         self._writer: Optional[tf.io.gfile.GFile] = None
 
