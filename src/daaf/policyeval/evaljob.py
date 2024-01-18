@@ -30,6 +30,7 @@ class EvalPipelineArgs:
     assets_dir: int
     output_dir: str
     log_episode_frequency: int
+    task_prefix: str
     # ray args
     cluster_uri: Optional[str]
     num_tasks: int
@@ -55,6 +56,7 @@ def main(args: EvalPipelineArgs):
             num_episodes=args.num_episodes,
             assets_dir=args.assets_dir,
             output_dir=args.output_dir,
+            task_prefix=args.task_prefix,
             log_episode_frequency=args.log_episode_frequency,
             num_tasks=args.num_tasks,
         )
@@ -88,6 +90,7 @@ def create_tasks(
     num_episodes: int,
     assets_dir: str,
     output_dir: str,
+    task_prefix: str,
     log_episode_frequency: int,
     num_tasks: int,
 ) -> Mapping[int, Tuple[ray.ObjectRef, Sequence[Any]]]:
@@ -114,6 +117,7 @@ def create_tasks(
             ),
             experiments_and_context=experiments_and_context,
             num_runs=num_runs,
+            task_prefix=task_prefix,
         )
     )
     # shuffle tasks to balance workload
@@ -216,6 +220,7 @@ def parse_args() -> EvalPipelineArgs:
     arg_parser.add_argument("--assets-dir", type=str, required=True)
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
+    arg_parser.add_argument("--task-prefix", type=str, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
     arg_parser.add_argument("--num-tasks", type=int, default=1)
     known_args, unknown_args = arg_parser.parse_known_args()

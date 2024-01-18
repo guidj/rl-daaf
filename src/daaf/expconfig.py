@@ -6,8 +6,7 @@ import dataclasses
 import json
 import os
 import os.path
-import time
-from typing import Any, Iterator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Iterator, Mapping, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -155,7 +154,7 @@ def generate_tasks_from_experiments_context_and_run_config(
     run_config: RunConfig,
     experiments_and_context: Sequence[Tuple[Experiment, Mapping[str, Any]]],
     num_runs: int,
-    timestamp: Optional[int] = None,
+    task_prefix: str,
 ) -> Iterator[ExperimentTask]:
     """
     Given a sequence of experiments, expands them
@@ -171,11 +170,10 @@ def generate_tasks_from_experiments_context_and_run_config(
     B, key1=value1
     """
 
-    now = timestamp or int(time.time())
     for experiment, context in experiments_and_context:
         exp_id = "-".join(
             [
-                utils.create_task_id(now),
+                utils.create_task_id(task_prefix),
                 experiment.env_config.name,
             ]
         )
@@ -189,7 +187,6 @@ def generate_tasks_from_experiments_context_and_run_config(
                     # replace run output with run specific values
                     output_dir=os.path.join(
                         run_config.output_dir,
-                        str(now),
                         exp_id,
                         f"run{idx}",
                         experiment.daaf_config.traj_mapping_method,

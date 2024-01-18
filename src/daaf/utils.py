@@ -210,13 +210,13 @@ def dynamic_prog_estimation(
     return state_values, action_values
 
 
-def create_task_id(timestamp: int):
+def create_task_id(task_prefix: str):
     """
-    Creates a task id using a given timestamp (epoch)
-    and a partial uuid.
+    Creates a task id using a given prefix
+    and a generated partial uuid.
     """
     _uuid = next(iter(str(uuid.uuid4()).split("-")))
-    return f"{timestamp}-{_uuid}"
+    return f"{task_prefix}-{_uuid}"
 
 
 def partition(items: Sequence[Any], num_partitions: int) -> Sequence[Sequence[Any]]:
