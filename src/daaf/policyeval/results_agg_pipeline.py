@@ -74,8 +74,10 @@ class StateValueAggretator(aggregate.AggregateFn):
         acc = copy.deepcopy(acc_left)
         for key, value in acc_right.items():
             if key not in acc:
+                # copy meta and values
                 acc[key] = copy.deepcopy(value)
-            acc[key]["state_values"].extend(value["state_values"])
+            else:
+                acc[key]["state_values"].extend(value["state_values"])
         return acc
 
     def _finalize(self, acc: AggType) -> Any:
@@ -158,9 +160,10 @@ def join_logs_and_metadata(
         paths = df["path"].apply(parse_path_from_filename)
         return paths.apply(lambda path: metadata[path])
 
-    ds_logs_and_meta = ds_logs.add_column("meta", get_metadata)
-    return ds_logs_and_meta.add_column("exp_id", get_exp_id).add_column(
-        "run_id", get_run_id
+    return (
+        ds_logs.add_column("meta", get_metadata)
+        .add_column("exp_id", get_exp_id)
+        .add_column("run_id", get_run_id)
     )
 
 
