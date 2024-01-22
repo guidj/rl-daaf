@@ -6,6 +6,7 @@ delayed aggregate feedback - for tabular problems.
 
 import copy
 import dataclasses
+import json
 import logging
 from typing import Any, Callable, Generator, Iterator, Optional, Set, Tuple
 
@@ -63,7 +64,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
             "env": {
                 "name": env_spec.name,
                 "level": env_spec.level,
-                "args": experiment_task.experiment.env_config.args,
+                "args": json.dumps(experiment_task.experiment.env_config.args),
             },
         },
     ) as exp_logger:
