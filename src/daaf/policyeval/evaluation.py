@@ -60,7 +60,11 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
             **dataclasses.asdict(experiment_task.experiment.daaf_config),
             **dataclasses.asdict(experiment_task.experiment.learning_args),
             **experiment_task.context,
-            "env": {"name": env_spec.name, "level": env_spec.level},
+            "env": {
+                "name": env_spec.name,
+                "level": env_spec.level,
+                "args": experiment_task.experiment.env_config.args,
+            },
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
