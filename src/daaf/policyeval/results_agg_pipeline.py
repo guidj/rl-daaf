@@ -10,17 +10,19 @@ import copy
 import dataclasses
 import logging
 import os.path
-from typing import Any, Mapping, Sequence, Tuple
+from typing import Any, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 import ray
 import ray.data
 import ray.data.datasource
+import scipy.stats
 import tensorflow as tf
 from ray.data import aggregate
 
 import daaf
+from daaf.policyeval import evalmetrics
 
 
 @dataclasses.dataclass(frozen=True)
@@ -31,6 +33,28 @@ class PipelineArgs:
 
     input_dir: str
     output_dir: str
+
+
+@dataclasses.dataclass(frozen=True)
+class StatTest:
+    """
+    Outputs of a statistical test.
+    """
+
+    statistic: float
+    pvalue: float
+
+
+@dataclasses.dataclass(frozen=True)
+class MetricStat:
+    """
+    Statics over a metric.
+    """
+
+    mean: float
+    stddev: float
+    stderr: Optional[float]
+    normal_test: Optional[StatTest]
 
 
 class StateValueAggretator(aggregate.AggregateFn):
@@ -60,8 +84,12 @@ class StateValueAggretator(aggregate.AggregateFn):
         """
         new_acc = copy.deepcopy(acc)
         if row["exp_id"] not in acc:
+            meta = copy.deepcopy(row["meta"])
+            # Path is a random pick
+            # from one of the runs
+            del meta["path"]
             new_acc[row["exp_id"]] = {
-                "meta": row["meta"],
+                "meta": meta,
                 "state_values": [],
             }
         new_acc[row["exp_id"]]["state_values"].append(row["info"]["state_values"])
@@ -115,8 +143,13 @@ def main():
         logging.info("Metadata # keys: %d", len(metadata))
         ds_logs_and_metadata = join_logs_and_metadata(ds_logs, metadata)
 
-        output: ray.data.Dataset = ray.get(pipeline.remote(ds_logs_and_metadata))
-        output.write_parquet(args.output_dir)
+        results: Mapping[str, ray.data.Dataset] = ray.get(
+            pipeline.remote(ds_logs_and_metadata)
+        )
+        for key, ds in results.items():
+            output_path = os.path.join(args.output_dir, key)
+            logging.info("Writing %s to %s", key, output_path)
+            ds.write_parquet(output_path)
 
 
 def parse_experiment_metadata(paths: Sequence[str]) -> ray.data.Dataset:
@@ -186,13 +219,59 @@ def parse_path_from_filename(file_name: str) -> str:
     return dir_name
 
 
+def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
+    def calc_raw_metrics(y_preds, y_true):
+        metrics = {
+            "mae": evalmetrics.mean_absolute_error(y_preds, y_true, axis=1),
+            "rmse": evalmetrics.rmse(y_preds, y_true),
+            "nrmse": evalmetrics.normd_rmse(y_preds, y_true),
+        }
+        metrics_stats = {}
+        for name, values in metrics.items():
+            array = np.pad(
+                np.array(values, dtype=np.float64),
+                # just here to test stat test,
+                # remove once we have at least
+                # 8 samples
+                (0, 8 - len(values)),
+                mode="constant",
+            )
+            zvalue, pvalue = scipy.stats.normaltest(array)
+            metrics_stats[name] = MetricStat(
+                mean=np.mean(array),
+                stddev=np.std(array, ddof=1),
+                stderr=scipy.stats.sem(array, ddof=1),
+                normal_test=StatTest(statistic=zvalue, pvalue=pvalue),
+            )
+        return metrics, metrics_stats
+
+    def calc_state_metrics(y_preds, y_true):
+        return {
+            "state_mae": evalmetrics.mean_absolute_error(y_preds, y_true, axis=0),
+        }
+
+    def apply(row):
+        y_preds = np.array(row["state_values"], dtype=np.float64)
+        y_true = np.array(row["meta"]["dyna_prog_state_values"], dtype=np.float64)
+        raw_metrics, agg_metrics = calc_raw_metrics(y_preds, y_true=y_true)
+        state_metrics = calc_state_metrics(y_preds, y_true)
+        return {
+            **row,
+            "raw_metrics": raw_metrics,
+            "agg_metrics": agg_metrics,
+            "state_metrics": state_metrics,
+        }
+
+    return ds.map(apply)
+
+
 @ray.remote
-def pipeline(ds_logs: ray.data.Dataset) -> ray.data.Dataset:
+def pipeline(ds_logs: ray.data.Dataset) -> Mapping[str, ray.data.Dataset]:
     """
     This pipeline aggregates the output of
     multiple runs from each experiment.
     """
-    return (
+    ds_logs = (
         ds_logs.groupby("episode")
         .aggregate(StateValueAggretator(name="state_value_agg"))
         .flat_map(
@@ -202,6 +281,8 @@ def pipeline(ds_logs: ray.data.Dataset) -> ray.data.Dataset:
             ]
         )
     )
+    ds_metrics = calculate_metrics(ds_logs)
+    return {"logs": ds_logs, "metrics": ds_metrics}
 
 
 def parse_args() -> PipelineArgs:
