@@ -245,14 +245,16 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
                 mode="constant",
             )
             zvalue, pvalue = scipy.stats.normaltest(array)
-            agg_metrics[name] = dataclasses.asdict(
-                MetricStat(
-                    mean=np.mean(array),
-                    stddev=np.std(array, ddof=1),
-                    stderr=scipy.stats.sem(array, ddof=1),
-                    normal_test=StatTest(statistic=zvalue, pvalue=pvalue),
-                )
+            metric_stat = MetricStat(
+                mean=np.mean(array),
+                stddev=np.std(array, ddof=1),
+                stderr=scipy.stats.sem(array, ddof=1),
+                normal_test=StatTest(statistic=zvalue, pvalue=pvalue),
             )
+            # There is a bug in ray.remote
+            # where dataclasses.asdict fails
+            agg_metrics[name] = vars(metric_stat)
+            agg_metrics[name] = vars(agg_metrics[name]["normal_test"])
         return metrics, agg_metrics
 
     def calc_state_metrics(y_preds, y_true):
