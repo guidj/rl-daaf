@@ -1,0 +1,37 @@
+[
+    {
+        "name": "StateRandomWalk",
+        "args": {
+            "steps": 10
+        }
+    },
+    {
+        "name": "ABCSeq",
+        "args": {
+            "length": 10
+        }
+    },
+    {
+        "name": "RedGreenSeq",
+        "args": {
+            "cure": [
+                "red",
+                "green",
+                "wait",
+                "green",
+                "red",
+                "red",
+                "green",
+                "wait"
+            ]
+        }
+    },
+    {
+        "name": "CliffWalking-v0",
+        "args": {}
+    },
+    {
+        "name": "Taxi-v3",
+        "args": {}
+    }
+]
