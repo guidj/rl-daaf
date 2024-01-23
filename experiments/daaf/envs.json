@@ -33,5 +33,11 @@
     {
         "name": "Taxi-v3",
         "args": {}
+    },
+    {
+        "name": "FrozenLake-v1",
+        "args": {
+            "is_slippery": true
+        }
     }
 ]
