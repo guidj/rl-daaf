@@ -10,7 +10,7 @@ import copy
 import dataclasses
 import logging
 import os.path
-from typing import Any, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -220,7 +220,15 @@ def parse_path_from_filename(file_name: str) -> str:
 
 
 def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
+    """
+    Calculates metrics across runs for each experiment
+    entry.
+    """
+
     def calc_raw_metrics(y_preds, y_true):
+        """
+        Basic metrics, cross states, cross runs.
+        """
         metrics = {
             "mae": evalmetrics.mean_absolute_error(y_preds, y_true, axis=1),
             "rmse": evalmetrics.rmse(y_preds, y_true),
@@ -237,15 +245,20 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
                 mode="constant",
             )
             zvalue, pvalue = scipy.stats.normaltest(array)
-            metrics_stats[name] = MetricStat(
-                mean=np.mean(array),
-                stddev=np.std(array, ddof=1),
-                stderr=scipy.stats.sem(array, ddof=1),
-                normal_test=StatTest(statistic=zvalue, pvalue=pvalue),
+            metrics_stats[name] = dataclasses.asdict(
+                MetricStat(
+                    mean=np.mean(array),
+                    stddev=np.std(array, ddof=1),
+                    stderr=scipy.stats.sem(array, ddof=1),
+                    normal_test=StatTest(statistic=zvalue, pvalue=pvalue),
+                )
             )
         return metrics, metrics_stats
 
     def calc_state_metrics(y_preds, y_true):
+        """
+        Metrics for each state.
+        """
         return {
             "state_mae": evalmetrics.mean_absolute_error(y_preds, y_true, axis=0),
         }
