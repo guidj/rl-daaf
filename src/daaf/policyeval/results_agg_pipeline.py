@@ -234,7 +234,7 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
             "rmse": evalmetrics.rmse(y_preds, y_true),
             "nrmse": evalmetrics.normd_rmse(y_preds, y_true),
         }
-        metrics_stats = {}
+        agg_metrics = {}
         for name, values in metrics.items():
             array = np.pad(
                 np.array(values, dtype=np.float64),
@@ -245,7 +245,7 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
                 mode="constant",
             )
             zvalue, pvalue = scipy.stats.normaltest(array)
-            metrics_stats[name] = dataclasses.asdict(
+            agg_metrics[name] = dataclasses.asdict(
                 MetricStat(
                     mean=np.mean(array),
                     stddev=np.std(array, ddof=1),
@@ -253,7 +253,7 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
                     normal_test=StatTest(statistic=zvalue, pvalue=pvalue),
                 )
             )
-        return metrics, metrics_stats
+        return metrics, agg_metrics
 
     def calc_state_metrics(y_preds, y_true):
         """
