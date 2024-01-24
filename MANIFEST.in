@@ -25,3 +25,6 @@ include Makefile
 
 # typing
 recursive-include src *.typed
+
+# sbin
+recursive-include sbin/local
