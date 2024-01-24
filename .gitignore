@@ -112,3 +112,7 @@ site/
 # Misc
 misc
 out
+
+# Local files
+experiments/policyeval/envs-sample.json
+experiments/policyeval/experiments-sample.csv
