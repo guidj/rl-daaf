@@ -4,10 +4,7 @@ include *.in
 recursive-include tests *.py
 
 # Documentation
-recursive-include assets *.pxi
-recursive-include assets *.txt
-recursive-include assets *.png
-recursive-include assets *.h5
+recursive-include assets *.json
 recursive-include sbin *.sh
 
 # config
@@ -18,6 +15,10 @@ include mypy.ini
 # notebooks
 recursive-include notebooks *.ipynb
 recursive-include notebooks *.py
+
+# experiments
+include experiments/policyeval/envs.json
+include experiments/policyeval/experiments.csv
 
 # make
 include Makefile
