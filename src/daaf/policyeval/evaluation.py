@@ -73,8 +73,9 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
             for episode, (steps, state_values) in enumerate(results):
                 if episode % experiment_task.run_config.log_episode_frequency == 0:
                     logging.info(
-                        "Task %s, Episode %d: %d steps",
+                        "Run %d of experiment %s, Episode %d: %d steps",
                         experiment_task.run_id,
+                        experiment_task.exp_id,
                         episode,
                         steps,
                     )
@@ -89,8 +90,9 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
 
             logging.info("\nEstimated values\n%s", state_values)
         except Exception as err:
-            # logging.error("Task %s failed", experiment_task.run_id)
-            raise RuntimeError(f"Task {experiment_task.run_id} failed") from err
+            raise RuntimeError(
+                f"Task {experiment_task.exp_id}, run {experiment_task.run_id} failed"
+            ) from err
 
     env_spec.environment.close()
 
