@@ -193,6 +193,12 @@ def evaluate(group_id: int, experiment_tasks: Sequence[Any]) -> int:
             len(experiment_tasks),
         )
         evaluation.run_fn(experiment_task)
+        logging.info(
+            "Task %d finished work item %d out of %d",
+            group_id,
+            idx + 1,
+            len(experiment_tasks),
+        )
     return group_id
 
 
