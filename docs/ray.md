@@ -18,3 +18,7 @@ Examples of it for a local run can be found in [sbin](../sbin/).
 In case the cluster is using a different version of ray, it may be
 simplest to create a separate environment for local jobs
 and one for remote jobs, each with the suitable version of ray.
+
+
+Note: when ray submits a ray, it respects the local .gitignore.
+So any files required shouldn't match patterns in .gitignore.
