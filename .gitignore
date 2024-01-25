@@ -116,6 +116,4 @@ out
 
 # Local files
 # can override explicitly
-experiments/**/*-sample.*
-sbin/sp/*
 playground/
