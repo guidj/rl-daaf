@@ -228,12 +228,35 @@ def partition(items: Sequence[Any], num_partitions: int) -> Sequence[Sequence[An
     If the number of partitions is higher than the number of items,
     only non-empty partitions are returned.
     """
+    if num_partitions < 1:
+        raise ValueError("`num_partitions` must be positive.")
     partition_size = math.ceil(len(items) / num_partitions)
     splits = []
     for idx in range(0, num_partitions - 1):
         splits.append(items[idx * partition_size : (idx + 1) * partition_size])
     splits.append(items[(num_partitions - 1) * partition_size :])
     return [partition for partition in splits if partition]
+
+
+def bundle(items: Sequence[Any], bundle_size: int) -> Sequence[Sequence[Any]]:
+    """
+    Bundles items into groups of size `bundle_size`, if possible.
+    The last bundle may have fewer items.
+    """
+    if bundle_size < 1:
+        raise ValueError("`bundle_size` must be positive.")
+
+    bundles = []
+    bundle_ = []
+    for idx, item in enumerate(items):
+        if idx > 0 and (idx % bundle_size) == 0:
+            if bundle_:
+                bundles.append(bundle_)
+            bundle_ = []
+        bundle_.append(item)
+    if bundle_:
+        bundles.append(bundle_)
+    return bundles
 
 
 def dataclass_from_dict(clazz: Callable, data: Mapping[str, Any]):  # type: ignore [arg-type]

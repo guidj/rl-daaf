@@ -89,3 +89,17 @@ def test_experiment_logger_with_nonexisitng_dir():
             ]
             output_logs = [json.loads(line) for line in readable]
             assert output_logs == expected_output
+
+
+def test_partition():
+    assert utils.partition([1, 2, 3], num_partitions=1) == [[1, 2, 3]]
+    assert utils.partition([1, 2, 3], num_partitions=2) == [[1, 2], [3]]
+    assert utils.partition([1, 2, 3], num_partitions=3) == [[1], [2], [3]]
+    assert utils.partition([1, 2, 3], num_partitions=4) == [[1], [2], [3]]
+
+
+def test_bundle():
+    assert utils.bundle([1, 2, 3], bundle_size=1) == [[1], [2], [3]]
+    assert utils.bundle([1, 2, 3], bundle_size=2) == [[1, 2], [3]]
+    assert utils.bundle([1, 2, 3], bundle_size=3) == [[1, 2, 3]]
+    assert utils.bundle([1, 2, 3], bundle_size=4) == [[1, 2, 3]]

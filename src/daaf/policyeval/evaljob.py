@@ -33,7 +33,7 @@ class EvalPipelineArgs:
     task_prefix: str
     # ray args
     cluster_uri: Optional[str]
-    num_tasks: int
+    task_group_size: int
 
 
 def main(args: EvalPipelineArgs):
@@ -58,7 +58,7 @@ def main(args: EvalPipelineArgs):
             output_dir=args.output_dir,
             task_prefix=args.task_prefix,
             log_episode_frequency=args.log_episode_frequency,
-            num_tasks=args.num_tasks,
+            task_group_size=args.task_group_size,
         )
 
         # since ray tracks objectref items
@@ -92,7 +92,7 @@ def create_tasks(
     output_dir: str,
     task_prefix: str,
     log_episode_frequency: int,
-    num_tasks: int,
+    task_group_size: int,
 ) -> Mapping[int, Tuple[ray.ObjectRef, Sequence[Any]]]:
     """
     Runs numerical experiments on policy evaluation.
@@ -122,8 +122,8 @@ def create_tasks(
     )
     # shuffle tasks to balance workload
     experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))
-    worker_split_tasks = utils.partition(
-        items=experiment_tasks, num_partitions=num_tasks
+    task_bundles = utils.bundle(
+        items=experiment_tasks, bundle_size=task_group_size
     )
 
     logging.info(
@@ -131,12 +131,12 @@ def create_tasks(
         len(experiment_configs),
         len(envs_configs),
         len(experiment_tasks),
-        len(worker_split_tasks),
+        len(task_bundles),
     )
     futures = {}
-    for group_id, split_tasks in enumerate(worker_split_tasks):
-        future = evaluate.remote(group_id, split_tasks)
-        futures[group_id] = (future, split_tasks)
+    for group_id, bundle_tasks in enumerate(task_bundles):
+        future = evaluate.remote(group_id, bundle_tasks)
+        futures[group_id] = (future, bundle_tasks)
     return futures
 
 
@@ -228,7 +228,7 @@ def parse_args() -> EvalPipelineArgs:
     arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
     arg_parser.add_argument("--task-prefix", type=str, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
-    arg_parser.add_argument("--num-tasks", type=int, default=1)
+    arg_parser.add_argument("--task-group-size", type=int, default=1)
     known_args, unknown_args = arg_parser.parse_known_args()
     logging.info("Unknown args: %s", unknown_args)
     return EvalPipelineArgs(**vars(known_args))
