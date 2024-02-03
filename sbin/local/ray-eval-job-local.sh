@@ -13,5 +13,4 @@ python $PARENT_DIR/src/daaf/policyeval/evaljob.py \
     --assets-dir=$HOME/fs/daaf/assets \
     --output-dir=$HOME/fs/daaf/exp/logs/$TIMESTAMP \
     --task-prefix $TIMESTAMP \
-    --log-episode-frequency=1 \
-    --task-group-size=4
+    --log-episode-frequency=1

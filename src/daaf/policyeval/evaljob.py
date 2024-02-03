@@ -2,7 +2,6 @@
 Module contains job to run policy evaluation with replay mappers.
 """
 
-
 import argparse
 import dataclasses
 import logging
@@ -33,7 +32,6 @@ class EvalPipelineArgs:
     task_prefix: str
     # ray args
     cluster_uri: Optional[str]
-    task_group_size: int
 
 
 def main(args: EvalPipelineArgs):
@@ -58,14 +56,13 @@ def main(args: EvalPipelineArgs):
             output_dir=args.output_dir,
             task_prefix=args.task_prefix,
             log_episode_frequency=args.log_episode_frequency,
-            task_group_size=args.task_group_size,
         )
 
         # since ray tracks objectref items
         # we swap the key:value
-        futures = [future for _, (future, _) in tasks_futures.items()]
+        futures = [future for future, _ in tasks_futures]
         futures_experiments = {
-            future: experiments for _, (future, experiments) in tasks_futures.items()
+            future: experiment for future, experiment in tasks_futures
         }
         unfinished_tasks = futures
         while True:
@@ -92,8 +89,7 @@ def create_tasks(
     output_dir: str,
     task_prefix: str,
     log_episode_frequency: int,
-    task_group_size: int,
-) -> Mapping[int, Tuple[ray.ObjectRef, Sequence[Any]]]:
+) -> Sequence[Tuple[ray.ObjectRef, expconfig.ExperimentTask]]:
     """
     Runs numerical experiments on policy evaluation.
     """
@@ -122,21 +118,16 @@ def create_tasks(
     )
     # shuffle tasks to balance workload
     experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))
-    task_bundles = utils.bundle(
-        items=experiment_tasks, bundle_size=task_group_size
-    )
-
     logging.info(
-        "Parsed %d DAAF configs and %d environments into %d tasks, split into %d groups",
+        "Parsed %d DAAF configs and %d environments into %d tasks",
         len(experiment_configs),
         len(envs_configs),
         len(experiment_tasks),
-        len(task_bundles),
     )
-    futures = {}
-    for group_id, bundle_tasks in enumerate(task_bundles):
-        future = evaluate.remote(group_id, bundle_tasks)
-        futures[group_id] = (future, bundle_tasks)
+    futures = []
+    for exp_task in experiment_tasks:
+        future = evaluate.remote(exp_task)
+        futures.append((future, exp_task))
     return futures
 
 
@@ -180,38 +171,27 @@ def add_experiment_context(
 
 
 @ray.remote
-def evaluate(group_id: int, experiment_tasks: Sequence[Any]) -> int:
+def evaluate(experiment_task: expconfig.ExperimentTask) -> str:
     """
     Runs evaluation.
     """
-    logging.info("Group %d starting", group_id)
-    for idx, experiment_task in enumerate(experiment_tasks):
-        logging.info(
-            "Task %d starting work item %d out of %d",
-            group_id,
-            idx + 1,
-            len(experiment_tasks),
-        )
-        evaluation.run_fn(experiment_task)
-        logging.info(
-            "Task %d finished work item %d out of %d",
-            group_id,
-            idx + 1,
-            len(experiment_tasks),
-        )
-    return group_id
+    task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
+    logging.info("Experiment %s starting", task_id)
+    evaluation.run_fn(experiment_task)
+    logging.info("Experiment %s finished", task_id)
+    return task_id
 
 
 def log_completion(
     finished_tasks: Sequence[ray.ObjectRef],
-    tasks_experiments: Mapping[ray.ObjectRef, Sequence[Any]],
+    tasks_experiments: Mapping[ray.ObjectRef, expconfig.ExperimentTask],
 ):
     """
     Logs completed tasks's configuration, for tracing.
     """
     for finished_task in finished_tasks:
-        for experiment in tasks_experiments[finished_task]:
-            logging.info("Completed experiment: %s", getattr(experiment, "run_id"))
+        experiment = tasks_experiments[finished_task]
+        logging.info("Completed experiment: %s", experiment.exp_id)
 
 
 def parse_args() -> EvalPipelineArgs:
@@ -228,7 +208,6 @@ def parse_args() -> EvalPipelineArgs:
     arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
     arg_parser.add_argument("--task-prefix", type=str, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
-    arg_parser.add_argument("--task-group-size", type=int, default=1)
     known_args, unknown_args = arg_parser.parse_known_args()
     logging.info("Unknown args: %s", unknown_args)
     return EvalPipelineArgs(**vars(known_args))
