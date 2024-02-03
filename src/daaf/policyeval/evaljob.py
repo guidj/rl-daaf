@@ -61,13 +61,9 @@ def main(args: EvalPipelineArgs):
         # since ray tracks objectref items
         # we swap the key:value
         futures = [future for future, _ in tasks_futures]
-        futures_experiments = {
-            future: experiment for future, experiment in tasks_futures
-        }
         unfinished_tasks = futures
         while True:
             finished_tasks, unfinished_tasks = ray.wait(unfinished_tasks)
-            log_completion(finished_tasks, futures_experiments)
             for finished_task in finished_tasks:
                 logging.info(
                     "Completed task %s, %d left out of %d.",
@@ -180,18 +176,6 @@ def evaluate(experiment_task: expconfig.ExperimentTask) -> str:
     evaluation.run_fn(experiment_task)
     logging.info("Experiment %s finished", task_id)
     return task_id
-
-
-def log_completion(
-    finished_tasks: Sequence[ray.ObjectRef],
-    tasks_experiments: Mapping[ray.ObjectRef, expconfig.ExperimentTask],
-):
-    """
-    Logs completed tasks's configuration, for tracing.
-    """
-    for finished_task in finished_tasks:
-        experiment = tasks_experiments[finished_task]
-        logging.info("Completed experiment: %s", experiment.exp_id)
 
 
 def parse_args() -> EvalPipelineArgs:
