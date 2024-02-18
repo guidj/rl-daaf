@@ -3,14 +3,13 @@ This module implements components for
 MDP with Options.
 """
 
-import itertools
-import math
 import random
-from typing import Any, Iterable, Optional, Sequence
+from typing import Any, Iterable, Optional
 
 from rlplg import core
 from rlplg.core import ObsType
 from rlplg.learning.tabular import policies
+
 from daaf import utils
 
 
@@ -76,8 +75,12 @@ class UniformlyRandomCompositeActionPolicy(
         else:
             option_id = policy_state["option_id"]
             option_step = policy_state["option_step"] + 1
-        
-        option = utils.interger_to_sequence(space_size=len(self.actions), sequence_length=self.options_duration, index=option_id)
+
+        option = utils.interger_to_sequence(
+            space_size=len(self.actions),
+            sequence_length=self.options_duration,
+            index=option_id,
+        )
         action = self.actions[option[option_step]]
         return core.PolicyStep(
             action=action,
