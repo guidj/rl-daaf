@@ -16,8 +16,9 @@ def test_uniformly_random_composite_actions_options_policy_init(
         actions=tuple(range(num_actions)), options_duration=options_duration
     )
 
+    assert policy.actions == tuple(range(num_actions))
     assert policy.options_duration == options_duration
-    assert len(getattr(policy, "_options")) == num_actions**options_duration
+    assert getattr(policy, "_num_options") == num_actions**options_duration
     assert policy.get_initial_state() == {"option_id": None, "option_step": -1}
 
 
@@ -44,7 +45,7 @@ def test_uniformly_random_composite_actions_options_policy_action():
     assert policy.action(
         observation=(), policy_state={"option_id": 2, "option_step": 0}
     ) == core.PolicyStep(
-        action="A",
+        action="B",
         state={"option_id": 2, "option_step": 1},
         info={"option_id": 2, "option_terminated": True},
     )

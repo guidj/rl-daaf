@@ -4,12 +4,14 @@ MDP with Options.
 """
 
 import itertools
+import math
 import random
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, Sequence
 
 from rlplg import core
 from rlplg.core import ObsType
 from rlplg.learning.tabular import policies
+from daaf import utils
 
 
 class UniformlyRandomCompositeActionPolicy(
@@ -26,13 +28,9 @@ class UniformlyRandomCompositeActionPolicy(
         emit_log_probability: bool = False,
     ):
         super().__init__(emit_log_probability=emit_log_probability)
+        self.actions = tuple(actions)
         self.options_duration = options_duration
-        self._options = {}
-
-        for idx, option in enumerate(
-            itertools.product(actions, repeat=options_duration)
-        ):
-            self._options[idx] = option
+        self._num_options = len(self.actions) ** options_duration
 
     def get_initial_state(self, batch_size: Optional[int] = None) -> Any:
         """Returns an initial state usable by the policy.
@@ -72,13 +70,15 @@ class UniformlyRandomCompositeActionPolicy(
             policy_state["option_step"] + 1 == self.options_duration
             or policy_state["option_id"] is None
         ):
-            # Random policy chooses at random
-            option_id = random.randint(0, len(self._options) - 1)
+            # Random policy chooses a new option
+            option_id = random.randint(0, self._num_options - 1)
             option_step = 0
         else:
             option_id = policy_state["option_id"]
             option_step = policy_state["option_step"] + 1
-        action = self._options[option_id][option_step]
+        
+        option = utils.interger_to_sequence(space_size=len(self.actions), sequence_length=self.options_duration, index=option_id)
+        action = self.actions[option[option_step]]
         return core.PolicyStep(
             action=action,
             state={
@@ -97,4 +97,4 @@ class UniformlyRandomCompositeActionPolicy(
         """
         del state
         del action
-        return 1.0 / len(self._options)
+        return 1.0 / self._num_options

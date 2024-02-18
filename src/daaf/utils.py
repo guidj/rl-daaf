@@ -265,3 +265,37 @@ def dataclass_from_dict(clazz: Callable, data: Mapping[str, Any]):  # type: igno
     """
     fields = list(dataclasses.fields(clazz))
     return clazz(**{field.name: data[field.name] for field in fields})
+
+
+def interger_to_sequence(space_size: int, sequence_length: int, index: int) -> Sequence[int]:
+    """
+    Uses the positional system of integers to generate a unique
+    sequence of numbers given represetation integer - `index`.
+
+    Args:
+        space_size: the number of possible digits
+        sequence_length: the length of the sequence of digits.
+        index: the index of the unique sequence.
+    """
+    sequence = []
+    for _ in range(sequence_length):
+        value_index = int(index % space_size)
+        sequence.append(value_index)
+        index = (index - value_index) / space_size
+    return tuple(sequence)
+
+
+def sequence_to_integer(space_size: int, sequence: Sequence[int]) -> Sequence[int]:
+    """
+    Uses the positional system of integers to generate a unique
+    sequence of numbers given represetation integer - `index`.
+
+    Args:
+        space_size: the number of possible digits
+        sequence_size: the length of the sequence of digits.
+        index: the index of the unique sequence.
+    """
+    id = 0
+    for idx, value_index in enumerate(sequence):
+        id = id + value_index * int(math.pow(space_size, idx))
+    return id
