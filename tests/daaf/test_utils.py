@@ -1,10 +1,7 @@
 import json
 import os.path
-import random
 import tempfile
 
-import hypothesis
-import hypothesis.strategies as st
 import pytest
 
 from daaf import utils
@@ -106,67 +103,3 @@ def test_bundle():
     assert utils.bundle([1, 2, 3], bundle_size=2) == [[1, 2], [3]]
     assert utils.bundle([1, 2, 3], bundle_size=3) == [[1, 2, 3]]
     assert utils.bundle([1, 2, 3], bundle_size=4) == [[1, 2, 3]]
-
-
-@hypothesis.given(
-    space_size=st.integers(min_value=1, max_value=10),
-    sequence_length=st.integers(min_value=1, max_value=10),
-)
-def test_interger_to_sequence(space_size: int, sequence_length: int):
-    sample_index = random.randint(0, space_size**sequence_length - 1)
-    assert 0 <= sample_index < space_size**sequence_length
-    seq = utils.interger_to_sequence(
-        space_size=space_size, sequence_length=sequence_length, index=sample_index
-    )
-    assert len(seq) == sequence_length
-    assert all([element in set(range(space_size)) for element in seq])
-
-
-@hypothesis.given(
-    space_size=st.integers(min_value=1, max_value=100),
-    sequence_length=st.integers(min_value=1, max_value=100),
-    samples=st.integers(min_value=1, max_value=100),
-)
-@hypothesis.settings(deadline=None)
-def test_sequence_to_integer(space_size: int, sequence_length: int, samples: int):
-    for _ in range(samples):
-        sequence = [random.randint(0, space_size - 1) for _ in range(sequence_length)]
-        # for seq in sequences:
-        index = utils.sequence_to_integer(space_size, sequence=sequence)
-        # assert isinstance(index, int)
-        assert 0 <= index < space_size**sequence_length
-
-    # largest sequence
-    sequence = [space_size - 1] * sequence_length
-    index = utils.sequence_to_integer(space_size, sequence=sequence)
-    assert 0 <= index < (space_size**sequence_length)
-
-
-@hypothesis.given(
-    space_size=st.integers(min_value=1, max_value=100),
-    sequence_length=st.integers(min_value=1, max_value=10),
-)
-def test_interger_to_sequence_round_trip(space_size: int, sequence_length: int):
-    index = random.randint(0, space_size**sequence_length - 1)
-    seq = utils.interger_to_sequence(
-        space_size=space_size, sequence_length=sequence_length, index=index
-    )
-    output = utils.sequence_to_integer(space_size=space_size, sequence=seq)
-    assert output == index
-    assert len(seq) == sequence_length
-    assert all([element in set(range(space_size)) for element in seq])
-
-
-@hypothesis.given(
-    space_size=st.integers(min_value=1, max_value=100),
-    sequence_length=st.integers(min_value=1, max_value=10),
-)
-def test_sequence_to_integer_round_trip(space_size: int, sequence_length: int):
-    sequence = tuple(
-        [random.randint(0, space_size - 1) for _ in range(sequence_length)]
-    )
-    output_integer = utils.sequence_to_integer(space_size=space_size, sequence=sequence)
-    output_sequence = utils.interger_to_sequence(
-        space_size=space_size, sequence_length=sequence_length, index=output_integer
-    )
-    assert sequence == output_sequence

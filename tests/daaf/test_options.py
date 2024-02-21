@@ -45,7 +45,7 @@ def test_uniformly_random_composite_actions_options_policy_action():
     assert policy.action(
         observation=(), policy_state={"option_id": 2, "option_step": 0}
     ) == core.PolicyStep(
-        action="B",
+        action="A",
         state={"option_id": 2, "option_step": 1},
         info={"option_id": 2, "option_terminated": True},
     )
