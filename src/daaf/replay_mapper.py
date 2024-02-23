@@ -230,10 +230,8 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
             # Run estimation at the first possible moment,
             if (
                 self.num_updates == 0
-                and not self._estimation_buffer.empty
-                and math_ops.meets_least_squares_sufficient_conditions(
-                    self._estimation_buffer.matrix
-                )
+                and not self._estimation_buffer.is_empty
+                and self._estimation_buffer.is_full_rank
             ):
                 logging.debug("Estimating rewards with Least-Squares.")
                 try:
@@ -418,6 +416,7 @@ class AbQueueBuffer:
         self._next_pos = 0
         self._additions = 0
         self._factors_tracker: Set[Tuple] = set()
+        self._rank_flag = np.zeros(shape=self.num_factors, dtype=np.float32)
 
     def add(self, row: np.ndarray, rhs: np.ndarray) -> None:
         """
@@ -435,7 +434,13 @@ class AbQueueBuffer:
         mask = (row > 0).astype(np.int32)
         row_key = tuple(mask.tolist())
         if row_key not in self._factors_tracker:
+            current_row_key = tuple((self._rows[self._next_pos] > 0).astype(np.int64))
+            if current_row_key in self._factors_tracker:
+                self._factors_tracker.remove(current_row_key)
+                self._rank_flag -= self._rows[self._next_pos]
             self._factors_tracker.add(row_key)
+            self._rank_flag += mask
+
             self._rows[self._next_pos] = row
             self._b[self._next_pos] = rhs
             # cycle least recent
@@ -465,12 +470,19 @@ class AbQueueBuffer:
         return self._b[: self._next_pos]
 
     @property
-    def empty(self) -> bool:
+    def is_empty(self) -> bool:
         """
         Returns:
             True if the buffer is empty.
         """
         return self._additions == 0
+
+    @property
+    def is_full_rank(self):
+        return (
+            self._additions >= self.num_factors
+            and np.sum(self._rank_flag > 0) == self.num_factors
+        )
 
 
 class Counter:
