@@ -130,7 +130,7 @@ class DynaProgStateValueIndex:
         for name, level, gamma, mdp in specs:
             key = (name, level, gamma)
             if key not in state_value_mapping:
-                logging.info("Solving dynamic programming for %s/%s", name, level)
+                logging.info("Solving dynamic programming for %s/%s, discount=%f", name, level, gamma)
                 state_value_mapping[key], _ = dynamic_prog_estimation(
                     mdp=mdp, gamma=gamma
                 )
