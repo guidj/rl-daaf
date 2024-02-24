@@ -63,7 +63,7 @@ class EstimationTask:
     reward_period: int
     accuracy: float
     max_episodes: int
-    logging_steps: int
+    log_episode_frequency: int
 
 
 def main(args: EstimationPipelineArgs):
@@ -83,6 +83,7 @@ def main(args: EstimationPipelineArgs):
             env_specs=ENV_SPECS,
             agg_reward_periods=AGG_REWARD_PERIODS,
             num_runs=args.num_runs,
+            max_episodes=args.max_episodes,
             log_episode_frequency=args.log_episode_frequency,
             accuracy=EST_ACCURACY,
         )
@@ -141,7 +142,7 @@ def estimate(task: EstimationTask) -> Mapping[str, Any]:
     Runs evaluation.
     """
     logging.info(
-        "Experiment %s for %s/%d (%s) starting",
+        "Task %s for %s/%d (%s) starting",
         task.uid,
         task.spec["name"],
         task.run_id,
@@ -152,10 +153,10 @@ def estimate(task: EstimationTask) -> Mapping[str, Any]:
         reward_period=task.reward_period,
         accuracy=task.accuracy,
         max_episodes=task.max_episodes,
-        logging_steps=task.logging_steps,
+        logging_steps=task.log_episode_frequency,
     )
     logging.info(
-        "Experiment %s for %s/%d (%s) finished",
+        "Task %s for %s/%d (%s) finished",
         task.uid,
         task.spec["name"],
         task.run_id,
