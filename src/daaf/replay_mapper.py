@@ -478,7 +478,7 @@ class AbQueueBuffer:
         return self._additions == 0
 
     @property
-    def is_full_rank(self):
+    def is_full_rank(self) -> bool:
         return (
             self._additions >= self.num_factors
             and np.sum(self._rank_flag > 0) == self.num_factors
