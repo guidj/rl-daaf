@@ -60,7 +60,7 @@ def main(args: EvalPipelineArgs):
 
         # since ray tracks objectref items
         # we swap the key:value
-        futures = [future for future, _ in tasks_futures]
+        futures = [future for _, future in tasks_futures]
         unfinished_tasks = futures
         while True:
             finished_tasks, unfinished_tasks = ray.wait(unfinished_tasks)
@@ -123,7 +123,7 @@ def create_tasks(
     futures = []
     for exp_task in experiment_tasks:
         future = evaluate.remote(exp_task)
-        futures.append((future, exp_task))
+        futures.append((exp_task, future))
     return futures
 
 
