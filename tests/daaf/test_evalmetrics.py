@@ -1,6 +1,6 @@
 import numpy as np
 
-from daaf.policyeval import evalmetrics
+from daaf import evalmetrics
 
 
 def test_rmse():
