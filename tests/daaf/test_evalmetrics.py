@@ -9,7 +9,7 @@ def test_rmse():
 
 def test_mean_absolute_error():
     evalmetrics.mean_absolute_error(
-        np.array([[1, 2], [0, 1], [3, 4]]), np.array([3, 1])
+        np.array([[1, 2], [0, 1], [3, 4]]), np.array([3, 1]), axis=0
     )
 
 
