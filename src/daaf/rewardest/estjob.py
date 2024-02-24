@@ -32,7 +32,6 @@ ENV_SPECS = [
     {"name": "IceWorld", "args": {"map_name": "8x8"}},
     {"name": "TowerOfHanoi", "args": {"num_disks": 4}},
     {"name": "TowerOfHanoi", "args": {"num_disks": 6}},
-    {"name": "TowerOfHanoi", "args": {"num_disks": 9}},
 ]
 
 AGG_REWARD_PERIODS = [2, 4, 6, 8]
