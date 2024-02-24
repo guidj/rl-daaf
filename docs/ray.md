@@ -35,6 +35,7 @@ ray job submit \
     --address=$WORKING_DIR \
     --working-dir=$WORKING_DIR \
     --runtime-env-json='{"py_modules":["src/daaf"], "pip": "ray-env-requirements.txt"}' \
+    --no-wait \
     -- \
     python $WORKING_DIR/src/daaf/policyeval/evaljob.py \
     --config-path=$WORKING_DIR/experiments/policyeval/experiments-sample.csv \
