@@ -121,12 +121,8 @@ class DynaProgStateValueIndex:
         This function does not override existing
         entries.
         """
-        file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
         state_value_mapping: Mapping[Tuple[str, str, float], np.ndarray] = {}
-        if tf.io.gfile.exists(file_path):
-            logging.info("Loading dynamic programming index from %s", file_path)
-            state_value_mapping = DynaProgStateValueIndex._parse_index(file_path)
-
+        state_value_mapping = DynaProgStateValueIndex._parse_index(path)
         for name, level, gamma, mdp in specs:
             key = (name, level, gamma)
             if key not in state_value_mapping:
@@ -140,8 +136,8 @@ class DynaProgStateValueIndex:
                     mdp=mdp, gamma=gamma
                 )
         # overrides initial index, if it existed
-        cls._export_index(file_path=file_path, state_value_mapping=state_value_mapping)
-        logging.info("Dynamic programming index updated at %s", file_path)
+        cls._export_index(path=path, state_value_mapping=state_value_mapping)
+        logging.info("Dynamic programming index updated at %s", path)
         return DynaProgStateValueIndex(state_value_mapping)
 
     @classmethod
@@ -152,12 +148,13 @@ class DynaProgStateValueIndex:
         """
         Loads the index from a file.
         """
-        file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
-        state_values = cls._parse_index(file_path)
+        state_values = cls._parse_index(path)
         return DynaProgStateValueIndex(state_values)
 
     @staticmethod
-    def _parse_index(file_path: str):
+    def _parse_index(path: str):
+        file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
+        logging.info("Loading dynamic programming index from %s", file_path)
         state_values: Mapping[Tuple[str, str, float], np.ndarray] = {}
         with tf.io.gfile.GFile(file_path, "r") as readable:
             for line in readable:
@@ -168,11 +165,14 @@ class DynaProgStateValueIndex:
 
     @staticmethod
     def _export_index(
-        file_path: str, state_value_mapping: Mapping[Tuple[str, str, float], np.ndarray]
+        path: str, state_value_mapping: Mapping[Tuple[str, str, float], np.ndarray]
     ) -> None:
         """
         Export index to a file.
         """
+        if not tf.io.gfile.exists(path):
+            tf.io.gfile.makedirs(path)
+        file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
         with tf.io.gfile.GFile(file_path, "w") as writable:
             for (env_name, level, gamma), state_values in state_value_mapping.items():
                 row = {
