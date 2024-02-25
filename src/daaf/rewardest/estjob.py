@@ -31,7 +31,7 @@ ENV_SPECS = [
     {"name": "IceWorld", "args": {"map_name": "4x4"}},
     {"name": "IceWorld", "args": {"map_name": "8x8"}},
     {"name": "TowerOfHanoi", "args": {"num_disks": 4}},
-    {"name": "TowerOfHanoi", "args": {"num_disks": 6}},
+    {"name": "TowerOfHanoi", "args": {"num_disks": 5}},
 ]
 
 AGG_REWARD_PERIODS = [2, 4, 6, 8]
@@ -89,19 +89,21 @@ def main(args: EstimationPipelineArgs):
 
         # since ray tracks objectref items
         # we swap the key:value
-        futures = [future for _, future in tasks_futures]
+        task_ref_to_spec = {future: task for task, future in tasks_futures}
         results = []
-        unfinished_tasks = futures
+        unfinished_tasks = list(task_ref_to_spec.keys())
         while True:
             finished_tasks, unfinished_tasks = ray.wait(unfinished_tasks)
             for finished_task in finished_tasks:
-                result = ray.get(finished_task)
-                results.append(result)
+                task = task_ref_to_spec[finished_task]
+                result = {"result": ray.get(finished_task)}
+                entry = {**result, **dataclasses.asdict(task)}
+                results.append(entry)
 
                 logging.info(
                     "Tasks left: %d out of %d.",
                     len(unfinished_tasks),
-                    len(futures),
+                    len(task_ref_to_spec),
                 )
 
             if len(unfinished_tasks) == 0:
@@ -117,7 +119,7 @@ def create_tasks(
     max_episodes: int,
     log_episode_frequency: int,
     accuracy: float,
-) -> Sequence[Tuple[ray.ObjectRef, EstimationTask]]:
+) -> Sequence[Tuple[EstimationTask, ray.ObjectRef]]:
     futures = []
     for spec in env_specs:
         for reward_period in agg_reward_periods:
