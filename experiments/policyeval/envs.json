@@ -1,14 +1,27 @@
 [
     {
-        "name": "StateRandomWalk",
+        "name": "ABCSeq",
         "args": {
-            "steps": 10
+            "length": 7
         }
     },
     {
         "name": "ABCSeq",
         "args": {
             "length": 10
+        }
+    },
+    {
+        "name": "FrozenLake-v1",
+        "args": {
+            "is_slippery": false,
+            "map_name": "4x4"
+        }
+    },
+    {
+        "name": "GridWorld",
+        "args": {
+            "grid": "oooooooooooo\noooooooooooo\noooooooooooo\nsxxxxxxxxxxg"
         }
     },
     {
@@ -27,17 +40,27 @@
         }
     },
     {
-        "name": "CliffWalking-v0",
-        "args": {}
-    },
-    {
-        "name": "Taxi-v3",
-        "args": {}
-    },
-    {
-        "name": "FrozenLake-v1",
+        "name": "IceWorld",
         "args": {
-            "is_slippery": true
+            "map_name": "4x4"
+        }
+    },
+    {
+        "name": "IceWorld",
+        "args": {
+            "map_name": "8x8"
+        }
+    },
+    {
+        "name": "TowerOfHanoi",
+        "args": {
+            "num_disks": 4
+        }
+    },
+    {
+        "name": "TowerOfHanoi",
+        "args": {
+            "num_disks": 5
         }
     }
 ]
