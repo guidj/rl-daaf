@@ -226,31 +226,26 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
                     shape=(self.num_states, self.num_actions), dtype=np.float32
                 )
                 rewards = 0.0
+                # Run estimation at the first possible moment,
+                if self._estimation_buffer.is_full_rank:
+                    logging.debug("Estimating rewards with Least-Squares.")
+                    try:
+                        new_rtable = math_ops.solve_least_squares(
+                            matrix=self._estimation_buffer.matrix,
+                            rhs=self._estimation_buffer.rhs,
+                        )
+                        new_rtable = np.reshape(
+                            new_rtable, newshape=(self.num_states, self.num_actions)
+                        )
+                        # update the reward estimates by a fraction of the delta
+                        # between the currente estimate and the latest.
+                        self.rtable = new_rtable
+                        self.num_updates += 1
 
-            # Run estimation at the first possible moment,
-            if (
-                self.num_updates == 0
-                and not self._estimation_buffer.is_empty
-                and self._estimation_buffer.is_full_rank
-            ):
-                logging.debug("Estimating rewards with Least-Squares.")
-                try:
-                    new_rtable = math_ops.solve_least_squares(
-                        matrix=self._estimation_buffer.matrix,
-                        rhs=self._estimation_buffer.rhs,
-                    )
-                    new_rtable = np.reshape(
-                        new_rtable, newshape=(self.num_states, self.num_actions)
-                    )
-                    # update the reward estimates by a fraction of the delta
-                    # between the currente estimate and the latest.
-                    self.rtable = new_rtable
-                    self.num_updates += 1
-
-                except ValueError as err:
-                    # the computation failed, likely due to the
-                    # matix being unsuitable (no solution).
-                    logging.debug("Reward estimation failed: %s", err)
+                    except ValueError as err:
+                        # the computation failed, likely due to the
+                        # matix being unsuitable (no solution).
+                        logging.debug("Reward estimation failed: %s", err)
 
             yield dataclasses.replace(
                 traj_step, reward=rtable_snapshot[state_id, action_id]
