@@ -251,6 +251,7 @@ def test_daaf_lsq_reward_attribution_mapper_apply():
         action_id_fn=item,
         buffer_size=8,
         init_rtable=defaults.array([-1.0, -1.0], [-1.0, -1.0]),
+        impute_value=88,
     )
 
     # We are simulating cumulative rewards.
@@ -278,15 +279,16 @@ def test_daaf_lsq_reward_attribution_mapper_apply():
         traj_step(state=1, action=1, reward=-7.0, prob=1.0),
     ]
     expectactions = [
-        # the events below are emitted with the initial beliefs about rewards
-        traj_step(state=0, action=0, reward=-1.0, prob=0.0),
-        traj_step(state=0, action=1, reward=-1.0, prob=1.0),
-        traj_step(state=1, action=0, reward=-1.0, prob=0.0),
-        traj_step(state=1, action=1, reward=-1.0, prob=1.0),
-        traj_step(state=0, action=1, reward=-1.0, prob=1.0),
-        traj_step(state=1, action=0, reward=-1.0, prob=0.0),
-        traj_step(state=0, action=1, reward=-1.0, prob=1.0),
-        traj_step(state=1, action=1, reward=-1.0, prob=1.0),
+        # the events below are emitted with the impute value
+        # or the aggregate feedback
+        traj_step(state=0, action=0, reward=88, prob=0.0),
+        traj_step(state=0, action=1, reward=1.0, prob=1.0),
+        traj_step(state=1, action=0, reward=88, prob=0.0),
+        traj_step(state=1, action=1, reward=1.0, prob=1.0),
+        traj_step(state=0, action=1, reward=88, prob=1.0),
+        traj_step(state=1, action=0, reward=1.0, prob=0.0),
+        traj_step(state=0, action=1, reward=88, prob=1.0),
+        traj_step(state=1, action=1, reward=2.0, prob=1.0),
         # the events below are emitted with estimated rewards
         traj_step(state=0, action=0, reward=0.0, prob=0.0),
         traj_step(state=0, action=1, reward=1.0, prob=1.0),
