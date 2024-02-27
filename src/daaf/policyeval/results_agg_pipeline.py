@@ -17,12 +17,10 @@ import pandas as pd
 import ray
 import ray.data
 import ray.data.datasource
-import scipy.stats
 import tensorflow as tf
 from ray.data import aggregate
 
 import daaf
-from daaf.policyeval import evalmetrics
 
 
 @dataclasses.dataclass(frozen=True)
@@ -219,67 +217,6 @@ def parse_path_from_filename(file_name: str) -> str:
     return dir_name
 
 
-def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
-    """
-    Calculates metrics across runs for each experiment
-    entry.
-    """
-
-    def calc_raw_metrics(y_preds, y_true):
-        """
-        Basic metrics, cross states, cross runs.
-        """
-        metrics = {
-            "mae": evalmetrics.mean_absolute_error(y_preds, y_true, axis=1),
-            "rmse": evalmetrics.rmse(y_preds, y_true),
-            "nrmse": evalmetrics.normd_rmse(y_preds, y_true),
-        }
-        agg_metrics = {}
-        for name, values in metrics.items():
-            array = np.pad(
-                np.array(values, dtype=np.float64),
-                # just here to test stat test,
-                # remove once we have at least
-                # 8 samples
-                (0, 8 - len(values)),
-                mode="constant",
-            )
-            zvalue, pvalue = scipy.stats.normaltest(array)
-            metric_stat = MetricStat(
-                mean=np.mean(array),
-                stddev=np.std(array, ddof=1),
-                stderr=scipy.stats.sem(array, ddof=1),
-                normal_test=StatTest(statistic=zvalue, pvalue=pvalue),
-            )
-            # There is a bug in ray.remote
-            # where dataclasses.asdict fails
-            agg_metrics[name] = vars(metric_stat)
-            agg_metrics[name] = vars(agg_metrics[name]["normal_test"])
-        return metrics, agg_metrics
-
-    def calc_state_metrics(y_preds, y_true):
-        """
-        Metrics for each state.
-        """
-        return {
-            "state_mae": evalmetrics.mean_absolute_error(y_preds, y_true, axis=0),
-        }
-
-    def apply(row):
-        y_preds = np.array(row["state_values"], dtype=np.float64)
-        y_true = np.array(row["meta"]["dyna_prog_state_values"], dtype=np.float64)
-        raw_metrics, agg_metrics = calc_raw_metrics(y_preds, y_true=y_true)
-        state_metrics = calc_state_metrics(y_preds, y_true)
-        return {
-            **row,
-            "raw_metrics": raw_metrics,
-            "agg_metrics": agg_metrics,
-            "state_metrics": state_metrics,
-        }
-
-    return ds.map(apply)
-
-
 @ray.remote
 def pipeline(ds_logs: ray.data.Dataset) -> Mapping[str, ray.data.Dataset]:
     """
@@ -296,8 +233,7 @@ def pipeline(ds_logs: ray.data.Dataset) -> Mapping[str, ray.data.Dataset]:
             ]
         )
     )
-    ds_metrics = calculate_metrics(ds_logs)
-    return {"logs": ds_logs, "metrics": ds_metrics}
+    return {"logs": ds_logs}
 
 
 def parse_args() -> PipelineArgs:

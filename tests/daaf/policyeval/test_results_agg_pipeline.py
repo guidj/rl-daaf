@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Mapping, Sequence
 
 import numpy as np
 import ray
@@ -18,7 +18,7 @@ def test_pipeline():
             "exp_id": exp_id,
             "episode": episode,
             "info": {"state_values": state_values},
-            "meta": {"algorithm": algorithm},
+            "meta": {"algorithm": algorithm, "path": "/path/to/dev/null"},
         }
 
     with ray.init(num_cpus=1):
@@ -64,5 +64,8 @@ def test_pipeline():
                 "state_values": [[7, 8], [8, 9]],
             },
         ]
-        output = ray.get(results_agg_pipeline.pipeline.remote(ds_input)).take_all()
-        np.testing.assert_equal(output, expected)
+        output: Mapping[str, ray.data.Dataset] = ray.get(
+            results_agg_pipeline.pipeline.remote(ds_input)
+        )
+        assert len(output) == 1
+        np.testing.assert_equal(output["logs"].take_all(), expected)
