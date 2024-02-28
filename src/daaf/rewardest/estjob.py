@@ -109,7 +109,7 @@ def main(args: EstimationPipelineArgs):
             if len(unfinished_tasks) == 0:
                 break
 
-        ray.data.from_items(results).write_json(args.output_dir)
+        ray.data.from_items(results).write_parquet(args.output_dir)
 
 
 def create_tasks(
