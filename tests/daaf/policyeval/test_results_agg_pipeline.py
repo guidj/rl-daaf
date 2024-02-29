@@ -18,7 +18,11 @@ def test_pipeline():
             "exp_id": exp_id,
             "episode": episode,
             "info": {"state_values": state_values},
-            "meta": {"algorithm": algorithm, "path": "/path/to/dev/null"},
+            "meta": {
+                "algorithm": algorithm,
+                "path": "/path/to/dev/null",
+                "dyna_prog_state_values": [4, 4],
+            },
         }
 
     with ray.init(num_cpus=1):
@@ -42,30 +46,30 @@ def test_pipeline():
             {
                 "episode": 1,
                 "exp_id": "1",
-                "meta": {"algorithm": "MC"},
+                "meta": {"algorithm": "MC", "dyna_prog_state_values": [4, 4]},
                 "state_values": [[1, 2], [2, 3]],
             },
             {
                 "episode": 1,
                 "exp_id": "2",
-                "meta": {"algorithm": "MC"},
+                "meta": {"algorithm": "MC", "dyna_prog_state_values": [4, 4]},
                 "state_values": [[3, 4], [4, 5], [5, 6]],
             },
             {
                 "episode": 1,
                 "exp_id": "3",
-                "meta": {"algorithm": "MC"},
+                "meta": {"algorithm": "MC", "dyna_prog_state_values": [4, 4]},
                 "state_values": [[6, 7]],
             },
             {
                 "episode": 2,
                 "exp_id": "3",
-                "meta": {"algorithm": "MC"},
+                "meta": {"algorithm": "MC", "dyna_prog_state_values": [4, 4]},
                 "state_values": [[7, 8], [8, 9]],
             },
         ]
         output: Mapping[str, ray.data.Dataset] = ray.get(
             results_agg_pipeline.pipeline.remote(ds_input)
         )
-        assert len(output) == 1
+        assert len(output) == 2
         np.testing.assert_equal(output["logs"].take_all(), expected)
