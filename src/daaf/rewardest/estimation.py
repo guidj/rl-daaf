@@ -69,23 +69,10 @@ def estimate_reward(
             agg_rewards=mapper._estimation_buffer.rhs,
             accuracy=accuracy,
         )
-        yhat_ols_em = np.reshape(
-            yhat_ols_em,
-            newshape=(
-                env_spec.mdp.env_desc.num_states,
-                env_spec.mdp.env_desc.num_actions,
-            ),
-        )
         logging.info("OLS ran in %d iterations for %s", iters, spec["name"])
-        yhat_lstsq = np.reshape(
-            lstsq_reward_estimation(
-                obs_matrix=mapper._estimation_buffer.matrix,
-                agg_rewards=mapper._estimation_buffer.rhs,
-            ),
-            newshape=(
-                env_spec.mdp.env_desc.num_states,
-                env_spec.mdp.env_desc.num_actions,
-            ),
+        yhat_lstsq = lstsq_reward_estimation(
+            obs_matrix=mapper._estimation_buffer.matrix,
+            agg_rewards=mapper._estimation_buffer.rhs,
         )
         return {"least": yhat_lstsq, "ols-em": yhat_ols_em}
     logging.info(
