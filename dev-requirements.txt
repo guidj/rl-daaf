@@ -93,8 +93,6 @@ beautifulsoup4==4.11.2
     # via
     #   -r nb-requirements.txt
     #   nbconvert
-black==22.3.0
-    # via -r dev-requirements.in
 bleach==6.0.0
     # via
     #   -r nb-requirements.txt
@@ -135,7 +133,6 @@ click==8.0.4
     #   -r nb-requirements.txt
     #   -r requirements.txt
     #   -r test-requirements.txt
-    #   black
     #   ray
 cloudpickle==2.2.1
     # via
@@ -160,7 +157,6 @@ contourpy==1.0.7
 coverage[toml]==7.3.2
     # via
     #   -r test-requirements.txt
-    #   coverage
     #   pytest-cov
 cycler==0.11.0
     # via
@@ -495,8 +491,6 @@ multidict==6.0.4
     #   -r test-requirements.txt
     #   aiohttp
     #   yarl
-mypy-extensions==1.0.0
-    # via black
 nbclassic==0.5.3
     # via
     #   -r nb-requirements.txt
@@ -607,8 +601,6 @@ parso==0.8.3
     # via
     #   -r nb-requirements.txt
     #   jedi
-pathspec==0.11.0
-    # via black
 pexpect==4.8.0
     # via
     #   -r nb-requirements.txt
@@ -635,7 +627,6 @@ platformdirs==3.1.1
     #   -r nb-requirements.txt
     #   -r requirements.txt
     #   -r test-requirements.txt
-    #   black
     #   jupyter-core
     #   virtualenv
 pluggy==1.0.0
@@ -767,7 +758,6 @@ ray[default]==2.9.0
     #   -r nb-requirements.txt
     #   -r requirements.txt
     #   -r test-requirements.txt
-    #   ray
 requests==2.28.2
     # via
     #   -r nb-requirements.txt
@@ -805,6 +795,8 @@ rsa==4.9
     #   -r requirements.txt
     #   -r test-requirements.txt
     #   google-auth
+ruff==0.2.2
+    # via -r dev-requirements.in
 scipy==1.10.1
     # via
     #   -r nb-requirements.txt
@@ -905,7 +897,6 @@ tomli==2.0.1
     # via
     #   -r nb-requirements.txt
     #   -r test-requirements.txt
-    #   black
     #   coverage
     #   jupyterlab
     #   pytest
@@ -944,7 +935,6 @@ typing-extensions==4.5.0
     #   -r nb-requirements.txt
     #   -r requirements.txt
     #   -r test-requirements.txt
-    #   black
     #   gymnasium
     #   pydantic
     #   tensorflow

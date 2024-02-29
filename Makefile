@@ -11,7 +11,7 @@ pip-install:
 
 format:
 	find src tests -name "*.py" | xargs -I % autoflake8 % --in-place
-	black src tests --line-length 88
+	ruff format src tests
 	isort src tests
 
 test-coverage:

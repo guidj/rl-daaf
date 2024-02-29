@@ -2,4 +2,4 @@
 -r test-requirements.txt
 -r nb-requirements.txt
 bumpversion==0.5.3
-black==22.3.0
+ruff==0.2.2
