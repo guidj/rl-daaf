@@ -74,6 +74,4 @@ def test_uniformly_random_composite_actions_options_policy_state_action_prob(
         actions=tuple(range(num_actions)), options_duration=options_duration
     )
     for _ in range(num_trials):
-        assert policy.state_action_prob((), ()) == 1.0 / (
-            num_actions**options_duration
-        )
+        assert policy.state_action_prob((), ()) == 1.0 / (num_actions**options_duration)
