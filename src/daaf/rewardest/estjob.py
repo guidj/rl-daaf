@@ -34,7 +34,7 @@ ENV_SPECS = [
     {"name": "TowerOfHanoi", "args": {"num_disks": 5}},
 ]
 
-AGG_REWARD_PERIODS = [2, 4, 6, 8]
+AGG_REWARD_PERIODS = [2, 4, 6]
 
 EST_ACCURACY = 1e-8
 
