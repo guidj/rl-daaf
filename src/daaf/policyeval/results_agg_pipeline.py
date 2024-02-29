@@ -122,7 +122,8 @@ def main():
     Entry point
     """
     args = parse_args()
-    paths = tf.io.gfile.glob(os.path.join(args.input_dir, "**/**/**/**"))
+    # The trailing slash at the end is for gcs paths
+    paths = tf.io.gfile.glob(os.path.join(args.input_dir, "**/**/**/**/"))
     ray_env = {
         "py_modules": [daaf],
     }
