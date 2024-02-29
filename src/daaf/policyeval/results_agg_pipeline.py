@@ -124,9 +124,7 @@ def main():
     args = parse_args()
     # The trailing slash at the end is for gcs paths
     paths = tf.io.gfile.glob(os.path.join(args.input_dir, "**/**/**/**/"))
-    ray_env = {
-        "py_modules": [daaf],
-    }
+    ray_env = {}
 
     logging.info("Running with args: %s", vars(args))
     logging.info("Found a total of %d paths", len(paths))
@@ -257,7 +255,7 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
         }
 
     def calc_policy_metrics(env_def, gamma, y_preds, y_true):
-        env_spec = envsuite.load(env_def["name"], json.loads(env_def["args"]))
+        env_spec = envsuite.load(env_def["name"], **json.loads(env_def["args"]))
         # just need to do it once for the solution
         dyna_action_values = dynamicprog.action_values_from_state_values(
             mdp=env_spec.mdp, state_values=y_true[0], gamma=gamma
