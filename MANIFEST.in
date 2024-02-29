@@ -4,6 +4,9 @@ include *.in
 recursive-include tests *.py
 
 # Documentation
+recursive-include docs *.md
+
+# assets
 recursive-include assets *.json
 recursive-include sbin *.sh
 
