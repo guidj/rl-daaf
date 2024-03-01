@@ -11,7 +11,6 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 import ray
 import ray.data
 
-import daaf
 from daaf.rewardest import estimation
 
 ENV_SPECS = [
@@ -70,9 +69,7 @@ def main(args: EstimationPipelineArgs):
     Program entry point.
     """
 
-    ray_env = {
-        "py_modules": [daaf],
-    }
+    ray_env = {}
     logging.info("Ray environment: %s", ray_env)
     with ray.init(args.cluster_uri, runtime_env=ray_env) as context:
         logging.info("Ray Context: %s", context)

@@ -10,7 +10,6 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 
 import ray
 
-import daaf
 from daaf import expconfig, task, utils
 from daaf.policyeval import evaluation
 
@@ -39,9 +38,7 @@ def main(args: EvalPipelineArgs):
     Program entry point.
     """
 
-    ray_env = {
-        "py_modules": [daaf],
-    }
+    ray_env = {}
     logging.info("Ray environment: %s", ray_env)
     with ray.init(args.cluster_uri, runtime_env=ray_env) as context:
         logging.info("Ray Context: %s", context)
