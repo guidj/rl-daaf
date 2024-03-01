@@ -11,6 +11,7 @@ pip-install:
 
 format:
 	ruff format src tests
+	ruff check --fix
 
 test-coverage:
 	pytest --cov-report=html --cov=src tests
