@@ -1,0 +1,66 @@
+[
+    {
+        "name": "ABCSeq",
+        "args": {
+            "length": 7
+        }
+    },
+    {
+        "name": "ABCSeq",
+        "args": {
+            "length": 10
+        }
+    },
+    {
+        "name": "FrozenLake-v1",
+        "args": {
+            "is_slippery": false,
+            "map_name": "4x4"
+        }
+    },
+    {
+        "name": "GridWorld",
+        "args": {
+            "grid": "oooooooooooo\noooooooooooo\noooooooooooo\nsxxxxxxxxxxg"
+        }
+    },
+    {
+        "name": "RedGreenSeq",
+        "args": {
+            "cure": [
+                "red",
+                "green",
+                "wait",
+                "green",
+                "red",
+                "red",
+                "green",
+                "wait"
+            ]
+        }
+    },
+    {
+        "name": "IceWorld",
+        "args": {
+            "map_name": "4x4"
+        }
+    },
+    {
+        "name": "IceWorld",
+        "args": {
+            "map_name": "8x8"
+        }
+    },
+    {
+        "name": "TowerOfHanoi",
+        "args": {
+            "num_disks": 4
+        }
+    },
+    {
+        "name": "TowerOfHanoi",
+        "args": {
+            "num_disks": 5
+        }
+    }
+]

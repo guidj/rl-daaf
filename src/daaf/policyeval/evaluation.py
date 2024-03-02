@@ -6,6 +6,7 @@ delayed aggregate feedback - for tabular problems.
 
 import copy
 import dataclasses
+import json
 import logging
 from typing import Any, Callable, Generator, Iterator, Optional, Set, Tuple
 
@@ -53,12 +54,18 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         generate_steps_fn=task.create_generate_episodes_fn(mappers=traj_mappers),
     )
     with utils.ExperimentLogger(
-        experiment_task.run_config.output_dir,
-        name=experiment_task.run_id,
+        log_dir=experiment_task.run_config.output_dir,
+        exp_id=experiment_task.exp_id,
+        run_id=experiment_task.run_id,
         params={
             **dataclasses.asdict(experiment_task.experiment.daaf_config),
             **dataclasses.asdict(experiment_task.experiment.learning_args),
             **experiment_task.context,
+            "env": {
+                "name": env_spec.name,
+                "level": env_spec.level,
+                "args": json.dumps(experiment_task.experiment.env_config.args),
+            },
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
@@ -66,8 +73,9 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
             for episode, (steps, state_values) in enumerate(results):
                 if episode % experiment_task.run_config.log_episode_frequency == 0:
                     logging.info(
-                        "Task %s, Episode %d: %d steps",
+                        "Run %d of experiment %s, Episode %d: %d steps",
                         experiment_task.run_id,
+                        experiment_task.exp_id,
                         episode,
                         steps,
                     )
@@ -82,8 +90,9 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
 
             logging.info("\nEstimated values\n%s", state_values)
         except Exception as err:
-            # logging.error("Task %s failed", experiment_task.run_id)
-            raise RuntimeError(f"Task {experiment_task.run_id} failed") from err
+            raise RuntimeError(
+                f"Task {experiment_task.exp_id}, run {experiment_task.run_id} failed"
+            ) from err
 
     env_spec.environment.close()
 

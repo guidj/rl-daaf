@@ -156,6 +156,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         action_id_fn: Callable[[Any], int],
         init_rtable: np.ndarray,
         buffer_size: int = 2**9,
+        impute_value: float = 0.0,
     ):
         """
         Args:
@@ -170,6 +171,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
                 encoding prior beliefs about the rewards for each (S, A) pair.
             buffer_size: The maximum number of trajectories to keep
                 in the buffer - each one should contain `reward_period` steps.
+            impute_value: Value to use when rewards are missing.
 
         Note: decay isn't used when summing up the rewards for K steps.
         """
@@ -195,6 +197,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         self._estimation_buffer = AbQueueBuffer(
             self.buffer_size, num_factors=num_factors
         )
+        self.impute_value = impute_value
         self.rtable = copy.deepcopy(init_rtable)
 
     def apply(
@@ -207,56 +210,52 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         state_action_mask = np.zeros(
             shape=(self.num_states, self.num_actions), dtype=np.float32
         )
-        rewards = 0.0
+        reward_sum = 0.0
 
         for step, traj_step in enumerate(trajectory):
             state_id = self.state_id_fn(traj_step.observation)
             action_id = self.action_id_fn(traj_step.action)
-            state_action_mask[state_id, action_id] += 1
-            rewards += traj_step.reward
-            # snapshot rtable for the current traj
-            rtable_snapshot = copy.deepcopy(self.rtable)
-
-            if self.num_updates == 0 and (step + 1) % self.reward_period == 0:
-                # Grab info about event for reward estimation
-                matrix_entry = np.reshape(state_action_mask, newshape=[-1])
-                self._estimation_buffer.add(matrix_entry, rhs=rewards)
-                # reset
-                state_action_mask = np.zeros(
-                    shape=(self.num_states, self.num_actions), dtype=np.float32
-                )
-                rewards = 0.0
-
-            # Run estimation at the first possible moment,
-            if (
-                self.num_updates == 0
-                and not self._estimation_buffer.empty
-                and math_ops.meets_least_squares_sufficient_conditions(
-                    self._estimation_buffer.matrix
-                )
-            ):
-                logging.debug("Estimating rewards with Least-Squares.")
-                try:
-                    new_rtable = math_ops.solve_least_squares(
-                        matrix=self._estimation_buffer.matrix,
-                        rhs=self._estimation_buffer.rhs,
+            if self.num_updates == 0:
+                state_action_mask[state_id, action_id] += 1
+                reward_sum += traj_step.reward
+                if (step + 1) % self.reward_period == 0:
+                    # reward is the aggretate reward
+                    reward = reward_sum
+                    # Grab info about event for reward estimation
+                    matrix_entry = np.reshape(state_action_mask, newshape=[-1])
+                    self._estimation_buffer.add(matrix_entry, rhs=reward_sum)
+                    # reset
+                    state_action_mask = np.zeros(
+                        shape=(self.num_states, self.num_actions), dtype=np.float32
                     )
-                    new_rtable = np.reshape(
-                        new_rtable, newshape=(self.num_states, self.num_actions)
-                    )
-                    # update the reward estimates by a fraction of the delta
-                    # between the currente estimate and the latest.
-                    self.rtable = new_rtable
-                    self.num_updates += 1
+                    reward_sum = 0.0
+                    # Run estimation at the first possible moment,
+                    if self._estimation_buffer.is_full_rank:
+                        logging.debug("Estimating rewards with Least-Squares.")
+                        try:
+                            new_rtable = math_ops.solve_least_squares(
+                                matrix=self._estimation_buffer.matrix,
+                                rhs=self._estimation_buffer.rhs,
+                            )
+                            new_rtable = np.reshape(
+                                new_rtable, newshape=(self.num_states, self.num_actions)
+                            )
+                            # update the reward estimates by a fraction of the delta
+                            # between the currente estimate and the latest.
+                            self.rtable = new_rtable
+                            self.num_updates += 1
 
-                except ValueError as err:
-                    # the computation failed, likely due to the
-                    # matix being unsuitable (no solution).
-                    logging.debug("Reward estimation failed: %s", err)
+                        except ValueError as err:
+                            # the computation failed, likely due to the
+                            # matix being unsuitable (no solution).
+                            logging.debug("Reward estimation failed: %s", err)
+                else:
+                    # zero impute before estimation
+                    reward = self.impute_value
+            else:
+                reward = float(self.rtable[state_id, action_id])
 
-            yield dataclasses.replace(
-                traj_step, reward=rtable_snapshot[state_id, action_id]
-            )
+            yield dataclasses.replace(traj_step, reward=reward)
 
 
 class MdpWithOptionsMapper(TrajMapper):
@@ -418,6 +417,7 @@ class AbQueueBuffer:
         self._next_pos = 0
         self._additions = 0
         self._factors_tracker: Set[Tuple] = set()
+        self._rank_flag = np.zeros(shape=self.num_factors, dtype=np.float32)
 
     def add(self, row: np.ndarray, rhs: np.ndarray) -> None:
         """
@@ -435,7 +435,13 @@ class AbQueueBuffer:
         mask = (row > 0).astype(np.int32)
         row_key = tuple(mask.tolist())
         if row_key not in self._factors_tracker:
+            current_row_key = tuple((self._rows[self._next_pos] > 0).astype(np.int64))
+            if current_row_key in self._factors_tracker:
+                self._factors_tracker.remove(current_row_key)
+                self._rank_flag -= self._rows[self._next_pos]
             self._factors_tracker.add(row_key)
+            self._rank_flag += mask
+
             self._rows[self._next_pos] = row
             self._b[self._next_pos] = rhs
             # cycle least recent
@@ -465,12 +471,19 @@ class AbQueueBuffer:
         return self._b[: self._next_pos]
 
     @property
-    def empty(self) -> bool:
+    def is_empty(self) -> bool:
         """
         Returns:
             True if the buffer is empty.
         """
         return self._additions == 0
+
+    @property
+    def is_full_rank(self) -> bool:
+        return (
+            self._additions >= self.num_factors
+            and np.sum(self._rank_flag > 0) == self.num_factors
+        )
 
 
 class Counter:

@@ -2,7 +2,6 @@
 Module contains job to run policy evaluation with replay mappers.
 """
 
-
 import argparse
 import dataclasses
 import logging
@@ -11,7 +10,6 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 
 import ray
 
-import daaf
 from daaf import expconfig, task, utils
 from daaf.policyeval import evaluation
 
@@ -30,9 +28,9 @@ class EvalPipelineArgs:
     assets_dir: int
     output_dir: str
     log_episode_frequency: int
+    task_prefix: str
     # ray args
     cluster_uri: Optional[str]
-    num_tasks: int
 
 
 def main(args: EvalPipelineArgs):
@@ -40,9 +38,7 @@ def main(args: EvalPipelineArgs):
     Program entry point.
     """
 
-    ray_env = {
-        "py_modules": [daaf],
-    }
+    ray_env = {}
     logging.info("Ray environment: %s", ray_env)
     with ray.init(args.cluster_uri, runtime_env=ray_env) as context:
         logging.info("Ray Context: %s", context)
@@ -55,20 +51,16 @@ def main(args: EvalPipelineArgs):
             num_episodes=args.num_episodes,
             assets_dir=args.assets_dir,
             output_dir=args.output_dir,
+            task_prefix=args.task_prefix,
             log_episode_frequency=args.log_episode_frequency,
-            num_tasks=args.num_tasks,
         )
 
         # since ray tracks objectref items
         # we swap the key:value
-        futures = [future for _, (future, _) in tasks_futures.items()]
-        futures_experiments = {
-            future: experiments for _, (future, experiments) in tasks_futures.items()
-        }
+        futures = [future for _, future in tasks_futures]
         unfinished_tasks = futures
         while True:
             finished_tasks, unfinished_tasks = ray.wait(unfinished_tasks)
-            log_completion(finished_tasks, futures_experiments)
             for finished_task in finished_tasks:
                 logging.info(
                     "Completed task %s, %d left out of %d.",
@@ -88,9 +80,9 @@ def create_tasks(
     num_episodes: int,
     assets_dir: str,
     output_dir: str,
+    task_prefix: str,
     log_episode_frequency: int,
-    num_tasks: int,
-) -> Mapping[int, Tuple[ray.ObjectRef, Sequence[Any]]]:
+) -> Sequence[Tuple[ray.ObjectRef, expconfig.ExperimentTask]]:
     """
     Runs numerical experiments on policy evaluation.
     """
@@ -114,25 +106,21 @@ def create_tasks(
             ),
             experiments_and_context=experiments_and_context,
             num_runs=num_runs,
+            task_prefix=task_prefix,
         )
     )
     # shuffle tasks to balance workload
     experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))
-    worker_split_tasks = utils.partition(
-        items=experiment_tasks, num_partitions=num_tasks
-    )
-
     logging.info(
-        "Parsed %d DAAF configs and %d environments into %d tasks, split into %d groups",
+        "Parsed %d DAAF configs and %d environments into %d tasks",
         len(experiment_configs),
         len(envs_configs),
         len(experiment_tasks),
-        len(worker_split_tasks),
     )
-    futures = {}
-    for group_id, split_tasks in enumerate(worker_split_tasks):
-        future = evaluate.remote(group_id, split_tasks)
-        futures[group_id] = (future, split_tasks)
+    futures = []
+    for exp_task in experiment_tasks:
+        future = evaluate.remote(exp_task)
+        futures.append((exp_task, future))
     return futures
 
 
@@ -176,32 +164,15 @@ def add_experiment_context(
 
 
 @ray.remote
-def evaluate(group_id: int, experiment_tasks: Sequence[Any]) -> int:
+def evaluate(experiment_task: expconfig.ExperimentTask) -> str:
     """
     Runs evaluation.
     """
-    logging.info("Group %d starting", group_id)
-    for idx, experiment_task in enumerate(experiment_tasks):
-        logging.info(
-            "Task %d starting work item %d out of %d",
-            group_id,
-            idx + 1,
-            len(experiment_tasks),
-        )
-        evaluation.run_fn(experiment_task)
-    return group_id
-
-
-def log_completion(
-    finished_tasks: Sequence[ray.ObjectRef],
-    tasks_experiments: Mapping[ray.ObjectRef, Sequence[Any]],
-):
-    """
-    Logs completed tasks's configuration, for tracing.
-    """
-    for finished_task in finished_tasks:
-        for experiment in tasks_experiments[finished_task]:
-            logging.info("Completed experiment: %s", getattr(experiment, "run_id"))
+    task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
+    logging.info("Experiment %s starting", task_id)
+    evaluation.run_fn(experiment_task)
+    logging.info("Experiment %s finished", task_id)
+    return task_id
 
 
 def parse_args() -> EvalPipelineArgs:
@@ -216,8 +187,8 @@ def parse_args() -> EvalPipelineArgs:
     arg_parser.add_argument("--assets-dir", type=str, required=True)
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
+    arg_parser.add_argument("--task-prefix", type=str, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
-    arg_parser.add_argument("--num-tasks", type=int, default=1)
     known_args, unknown_args = arg_parser.parse_known_args()
     logging.info("Unknown args: %s", unknown_args)
     return EvalPipelineArgs(**vars(known_args))

@@ -6,8 +6,7 @@ import dataclasses
 import json
 import os
 import os.path
-import time
-from typing import Any, Iterator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Iterator, Mapping, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -77,7 +76,8 @@ class ExperimentTask:
     A single experiment task.
     """
 
-    run_id: str
+    exp_id: str
+    run_id: int
     experiment: Experiment
     run_config: RunConfig
     context: Mapping[str, Any]
@@ -154,7 +154,7 @@ def generate_tasks_from_experiments_context_and_run_config(
     run_config: RunConfig,
     experiments_and_context: Sequence[Tuple[Experiment, Mapping[str, Any]]],
     num_runs: int,
-    timestamp: Optional[int] = None,
+    task_prefix: str,
 ) -> Iterator[ExperimentTask]:
     """
     Given a sequence of experiments, expands them
@@ -170,25 +170,24 @@ def generate_tasks_from_experiments_context_and_run_config(
     B, key1=value1
     """
 
-    now = timestamp or int(time.time())
     for experiment, context in experiments_and_context:
-        task_id = "-".join(
+        exp_id = "-".join(
             [
-                utils.create_task_id(now),
+                utils.create_task_id(task_prefix),
                 experiment.env_config.name,
             ]
         )
         for idx in range(num_runs):
             yield ExperimentTask(
-                run_id=f"{task_id}-run{idx}",
+                exp_id=exp_id,
+                run_id=idx,
                 experiment=experiment,
                 run_config=dataclasses.replace(
                     run_config,
                     # replace run output with run specific values
                     output_dir=os.path.join(
                         run_config.output_dir,
-                        str(now),
-                        task_id,
+                        exp_id,
                         f"run{idx}",
                         experiment.daaf_config.traj_mapping_method,
                         f"p{experiment.daaf_config.reward_period}",

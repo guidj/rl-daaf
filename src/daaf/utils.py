@@ -30,7 +30,11 @@ class ExperimentLogger(contextlib.AbstractContextManager):
     PARAM_FILE_NAME = "experiment-params.json"
 
     def __init__(
-        self, log_dir: str, name: str, params: Mapping[str, Union[int, float, str]]
+        self,
+        log_dir: str,
+        exp_id: str,
+        run_id: int,
+        params: Mapping[str, Union[int, float, str]],
     ):
         self.log_file = os.path.join(log_dir, self.LOG_FILE_NAME)
         self.param_file = os.path.join(log_dir, self.PARAM_FILE_NAME)
@@ -38,7 +42,7 @@ class ExperimentLogger(contextlib.AbstractContextManager):
             tf.io.gfile.makedirs(log_dir)
 
         with tf.io.gfile.GFile(self.param_file, "w") as writer:
-            writer.write(json.dumps(dict(params, name=name)))
+            writer.write(json.dumps(dict(params, exp_id=exp_id, run_id=run_id)))
 
         self._writer: Optional[tf.io.gfile.GFile] = None
 
@@ -117,22 +121,23 @@ class DynaProgStateValueIndex:
         This function does not override existing
         entries.
         """
-        file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
         state_value_mapping: Mapping[Tuple[str, str, float], np.ndarray] = {}
-        if tf.io.gfile.exists(file_path):
-            logging.info("Loading dynamic programming index from %s", file_path)
-            state_value_mapping = DynaProgStateValueIndex._parse_index(file_path)
-
+        state_value_mapping = DynaProgStateValueIndex._parse_index(path)
         for name, level, gamma, mdp in specs:
             key = (name, level, gamma)
             if key not in state_value_mapping:
-                logging.info("Solving dynamic programming for %s/%s", name, level)
+                logging.info(
+                    "Solving dynamic programming for %s/%s, discount=%f",
+                    name,
+                    level,
+                    gamma,
+                )
                 state_value_mapping[key], _ = dynamic_prog_estimation(
                     mdp=mdp, gamma=gamma
                 )
         # overrides initial index, if it existed
-        cls._export_index(file_path=file_path, state_value_mapping=state_value_mapping)
-        logging.info("Dynamic programming index updated at %s", file_path)
+        cls._export_index(path=path, state_value_mapping=state_value_mapping)
+        logging.info("Dynamic programming index updated at %s", path)
         return DynaProgStateValueIndex(state_value_mapping)
 
     @classmethod
@@ -143,12 +148,13 @@ class DynaProgStateValueIndex:
         """
         Loads the index from a file.
         """
-        file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
-        state_values = cls._parse_index(file_path)
+        state_values = cls._parse_index(path)
         return DynaProgStateValueIndex(state_values)
 
     @staticmethod
-    def _parse_index(file_path: str):
+    def _parse_index(path: str):
+        file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
+        logging.info("Loading dynamic programming index from %s", file_path)
         state_values: Mapping[Tuple[str, str, float], np.ndarray] = {}
         with tf.io.gfile.GFile(file_path, "r") as readable:
             for line in readable:
@@ -159,11 +165,14 @@ class DynaProgStateValueIndex:
 
     @staticmethod
     def _export_index(
-        file_path: str, state_value_mapping: Mapping[Tuple[str, str, float], np.ndarray]
+        path: str, state_value_mapping: Mapping[Tuple[str, str, float], np.ndarray]
     ) -> None:
         """
         Export index to a file.
         """
+        if not tf.io.gfile.exists(path):
+            tf.io.gfile.makedirs(path)
+        file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
         with tf.io.gfile.GFile(file_path, "w") as writable:
             for (env_name, level, gamma), state_values in state_value_mapping.items():
                 row = {
@@ -206,13 +215,13 @@ def dynamic_prog_estimation(
     return state_values, action_values
 
 
-def create_task_id(timestamp: int):
+def create_task_id(task_prefix: str):
     """
-    Creates a task id using a given timestamp (epoch)
-    and a partial uuid.
+    Creates a task id using a given prefix
+    and a generated partial uuid.
     """
     _uuid = next(iter(str(uuid.uuid4()).split("-")))
-    return f"{timestamp}-{_uuid}"
+    return f"{task_prefix}-{_uuid}"
 
 
 def partition(items: Sequence[Any], num_partitions: int) -> Sequence[Sequence[Any]]:
@@ -224,12 +233,35 @@ def partition(items: Sequence[Any], num_partitions: int) -> Sequence[Sequence[An
     If the number of partitions is higher than the number of items,
     only non-empty partitions are returned.
     """
+    if num_partitions < 1:
+        raise ValueError("`num_partitions` must be positive.")
     partition_size = math.ceil(len(items) / num_partitions)
     splits = []
     for idx in range(0, num_partitions - 1):
         splits.append(items[idx * partition_size : (idx + 1) * partition_size])
     splits.append(items[(num_partitions - 1) * partition_size :])
     return [partition for partition in splits if partition]
+
+
+def bundle(items: Sequence[Any], bundle_size: int) -> Sequence[Sequence[Any]]:
+    """
+    Bundles items into groups of size `bundle_size`, if possible.
+    The last bundle may have fewer items.
+    """
+    if bundle_size < 1:
+        raise ValueError("`bundle_size` must be positive.")
+
+    bundles = []
+    bundle_ = []
+    for idx, item in enumerate(items):
+        if idx > 0 and (idx % bundle_size) == 0:
+            if bundle_:
+                bundles.append(bundle_)
+            bundle_ = []
+        bundle_.append(item)
+    if bundle_:
+        bundles.append(bundle_)
+    return bundles
 
 
 def dataclass_from_dict(clazz: Callable, data: Mapping[str, Any]):  # type: ignore [arg-type]
