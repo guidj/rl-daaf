@@ -321,6 +321,8 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
             )
             if tau >= 0:
                 yield traj_steps[tau]
+                # clear emitted step
+                traj_steps[tau] = ()  # type: ignore
         yield from traj_steps[tau + 1 :]
 
 
