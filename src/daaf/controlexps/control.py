@@ -44,7 +44,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         daaf_config=experiment_task.experiment.daaf_config,
         num_episodes=experiment_task.run_config.num_episodes,
         algorithm=experiment_task.experiment.daaf_config.algorithm,
-        initial_state_values=create_initial_values(
+        initial_action_values=create_initial_values(
             num_states=env_spec.mdp.env_desc.num_states,
             num_actions=env_spec.mdp.env_desc.num_actions,
         ),
@@ -69,7 +69,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         state_values: Optional[np.ndarray] = None
         try:
             for episode, snapshot in enumerate(results):
-                state_values = snapshot.values
+                state_values = snapshot.action_values
                 if episode % experiment_task.run_config.log_episode_frequency == 0:
                     logging.info(
                         "Run %d of experiment %s, Episode %d: %d steps",
@@ -110,15 +110,16 @@ def policy_control(
     """
     Runs policy control with given algorithm, env, and policy spec.
     """
+    lrs = schedules.LearningRateSchedule(
+        initial_learning_rate=learnign_args.learning_rate,
+        schedule=task.constant_learning_rate,
+    )
 
     if algorithm == constants.SARSA:
         return policycontrol.onpolicy_sarsa_control(
             environment=env_spec.environment,
             num_episodes=num_episodes,
-            lrs=schedules.LearningRateSchedule(
-                initial_learning_rate=learnign_args.learning_rate,
-                schedule=task.constant_learning_rate,
-            ),
+            lrs=lrs,
             gamma=learnign_args.discount_factor,
             epsilon=learnign_args.epsilon,
             state_id_fn=env_spec.discretizer.state,
@@ -137,31 +138,25 @@ def policy_control(
             return onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
-                lrs=schedules.LearningRateSchedule(
-                    initial_learning_rate=learnign_args.learning_rate,
-                    schedule=task.constant_learning_rate,
-                ),
+                lrs=lrs,
                 gamma=learnign_args.discount_factor,
                 epsilon=learnign_args.epsilon,
                 nstep=daaf_config.reward_period,
                 state_id_fn=env_spec.discretizer.state,
                 action_id_fn=env_spec.discretizer.action,
-                initial_values=initial_action_values,
+                initial_qtable=initial_action_values,
                 generate_episodes=generate_steps_fn,
             )
         return policycontrol.onpolicy_nstep_sarsa_control(
             environment=env_spec.environment,
             num_episodes=num_episodes,
-            lrs=schedules.LearningRateSchedule(
-                initial_learning_rate=learnign_args.learning_rate,
-                schedule=task.constant_learning_rate,
-            ),
+            lrs=lrs,
             gamma=learnign_args.discount_factor,
             epsilon=learnign_args.epsilon,
             nstep=daaf_config.reward_period,
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
-            initial_values=initial_action_values,
+            initial_qtable=initial_action_values,
             generate_episodes=generate_steps_fn,
         )
 
@@ -169,6 +164,7 @@ def policy_control(
         return policycontrol.onpolicy_qlearning_control(
             environment=env_spec.environment,
             num_episodes=num_episodes,
+            lrs=lrs,
             gamma=learnign_args.discount_factor,
             epsilon=learnign_args.epsilon,
             state_id_fn=env_spec.discretizer.state,
@@ -250,6 +246,8 @@ def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
     So index wise, we subtract reward access references by one.
     """
     qtable = copy.deepcopy(initial_qtable)
+    # TODO: must be an options policy
+    # a greedy options policy
     egreedy_policy = policies.PyEpsilonGreedyPolicy(
         policy=policies.PyQGreedyPolicy(
             state_id_fn=state_id_fn, action_values=initial_qtable
