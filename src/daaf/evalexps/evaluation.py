@@ -14,9 +14,9 @@ import gymnasium as gym
 import numpy as np
 from rlplg import core, envplay
 from rlplg.learning.opt import schedules
-from rlplg.learning.tabular import policyeval
+from rlplg.learning.tabular import policies, policyeval
 
-from daaf import constants, expconfig, task, utils
+from daaf import constants, expconfig, options, task, utils
 
 
 def run_fn(experiment_task: expconfig.ExperimentTask):
@@ -39,8 +39,8 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         drop_truncated_feedback_episodes=experiment_task.experiment.daaf_config.drop_truncated_feedback_episodes,
     )
     # Policy Eval with DAAF
-    logging.info("Starting DAAF Evaluation")
-    policy = task.create_eval_policy(
+    logging.info("Starting DAAF Evaluation Experiments")
+    policy = create_eval_policy(
         env_spec=env_spec, daaf_config=experiment_task.experiment.daaf_config
     )
     results = evaluate_policy(
@@ -270,3 +270,22 @@ def nstep_td_state_values_on_aggregate_start_steps(
         yield policyeval.PolicyEvalSnapshot(
             steps=len(experiences), values=copy.deepcopy(values)
         )
+
+
+def create_eval_policy(
+    env_spec: core.EnvSpec, daaf_config: expconfig.DaafConfig
+) -> core.PyPolicy:
+    """
+    Creates a policy to be evaluated.
+    """
+    if daaf_config.policy_type == constants.OPTIONS_POLICY:
+        return options.UniformlyRandomCompositeActionPolicy(
+            actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
+            options_duration=daaf_config.reward_period,
+        )
+    elif daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
+        return policies.PyRandomPolicy(
+            num_actions=env_spec.mdp.env_desc.num_actions,
+            emit_log_probability=True,
+        )
+    raise ValueError(f"Unknown policy {daaf_config.policy_type}")
