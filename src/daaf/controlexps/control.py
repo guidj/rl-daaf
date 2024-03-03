@@ -126,7 +126,7 @@ def policy_control(
             initial_qtable=initial_action_values,
             generate_episodes=generate_steps_fn,
         )
-    elif algorithm == constants.NSTEP_TD:
+    elif algorithm == constants.NSTEP_SARSA:
         # To avoid misconfigured experiments (e.g. using an identity mapper
         # with the n-step DAAF aware evaluation fn) we verify the
         # mapper and functions match.
