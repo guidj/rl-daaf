@@ -92,7 +92,12 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                         },
                     )
 
-            logging.info("\nEstimated values\n%s", state_values)
+            logging.info(
+                "\nEstimated values run %d of %s:\n%s",
+                experiment_task.run_id,
+                experiment_task.exp_id,
+                state_values,
+            )
         except Exception as err:
             raise RuntimeError(
                 f"Task {experiment_task.exp_id}, run {experiment_task.run_id} failed"
