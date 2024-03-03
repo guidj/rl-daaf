@@ -10,7 +10,7 @@ import abc
 import copy
 import dataclasses
 import logging
-from typing import Any, Callable, Iterator, Optional, Set, Tuple
+from typing import Any, Callable, Iterator, List, Optional, Set, Tuple
 
 import numpy as np
 from rlplg import core
@@ -300,23 +300,28 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
             trajectory: A iterator of trajectory steps.
         """
         reward_sum = 0.0
-        traj_steps = list(trajectory)
-        for step, traj_step in enumerate(traj_steps):
+        traj_steps: List[core.TrajectoryStep] = []
+        tau = 0
+
+        for step, traj_step in enumerate(trajectory):
             reward_sum += traj_step.reward
-            if (step + 1) % self.reward_period == 0:
-                tau = step - self.nstep + 1
-                if tau >= 0:
-                    traj_steps[tau].info["ok_nstep_tau"] = True
+            tau = step - self.nstep + 1
+            if tau >= 0 and (step + 1) % self.reward_period == 0:
+                traj_steps[tau].info["ok_nstep_tau"] = True
                 reward, reward_sum, imputed = reward_sum, 0.0, False
             else:
                 reward, imputed = self.impute_value, True
 
-            traj_steps[step] = dataclasses.replace(
-                traj_step,
-                reward=reward,
-                info={**traj_step.info, "imputed": imputed, "ok_nstep_tau": False},
+            traj_steps.append(
+                dataclasses.replace(
+                    traj_step,
+                    reward=reward,
+                    info={**traj_step.info, "imputed": imputed, "ok_nstep_tau": False},
+                )
             )
-        yield from traj_steps
+            if tau >= 0:
+                yield traj_steps[tau]
+        yield from traj_steps[tau + 1 :]
 
 
 class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
