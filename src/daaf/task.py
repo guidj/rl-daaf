@@ -101,6 +101,14 @@ def create_trajectory_mappers(
     return mappers
 
 
+def returns_collection_mapper() -> replay_mapper.CollectReturnsMapper:
+    """
+    Returns:
+        A returns collection mapper.
+    """
+    return replay_mapper.CollectReturnsMapper()
+
+
 def create_generate_episodes_fn(
     mappers: Sequence[replay_mapper.TrajMapper],
 ) -> Callable[

@@ -38,6 +38,10 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         buffer_size_or_multiplier=(None, None),
         drop_truncated_feedback_episodes=experiment_task.experiment.daaf_config.drop_truncated_feedback_episodes,
     )
+    # Collect returns on underlying MDP
+    # before any mapper changes it.
+    returns_collector = task.returns_collection_mapper()
+    traj_mappers = tuple([returns_collector] + list(traj_mappers))
     logging.info("Starting DAAF Control Experiments")
     results = policy_control(
         env_spec=env_spec,
@@ -72,16 +76,17 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                 state_values = snapshot.action_values
                 if episode % experiment_task.run_config.log_episode_frequency == 0:
                     logging.info(
-                        "Run %d of experiment %s, Episode %d: %d steps",
+                        "Run %d of experiment %s, Episode %d: %d steps, %f returns",
                         experiment_task.run_id,
                         experiment_task.exp_id,
                         episode,
                         snapshot.steps,
+                        returns_collector.traj_returns[-1],
                     )
                     exp_logger.log(
                         episode=episode,
                         steps=snapshot.steps,
-                        returns=np.nan,
+                        returns=returns_collector.traj_returns[-1],
                         info={
                             "state_values": state_values.tolist(),
                         },

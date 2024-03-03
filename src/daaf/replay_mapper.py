@@ -383,6 +383,7 @@ class CollectReturnsMapper(TrajMapper):
             yield traj_step
         self.__traj_returns.append(returns)
 
+    @property
     def traj_returns(self) -> Sequence[float]:
         return self.__traj_returns[:]
 

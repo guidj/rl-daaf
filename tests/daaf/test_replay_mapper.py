@@ -543,12 +543,12 @@ def test_collect_returns_mapper_apply():
         traj_step(state=5, action=0, reward=-7.0, truncated=True),
     ]
 
-    assert len(mapper.traj_returns()) == 0
+    assert len(mapper.traj_returns) == 0
     outputs = tuple(mapper.apply(inputs))
     assert len(outputs) == 5
     for output, expected in zip(outputs, inputs):
         assert_trajectory(output=output, expected=expected)
-    assert mapper.traj_returns() == [-17.0]
+    assert mapper.traj_returns == [-17.0]
 
     # second pass, first three steps
     outputs = tuple(mapper.apply(inputs[:3]))
@@ -556,7 +556,7 @@ def test_collect_returns_mapper_apply():
     for output, expected in zip(outputs, inputs[:3]):
         assert_trajectory(output=output, expected=expected)
 
-    assert mapper.traj_returns() == [-17.0, -15.0]
+    assert mapper.traj_returns == [-17.0, -15.0]
 
 
 def test_counter_init():
