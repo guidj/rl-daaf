@@ -88,7 +88,7 @@ def create_trajectory_mappers(
             )
         )
     elif traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
-        mappers.append(replay_mapper.MdpWithOptionsMapper())
+        mappers.append(replay_mapper.DaafMdpWithOptionsMapper())
     elif traj_mapping_method == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER:
         mappers.append(
             replay_mapper.DaafNStepTdUpdateMarkMapper(reward_period=reward_period)

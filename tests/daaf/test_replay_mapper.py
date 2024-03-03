@@ -270,8 +270,8 @@ def test_daaf_lsq_reward_attribution_mapper_apply():
         np.testing.assert_array_equal(output.truncated, expected.truncated)
 
 
-def test_mdp_with_options_mapper_apply_given_truncated_options():
-    mapper = replay_mapper.MdpWithOptionsMapper()
+def test_daaf_mdp_with_options_mapper_apply_given_truncated_options():
+    mapper = replay_mapper.DaafMdpWithOptionsMapper()
     inputs = [
         # three step option
         traj_step(
@@ -333,10 +333,16 @@ def test_mdp_with_options_mapper_apply_given_truncated_options():
             action=4,
             reward=2.0,
         ),
-        traj_step(state=6, action=0, reward=1.0, truncated=True),
+        traj_step(state=6, action=0, reward=1.0),
+        traj_step(
+            state=7,
+            action=3,
+            reward=0.0,
+            truncated=True,
+        ),
     ]
     outputs = tuple(mapper.apply(inputs))
-    assert len(outputs) == 3
+    assert len(outputs) == 4
     for output, expected in zip(outputs, expectactions):
         # reward can only be approximately equal
         np.testing.assert_array_equal(output.observation, expected.observation)
@@ -347,8 +353,8 @@ def test_mdp_with_options_mapper_apply_given_truncated_options():
         np.testing.assert_array_equal(output.truncated, expected.truncated)
 
 
-def test_mdp_with_options_mapper_apply_given_terminating_option():
-    mapper = replay_mapper.MdpWithOptionsMapper()
+def test_daaf_mdp_with_options_mapper_apply_given_terminating_option():
+    mapper = replay_mapper.DaafMdpWithOptionsMapper()
     inputs = [
         # three step option
         traj_step(

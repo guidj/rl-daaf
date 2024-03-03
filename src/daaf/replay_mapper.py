@@ -220,7 +220,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
             yield dataclasses.replace(traj_step, reward=reward)
 
 
-class MdpWithOptionsMapper(TrajMapper):
+class DaafMdpWithOptionsMapper(TrajMapper):
     """
     Simulates a trajectory with an options policy.
     The trajectory generated is that of the parent policy only.
@@ -259,9 +259,16 @@ class MdpWithOptionsMapper(TrajMapper):
 
         # options termination did not coincide with end of episode
         if options_traj_steps and current_traj_step is not None:
-            options_traj_steps[-1] = dataclasses.replace(
-                options_traj_steps[-1], truncated=True
+            options_traj_steps.append(
+                dataclasses.replace(
+                    current_traj_step,
+                    reward=0.0,
+                    action=current_traj_step.policy_info["option_id"],
+                    truncated=True,
+                    policy_info={},
+                )
             )
+
         for traj_step in options_traj_steps:
             yield traj_step
 
