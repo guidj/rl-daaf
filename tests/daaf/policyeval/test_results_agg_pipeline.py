@@ -3,8 +3,7 @@ from typing import Mapping, Sequence
 import numpy as np
 import ray
 import ray.data
-
-from daaf.policyeval import results_agg_pipeline
+from daaf.evalexps import results_agg_pipeline
 
 
 def test_pipeline():

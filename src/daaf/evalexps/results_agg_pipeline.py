@@ -23,7 +23,7 @@ from ray.data import aggregate
 from rlplg import envsuite
 from rlplg.learning.tabular import dynamicprog
 
-from daaf import evalmetrics
+from daaf import estimator_metrics
 
 
 @dataclasses.dataclass(frozen=True)
@@ -246,8 +246,8 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
     """
 
     def calc_metrics(y_preds, y_true, axis):
-        mae = evalmetrics.mean_absolute_error(y_preds, y_true, axis=axis)
-        rmse = evalmetrics.rmse(y_preds, y_true, axis=axis)
+        mae = estimator_metrics.mean_absolute_error(y_preds, y_true, axis=axis)
+        rmse = estimator_metrics.rmse(y_preds, y_true, axis=axis)
         return {
             "mae": {"mean": np.mean(mae), "std": np.std(mae)},
             "rmse": {"mean": np.mean(rmse), "std": np.std(rmse)},

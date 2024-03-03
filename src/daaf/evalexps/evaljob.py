@@ -11,7 +11,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 import ray
 
 from daaf import expconfig, task, utils
-from daaf.policyeval import evaluation
+from daaf.evalexps import evaluation
 
 
 @dataclasses.dataclass(frozen=True)
