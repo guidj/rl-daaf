@@ -8,13 +8,13 @@ import copy
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Iterator, Optional, Set, Tuple
+from typing import Any, Callable, Generator, Iterator, Optional, Set
 
 import gymnasium as gym
 import numpy as np
 from rlplg import core, envplay
 from rlplg.learning.opt import schedules
-from rlplg.learning.tabular.evaluation import onpolicy
+from rlplg.learning.tabular import policyeval
 
 from daaf import constants, expconfig, task, utils
 
@@ -70,18 +70,19 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
         try:
-            for episode, (steps, state_values) in enumerate(results):
+            for episode, snapshot in enumerate(results):
+                state_values = snapshot.values
                 if episode % experiment_task.run_config.log_episode_frequency == 0:
                     logging.info(
                         "Run %d of experiment %s, Episode %d: %d steps",
                         experiment_task.run_id,
                         experiment_task.exp_id,
                         episode,
-                        steps,
+                        snapshot.steps,
                     )
                     exp_logger.log(
                         episode=episode,
-                        steps=steps,
+                        steps=snapshot.steps,
                         returns=np.nan,
                         info={
                             "state_values": state_values.tolist(),
@@ -93,7 +94,6 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
             raise RuntimeError(
                 f"Task {experiment_task.exp_id}, run {experiment_task.run_id} failed"
             ) from err
-
     env_spec.environment.close()
 
 
@@ -109,12 +109,12 @@ def evaluate_policy(
         [gym.Env, core.PyPolicy, int],
         Generator[core.TrajectoryStep, None, None],
     ],
-) -> Iterator[Tuple[int, np.ndarray]]:
+) -> Iterator[policyeval.PolicyEvalSnapshot]:
     """
     Runs policy evaluation with given algorithm, env, and policy spec.
     """
     if algorithm == constants.ONE_STEP_TD:
-        return onpolicy.one_step_td_state_values(
+        return policyeval.onpolicy_one_step_td_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -149,7 +149,7 @@ def evaluate_policy(
                 initial_values=initial_state_values,
                 generate_episodes=generate_steps_fn,
             )
-        return onpolicy.nstep_td_state_values(
+        return policyeval.onpolicy_nstep_td_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -165,7 +165,7 @@ def evaluate_policy(
         )
 
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
-        return onpolicy.first_visit_monte_carlo_state_values(
+        return policyeval.onpolicy_first_visit_monte_carlo_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -216,7 +216,7 @@ def nstep_td_state_values_on_aggregate_start_steps(
         ],
         Generator[core.TrajectoryStep, None, None],
     ] = envplay.generate_episodes,
-) -> Generator[Tuple[int, np.ndarray], None, None]:
+) -> Generator[policyeval.PolicyEvalSnapshot, None, None]:
     """
     n-step TD learning.
     Estimates V(s) for a fixed policy pi.
@@ -267,4 +267,6 @@ def nstep_td_state_values_on_aggregate_start_steps(
                 values[state_id] += alpha * (returns - values[state_id])
             steps_counter += 1
         # need to copy qtable because it's a mutable numpy array
-        yield len(experiences), copy.deepcopy(values)
+        yield policyeval.PolicyEvalSnapshot(
+            steps=len(experiences), values=copy.deepcopy(values)
+        )

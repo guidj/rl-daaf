@@ -2,13 +2,15 @@
     {
         "name": "ABCSeq",
         "args": {
-            "length": 7
+            "length": 7,
+            "distance_penalty": false
         }
     },
     {
         "name": "ABCSeq",
         "args": {
-            "length": 10
+            "length": 10,
+            "distance_penalty": false
         }
     },
     {
