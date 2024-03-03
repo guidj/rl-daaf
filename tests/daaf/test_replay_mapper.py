@@ -41,48 +41,6 @@ def test_identity_mapper_apply():
         assert_trajectory(output=output, expected=expected)
 
 
-@hypothesis.given(reward_period=st.integers(min_value=2))
-def test_daaf_average_reward_mapper_init(reward_period: int):
-    mapper = replay_mapper.DaafAverageRewardMapper(reward_period=reward_period)
-    assert mapper.reward_period == reward_period
-
-
-@hypothesis.given(reward_period=st.integers(max_value=0))
-def test_daaf_average_reward_mapper_init_with_invalid_reward_period(reward_period: int):
-    with pytest.raises(ValueError):
-        replay_mapper.DaafAverageRewardMapper(reward_period=reward_period)
-
-
-def test_daaf_average_reward_mapper_apply():
-    """
-    Each step is unpacked into its own Trajectory object.
-    The reward is divided equally.
-    Everything else is the same.
-    """
-    mapper = replay_mapper.DaafAverageRewardMapper(reward_period=2)
-
-    inputs = [
-        traj_step(state=0, action=0, reward=-1.0, prob=0.3),
-        traj_step(state=1, action=1, reward=-7.0, prob=0.8),
-        traj_step(state=0, action=0, reward=13.0, prob=0.1),
-        traj_step(state=1, action=1, reward=-9.0, prob=0.2),
-        # skipped; falls within period
-        traj_step(state=2, action=2, reward=2.0, prob=0.2),
-    ]
-
-    expectactions = [
-        traj_step(state=0, action=0, reward=-4.0, prob=0.3),
-        traj_step(state=1, action=1, reward=-4.0, prob=0.8),
-        traj_step(state=0, action=0, reward=2.0, prob=0.1),
-        traj_step(state=1, action=1, reward=2.0, prob=0.2),
-    ]
-
-    outputs = tuple(mapper.apply(inputs))
-    assert len(outputs) == 4
-    for output, expected in zip(outputs, expectactions):
-        assert_trajectory(output=output, expected=expected)
-
-
 @hypothesis.given(
     reward_period=st.integers(min_value=1),
     impute_value=st.floats(allow_nan=False, allow_infinity=False),

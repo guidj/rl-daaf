@@ -66,10 +66,6 @@ def create_trajectory_mappers(
                 reward_period=reward_period, impute_value=0.0
             )
         )
-    elif traj_mapping_method == constants.DAAF_AVERAGE_REWARD_MAPPER:
-        mappers.append(
-            replay_mapper.DaafAverageRewardMapper(reward_period=reward_period)
-        )
     elif traj_mapping_method == constants.DAAF_LSQ_REWARD_ATTRIBUTION_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(

@@ -10,7 +10,7 @@ import abc
 import copy
 import dataclasses
 import logging
-from typing import Any, Callable, Iterator, List, Optional, Set, Tuple
+from typing import Any, Callable, Iterator, Optional, Set, Tuple
 
 import numpy as np
 from rlplg import core
@@ -50,44 +50,6 @@ class IdentityMapper(TrajMapper):
         """
         for traj_step in trajectory:
             yield traj_step
-
-
-class DaafAverageRewardMapper(TrajMapper):
-    """
-    Simulates a trajectory of periodic aggregate anonymous feedback:
-      - For a set of actions, K, we take their reward, add it up, and divide it equally.
-      - Each K action is emitted as is.
-    """
-
-    def __init__(self, reward_period: int):
-        """
-        Args:
-            reward_period: the interval for aggregate rewards.
-        """
-        if reward_period < 1:
-            raise ValueError(f"Reward period must be positive. Got {reward_period}.")
-        self.reward_period = reward_period
-
-    def apply(
-        self, trajectory: Iterator[core.TrajectoryStep]
-    ) -> Iterator[core.TrajectoryStep]:
-        """
-        Args:
-            trajectory: A iterator of trajectory steps.
-        """
-
-        buffer: List[core.TrajectoryStep] = []
-        reward_sum = 0.0
-        for step, traj_step in enumerate(trajectory):
-            buffer.append(traj_step)
-            reward_sum += traj_step.reward
-            if (step + 1) % self.reward_period == 0:
-                average_reward = reward_sum / self.reward_period
-                for buffer_traj_step in buffer:
-                    yield dataclasses.replace(buffer_traj_step, reward=average_reward)
-                # reset
-                buffer.clear()
-                reward_sum = 0.0
 
 
 class DaafImputeMissingRewardMapper(TrajMapper):
