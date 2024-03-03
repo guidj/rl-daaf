@@ -8,7 +8,6 @@ runs from each experiment.
 import argparse
 import copy
 import dataclasses
-import json
 import logging
 import os.path
 from typing import Any, Mapping, Optional, Sequence, Tuple
@@ -20,10 +19,7 @@ import ray.data
 import ray.data.datasource
 import tensorflow as tf
 from ray.data import aggregate
-from rlplg import envsuite
-from rlplg.learning.tabular import dynamicprog
 
-from daaf import estimator_metrics
 
 
 @dataclasses.dataclass(frozen=True)
@@ -58,15 +54,15 @@ class MetricStat:
     normal_test: Optional[StatTest]
 
 
-class StateValueAggretator(aggregate.AggregateFn):
+class ReturnsAggretator(aggregate.AggregateFn):
     """
-    Aggregates state-values.
+    Aggregates returns.
     """
 
-    AggType = Mapping[Tuple[str, int], Tuple[Any, Sequence[np.ndarray]]]
+    AggType = Mapping[Tuple[str, int], Tuple[Any, Sequence[float]]]
     Row = Mapping[str, Any]
 
-    def __init__(self, name: str = "StateValueAggretator()"):
+    def __init__(self, name: str = "ReturnsAggretator()"):
         super().__init__(
             init=self._init,
             merge=self._merge,
@@ -91,9 +87,9 @@ class StateValueAggretator(aggregate.AggregateFn):
             del meta["path"]
             new_acc[row["exp_id"]] = {
                 "meta": meta,
-                "state_values": [],
+                "returns": [],
             }
-        new_acc[row["exp_id"]]["state_values"].append(row["info"]["state_values"])
+        new_acc[row["exp_id"]]["returns"].append(row["returns"])
         return new_acc
 
     def _merge(self, acc_left: AggType, acc_right: AggType) -> AggType:
@@ -106,7 +102,7 @@ class StateValueAggretator(aggregate.AggregateFn):
                 # copy meta and values
                 acc[key] = copy.deepcopy(value)
             else:
-                acc[key]["state_values"].extend(value["state_values"])
+                acc[key]["returns"].extend(value["returns"])
         return acc
 
     def _finalize(self, acc: AggType) -> Any:
@@ -227,11 +223,11 @@ def pipeline(ds_logs: ray.data.Dataset) -> Mapping[str, ray.data.Dataset]:
     """
     ds_logs = (
         ds_logs.groupby("episode")
-        .aggregate(StateValueAggretator(name="state_value_agg"))
+        .aggregate(ReturnsAggretator(name="returns_agg"))
         .flat_map(
             lambda row: [
                 {"episode": row["episode"], "exp_id": exp_id, **data}
-                for exp_id, data in row["state_value_agg"].items()
+                for exp_id, data in row["returns_agg"].items()
             ]
         )
     )
@@ -245,46 +241,15 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
     entry.
     """
 
-    def calc_metrics(y_preds, y_true, axis):
-        mae = estimator_metrics.mean_absolute_error(y_preds, y_true, axis=axis)
-        rmse = estimator_metrics.rmse(y_preds, y_true, axis=axis)
-        return {
-            "mae": {"mean": np.mean(mae), "std": np.std(mae)},
-            "rmse": {"mean": np.mean(rmse), "std": np.std(rmse)},
-        }
-
-    def calc_policy_metrics(env_def, gamma, y_preds, y_true):
-        env_spec = envsuite.load(env_def["name"], **json.loads(env_def["args"]))
-        # just need to do it once for the solution
-        dyna_action_values = dynamicprog.action_values_from_state_values(
-            mdp=env_spec.mdp, state_values=y_true[0], gamma=gamma
-        )
-        dyna_best_actions = np.argmax(dyna_action_values, axis=1)
-        results = []
-        for idx in range(y_preds.shape[0]):
-            action_values = dynamicprog.action_values_from_state_values(
-                mdp=env_spec.mdp, state_values=y_preds[idx], gamma=gamma
-            )
-            best_actions = np.argmax(action_values, axis=1)
-            results.append(np.mean(best_actions == dyna_best_actions))
-        return {"pi_equi": {"mean": np.mean(results), "std": np.std(results)}}
-
     def apply(row):
-        y_preds = row["state_values"]
-        y_true = np.tile(row["meta"]["dyna_prog_state_values"], reps=(len(y_preds), 1))
-        over_runs_then_states = calc_metrics(y_preds=y_preds, y_true=y_true, axis=0)
-        over_states_then_runs = calc_metrics(y_preds=y_preds, y_true=y_true, axis=1)
-        policy_equivalence = calc_policy_metrics(
-            row["meta"]["env"],
-            gamma=row["meta"]["discount_factor"],
-            y_preds=y_preds,
-            y_true=y_true,
-        )
         return {
             **row,
-            "over_states_then_runs": over_states_then_runs,
-            "over_runs_then_states": over_runs_then_states,
-            "policy_metrics": policy_equivalence,
+            "metrics": {
+                "returns": {
+                    "mean": np.mean(row["returns"]),
+                    "std": np.std(row["returns"]),
+                },
+            },
         }
 
     return ds.map(apply)
