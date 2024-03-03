@@ -10,7 +10,7 @@ import abc
 import copy
 import dataclasses
 import logging
-from typing import Any, Callable, Iterator, List, Optional, Set, Tuple
+from typing import Any, Callable, Iterator, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 from rlplg import core
@@ -71,7 +71,7 @@ class DaafImputeMissingRewardMapper(TrajMapper):
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
         if np.isnan(impute_value) or np.isinf(impute_value):
             raise ValueError(f"Impute value must be a float. Got {impute_value}.")
-
+        super().__init__()
         self.reward_period = reward_period
         self.impute_value = impute_value
 
@@ -147,6 +147,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
                 f"""Tensor initial_rtable must have shape[{num_states},{num_actions}].
                 Got [{init_rtable}]."""
             )
+        super().__init__()
 
         num_factors = num_states * num_actions
         self.num_states = num_states
@@ -288,6 +289,7 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
+        super().__init__()
         self.reward_period = reward_period
         self.nstep = reward_period
         self.impute_value = impute_value
@@ -344,6 +346,7 @@ class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
+        super().__init__()
         self.reward_period = reward_period
 
     def apply(
@@ -356,6 +359,32 @@ class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
         traj_steps = list(trajectory)
         if len(traj_steps) % self.reward_period == 0:
             yield from traj_steps
+
+
+class CollectReturnsMapper(TrajMapper):
+    """
+    Tracks trajectory returns internally.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.__traj_returns = []
+
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
+        """
+        Args:
+            trajectory: A iterator of trajectory steps.
+        """
+        returns = 0.0
+        for traj_step in trajectory:
+            returns += traj_step.reward
+            yield traj_step
+        self.__traj_returns.append(returns)
+
+    def traj_returns(self) -> Sequence[float]:
+        return self.__traj_returns[:]
 
 
 class AbQueueBuffer:

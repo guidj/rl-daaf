@@ -524,6 +524,41 @@ def test_daaf_drop_episode_with_truncated_feedback_mapper_apply():
         assert_trajectory(output=output, expected=expected)
 
 
+def test_collect_returns_mapper_apply():
+    mapper = replay_mapper.CollectReturnsMapper()
+
+    inputs = [
+        traj_step(
+            state=1,
+            action=0,
+            reward=-7.0,
+        ),
+        traj_step(
+            state=2,
+            action=1,
+            reward=-1.0,
+        ),
+        traj_step(state=3, action=0, reward=-7.0, terminated=True, truncated=True),
+        traj_step(state=4, action=1, reward=5.0, terminated=True),
+        traj_step(state=5, action=0, reward=-7.0, truncated=True),
+    ]
+
+    assert len(mapper.traj_returns()) == 0
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 5
+    for output, expected in zip(outputs, inputs):
+        assert_trajectory(output=output, expected=expected)
+    assert mapper.traj_returns() == [-17.0]
+
+    # second pass, first three steps
+    outputs = tuple(mapper.apply(inputs[:3]))
+    assert len(outputs) == 3
+    for output, expected in zip(outputs, inputs[:3]):
+        assert_trajectory(output=output, expected=expected)
+
+    assert mapper.traj_returns() == [-17.0, -15.0]
+
+
 def test_counter_init():
     counter = replay_mapper.Counter()
     assert counter.value is None
