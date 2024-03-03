@@ -240,37 +240,29 @@ class DaafMdpWithOptionsMapper(TrajMapper):
         # Use policy info to determine if option has ended.
         reward_sum = 0.0
         current_traj_step: Optional[core.TrajectoryStep] = None
-        options_traj_steps = []
         for traj_step in trajectory:
             if current_traj_step is None:
                 current_traj_step = traj_step
             reward_sum += traj_step.reward
             if traj_step.policy_info["option_terminated"]:
                 reward, reward_sum = reward_sum, 0.0
-                options_traj_steps.append(
-                    dataclasses.replace(
-                        current_traj_step,
-                        reward=reward,
-                        action=current_traj_step.policy_info["option_id"],
-                        policy_info={},
-                    )
+                yield dataclasses.replace(
+                    current_traj_step,
+                    reward=reward,
+                    action=current_traj_step.policy_info["option_id"],
+                    policy_info={},
                 )
                 current_traj_step = None
 
         # options termination did not coincide with end of episode
-        if options_traj_steps and current_traj_step is not None:
-            options_traj_steps.append(
-                dataclasses.replace(
-                    current_traj_step,
-                    reward=0.0,
-                    action=current_traj_step.policy_info["option_id"],
-                    truncated=True,
-                    policy_info={},
-                )
+        if current_traj_step is not None:
+            yield dataclasses.replace(
+                current_traj_step,
+                reward=0.0,
+                action=current_traj_step.policy_info["option_id"],
+                truncated=True,
+                policy_info={},
             )
-
-        for traj_step in options_traj_steps:
-            yield traj_step
 
 
 class DaafNStepTdUpdateMarkMapper(TrajMapper):
