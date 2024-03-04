@@ -39,12 +39,9 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         drop_truncated_feedback_episodes=experiment_task.experiment.daaf_config.drop_truncated_feedback_episodes,
     )
     # Collect returns on underlying MDP
-    # before any mapper changes it.
+    # before other mappers change it.
     returns_collector = task.returns_collection_mapper()
     traj_mappers = tuple([returns_collector] + list(traj_mappers))
-    # test_max_steps = (
-    #     env_spec.mdp.env_desc.num_states * env_spec.mdp.env_desc.num_actions * 10
-    # )
     logging.info("Starting DAAF Control Experiments")
     results = policy_control(
         env_spec=env_spec,
@@ -86,11 +83,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                         snapshot.steps,
                         returns_collector.traj_returns[-1],
                     )
-                    mean_returns = np.mean(
-                        returns_collector.traj_returns[
-                            -experiment_task.run_config.metrics_last_k_episodes :
-                        ]
-                    )
+                    mean_returns = np.mean(returns_collector.traj_returns)
                     exp_logger.log(
                         episode=episode,
                         steps=snapshot.steps,
