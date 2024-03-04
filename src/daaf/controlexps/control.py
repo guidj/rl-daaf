@@ -42,9 +42,9 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
     # before any mapper changes it.
     returns_collector = task.returns_collection_mapper()
     traj_mappers = tuple([returns_collector] + list(traj_mappers))
-    test_max_steps = (
-        env_spec.mdp.env_desc.num_states * env_spec.mdp.env_desc.num_actions * 10
-    )
+    # test_max_steps = (
+    #     env_spec.mdp.env_desc.num_states * env_spec.mdp.env_desc.num_actions * 10
+    # )
     logging.info("Starting DAAF Control Experiments")
     results = policy_control(
         env_spec=env_spec,
@@ -88,18 +88,20 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                     )
 
                     # use replay to get returns
-                    test_traj = envplay.generate_episode(
-                        env_spec.environment,
-                        policies.PyQGreedyPolicy(
-                            state_id_fn=env_spec.discretizer.state,
-                            action_values=snapshot.action_values,
-                        ),
-                        max_steps=test_max_steps,
-                    )
-                    returns = 0.0
-                    for traj_step in test_traj:
-                        returns += traj_step.reward
-
+                    # test_traj = envplay.generate_episode(
+                    #     env_spec.environment,
+                    #     policies.PyQGreedyPolicy(
+                    #         state_id_fn=env_spec.discretizer.state,
+                    #         action_values=snapshot.action_values,
+                    #     ),
+                    #     max_steps=test_max_steps,
+                    # )
+                    # use moving average - last 10 samples
+                    # returns = 0.0
+                    # for traj_step in test_traj:
+                    #     returns += traj_step.reward
+                    # expected results
+                    returns = np.mean(returns_collector.traj_returns[-10:])
                     exp_logger.log(
                         episode=episode,
                         steps=snapshot.steps,
@@ -217,10 +219,8 @@ def create_initial_values(
         if terminal_states is None:
             logging.warning("Creating Q-table with no terminal states")
 
-        qtable = np.random.rand(
-            num_states,
-        )
-        qtable[list(terminal_states or [])] = 0.0
+        qtable = np.random.rand(num_states, num_actions)
+        qtable[list(terminal_states or []), :] = 0.0
         return qtable.astype(dtype)
     return np.zeros(shape=(num_states, num_actions), dtype=dtype)
 
