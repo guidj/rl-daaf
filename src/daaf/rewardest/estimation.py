@@ -38,9 +38,7 @@ def estimate_reward(
     logging.info("Collecting data for %s", spec["name"])
     episode = 1
     while True:
-        traj = envplay.generate_episodes(
-            env_spec.environment, policy=policy, num_episodes=1
-        )
+        traj = envplay.generate_episode(env_spec.environment, policy=policy)
         for _ in mapper.apply(traj):
             pass
 

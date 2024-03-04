@@ -48,8 +48,7 @@ class IdentityMapper(TrajMapper):
         Args:
             trajectory: A iterator of trajectory steps.
         """
-        for traj_step in trajectory:
-            yield traj_step
+        yield from trajectory
 
 
 class DaafImputeMissingRewardMapper(TrajMapper):
@@ -213,7 +212,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
                             # matix being unsuitable (no solution).
                             logging.debug("Reward estimation failed: %s", err)
                 else:
-                    # zero impute before estimation
+                    # Use impute value before estimation
                     reward = self.impute_value
             else:
                 reward = float(self.rtable[state_id, action_id])
