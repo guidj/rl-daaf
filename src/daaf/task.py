@@ -109,7 +109,7 @@ def returns_collection_mapper() -> replay_mapper.CollectReturnsMapper:
     return replay_mapper.CollectReturnsMapper()
 
 
-def create_generate_episodes_fn(
+def create_generate_episode_fn(
     mappers: Sequence[replay_mapper.TrajMapper],
 ) -> Callable[
     [gym.Env, core.PyPolicy, int],
@@ -123,22 +123,20 @@ def create_generate_episodes_fn(
         mapper: A TrajMapper that transforms trajectory events.
     """
 
-    def generate_episodes(
+    def generate_episode(
         environment: gym.Env,
         policy: core.PyPolicy,
-        num_episodes: int,
+        max_steps: int = None,
     ) -> Generator[core.TrajectoryStep, None, None]:
         """
         Generates events for `num_episodes` given an environment and policy.
         """
-        # Unroll one trajectory at a time
-        for _ in range(num_episodes):
-            trajectory = envplay.generate_episodes(environment, policy, num_episodes=1)
-            for mapper in mappers:
-                trajectory = mapper.apply(trajectory)
-            yield from trajectory
+        trajectory = envplay.generate_episode(environment, policy, max_steps=max_steps)
+        for mapper in mappers:
+            trajectory = mapper.apply(trajectory)
+        yield from trajectory
 
-    return generate_episodes
+    return generate_episode
 
 
 def constant_learning_rate(initial_lr: float, episode: int, step: int):

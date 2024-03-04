@@ -42,6 +42,9 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
     # before any mapper changes it.
     returns_collector = task.returns_collection_mapper()
     traj_mappers = tuple([returns_collector] + list(traj_mappers))
+    test_max_steps = (
+        env_spec.mdp.env_desc.num_states * env_spec.mdp.env_desc.num_actions * 10
+    )
     logging.info("Starting DAAF Control Experiments")
     results = policy_control(
         env_spec=env_spec,
@@ -53,7 +56,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
             num_actions=env_spec.mdp.env_desc.num_actions,
         ),
         learnign_args=experiment_task.experiment.learning_args,
-        generate_steps_fn=task.create_generate_episodes_fn(mappers=traj_mappers),
+        generate_steps_fn=task.create_generate_episode_fn(mappers=traj_mappers),
     )
     with utils.ExperimentLogger(
         log_dir=experiment_task.run_config.output_dir,
@@ -83,10 +86,24 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                         snapshot.steps,
                         returns_collector.traj_returns[-1],
                     )
+
+                    # use replay to get returns
+                    test_traj = envplay.generate_episode(
+                        env_spec.environment,
+                        policies.PyQGreedyPolicy(
+                            state_id_fn=env_spec.discretizer.state,
+                            action_values=snapshot.action_values,
+                        ),
+                        max_steps=test_max_steps,
+                    )
+                    returns = 0.0
+                    for traj_step in test_traj:
+                        returns += traj_step.reward
+
                     exp_logger.log(
                         episode=episode,
                         steps=snapshot.steps,
-                        returns=returns_collector.traj_returns[-1],
+                        returns=returns,
                         info={
                             "state_values": state_values.tolist(),
                         },
@@ -135,7 +152,7 @@ def policy_control(
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
             initial_qtable=initial_action_values,
-            generate_episodes=generate_steps_fn,
+            generate_episode=generate_steps_fn,
         )
     elif algorithm == constants.NSTEP_SARSA:
         # To avoid misconfigured experiments (e.g. using an identity mapper
@@ -155,7 +172,7 @@ def policy_control(
                 state_id_fn=env_spec.discretizer.state,
                 action_id_fn=env_spec.discretizer.action,
                 initial_qtable=initial_action_values,
-                generate_episodes=generate_steps_fn,
+                generate_episode=generate_steps_fn,
             )
         return policycontrol.onpolicy_nstep_sarsa_control(
             environment=env_spec.environment,
@@ -167,7 +184,7 @@ def policy_control(
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
             initial_qtable=initial_action_values,
-            generate_episodes=generate_steps_fn,
+            generate_episode=generate_steps_fn,
         )
 
     elif algorithm == constants.Q_LEARNING:
@@ -180,7 +197,7 @@ def policy_control(
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
             initial_qtable=initial_action_values,
-            generate_episodes=generate_steps_fn,
+            generate_episode=generate_steps_fn,
         )
 
     raise ValueError(f"Unsupported algorithm {algorithm}")
@@ -218,14 +235,13 @@ def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
     state_id_fn: Callable[[Any], int],
     action_id_fn: Callable[[Any], int],
     initial_qtable: np.ndarray,
-    generate_episodes: Callable[
+    generate_episode: Callable[
         [
             gym.Env,
             core.PyPolicy,
-            int,
         ],
         Generator[core.TrajectoryStep, None, None],
-    ] = envplay.generate_episodes,
+    ] = envplay.generate_episode,
 ) -> Generator[policycontrol.PolicyControlSnapshot, None, None]:
     """
     n-step SARSA.
@@ -270,9 +286,7 @@ def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
         final_step = np.iinfo(np.int64).max
         experiences: List[core.TrajectoryStep] = []
         returns = 0.0
-        for step, traj_step in enumerate(
-            generate_episodes(environment, egreedy_policy, 1)
-        ):
+        for step, traj_step in enumerate(generate_episode(environment, egreedy_policy)):
             experiences.append(traj_step)
             returns += traj_step.reward
             if step - 1 > 0:

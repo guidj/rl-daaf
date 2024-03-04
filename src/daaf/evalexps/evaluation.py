@@ -53,7 +53,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         algorithm=experiment_task.experiment.daaf_config.algorithm,
         initial_state_values=create_initial_values(env_spec.mdp.env_desc.num_states),
         learnign_args=experiment_task.experiment.learning_args,
-        generate_steps_fn=task.create_generate_episodes_fn(mappers=traj_mappers),
+        generate_steps_fn=task.create_generate_episode_fn(mappers=traj_mappers),
     )
     with utils.ExperimentLogger(
         log_dir=experiment_task.run_config.output_dir,
@@ -133,7 +133,7 @@ def evaluate_policy(
             gamma=learnign_args.discount_factor,
             state_id_fn=env_spec.discretizer.state,
             initial_values=initial_state_values,
-            generate_episodes=generate_steps_fn,
+            generate_episode=generate_steps_fn,
         )
     elif algorithm == constants.NSTEP_TD:
         # To avoid misconfigured experiments (e.g. using an identity mapper
@@ -155,7 +155,7 @@ def evaluate_policy(
                 nstep=daaf_config.reward_period,
                 state_id_fn=env_spec.discretizer.state,
                 initial_values=initial_state_values,
-                generate_episodes=generate_steps_fn,
+                generate_episode=generate_steps_fn,
             )
         return policyeval.onpolicy_nstep_td_state_values(
             policy=policy,
@@ -169,7 +169,7 @@ def evaluate_policy(
             nstep=daaf_config.reward_period,
             state_id_fn=env_spec.discretizer.state,
             initial_values=initial_state_values,
-            generate_episodes=generate_steps_fn,
+            generate_episode=generate_steps_fn,
         )
 
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
@@ -180,7 +180,7 @@ def evaluate_policy(
             gamma=learnign_args.discount_factor,
             state_id_fn=env_spec.discretizer.state,
             initial_values=initial_state_values,
-            generate_episodes=generate_steps_fn,
+            generate_episode=generate_steps_fn,
         )
 
     raise ValueError(f"Unsupported algorithm {algorithm}")
@@ -216,14 +216,13 @@ def nstep_td_state_values_on_aggregate_start_steps(
     nstep: int,
     state_id_fn: Callable[[Any], int],
     initial_values: np.ndarray,
-    generate_episodes: Callable[
+    generate_episode: Callable[
         [
             gym.Env,
             core.PyPolicy,
-            int,
         ],
         Generator[core.TrajectoryStep, None, None],
-    ] = envplay.generate_episodes,
+    ] = envplay.generate_episode,
 ) -> Generator[policyeval.PolicyEvalSnapshot, None, None]:
     """
     n-step TD learning.
@@ -252,7 +251,8 @@ def nstep_td_state_values_on_aggregate_start_steps(
     steps_counter = 0
     for episode in range(num_episodes):
         # This can be memory intensive, for long episodes and large state/action representations.
-        experiences = list(generate_episodes(environment, policy, 1))
+        # TODO: refactor - memory efficiency
+        experiences = list(generate_episode(environment, policy))
         final_step = np.iinfo(np.int64).max
         for step, _ in enumerate(experiences):
             if step < final_step:

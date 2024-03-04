@@ -21,7 +21,6 @@ import tensorflow as tf
 from ray.data import aggregate
 
 
-
 @dataclasses.dataclass(frozen=True)
 class PipelineArgs:
     """
