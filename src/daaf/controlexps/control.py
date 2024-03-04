@@ -86,26 +86,15 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                         snapshot.steps,
                         returns_collector.traj_returns[-1],
                     )
-
-                    # use replay to get returns
-                    # test_traj = envplay.generate_episode(
-                    #     env_spec.environment,
-                    #     policies.PyQGreedyPolicy(
-                    #         state_id_fn=env_spec.discretizer.state,
-                    #         action_values=snapshot.action_values,
-                    #     ),
-                    #     max_steps=test_max_steps,
-                    # )
-                    # use moving average - last 10 samples
-                    # returns = 0.0
-                    # for traj_step in test_traj:
-                    #     returns += traj_step.reward
-                    # expected results
-                    returns = np.mean(returns_collector.traj_returns[-10:])
+                    mean_returns = np.mean(
+                        returns_collector.traj_returns[
+                            -experiment_task.run_config.metrics_last_k_episodes :
+                        ]
+                    )
                     exp_logger.log(
                         episode=episode,
                         steps=snapshot.steps,
-                        returns=returns,
+                        returns=mean_returns,
                         info={
                             "state_values": state_values.tolist(),
                         },
