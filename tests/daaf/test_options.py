@@ -16,7 +16,7 @@ def test_uniformly_random_composite_actions_options_policy_init(
         actions=tuple(range(num_actions)), options_duration=options_duration
     )
 
-    assert policy.actions == tuple(range(num_actions))
+    assert policy.primitive_actions == tuple(range(num_actions))
     assert policy.options_duration == options_duration
     assert getattr(policy, "_num_options") == num_actions**options_duration
     assert policy.get_initial_state() == {"option_id": None, "option_step": -1}

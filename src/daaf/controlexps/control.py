@@ -8,7 +8,7 @@ import copy
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Iterator, List, Optional, Set
+from typing import Any, Callable, Dict, Generator, Iterator, Optional, Set
 
 import gymnasium as gym
 import numpy as np
@@ -48,10 +48,6 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         daaf_config=experiment_task.experiment.daaf_config,
         num_episodes=experiment_task.run_config.num_episodes,
         algorithm=experiment_task.experiment.daaf_config.algorithm,
-        initial_action_values=create_initial_values(
-            num_states=env_spec.mdp.env_desc.num_states,
-            num_actions=env_spec.mdp.env_desc.num_actions,
-        ),
         learnign_args=experiment_task.experiment.learning_args,
         generate_steps_fn=task.create_generate_episode_fn(mappers=traj_mappers),
     )
@@ -111,7 +107,6 @@ def policy_control(
     daaf_config: expconfig.DaafConfig,
     num_episodes: int,
     algorithm: str,
-    initial_action_values: np.ndarray,
     learnign_args: expconfig.LearningArgs,
     generate_steps_fn: Callable[
         [gym.Env, core.PyPolicy, int],
@@ -124,6 +119,9 @@ def policy_control(
     lrs = schedules.LearningRateSchedule(
         initial_learning_rate=learnign_args.learning_rate,
         schedule=task.constant_learning_rate,
+    )
+    initial_action_values = create_initial_values(
+        env_spec.mdp.env_desc.num_states, env_spec.mdp.env_desc.num_actions
     )
 
     if algorithm == constants.SARSA:
@@ -254,8 +252,6 @@ def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
     So index wise, we subtract reward access references by one.
     """
     qtable = copy.deepcopy(initial_qtable)
-    # TODO: must be an options policy
-    # a greedy options policy
     egreedy_policy = policies.PyEpsilonGreedyPolicy(
         policy=policies.PyQGreedyPolicy(
             state_id_fn=state_id_fn, action_values=initial_qtable
@@ -266,51 +262,67 @@ def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
     steps_counter = 0
     for episode in range(num_episodes):
         final_step = np.iinfo(np.int64).max
-        experiences: List[core.TrajectoryStep] = []
+        experiences: Dict[int, core.TrajectoryStep] = {}
+        trajectory = generate_episode(environment, egreedy_policy)
+        step = 0
+        # `traj_step_idx` tracks the step in the traj
+        traj_step_idx = 0
+        # In the absence of a step as terminal
+        # or truncated, `empty_steps` prevents
+        # infinite loops
+        empty_steps = 0
         returns = 0.0
-        for step, traj_step in enumerate(generate_episode(environment, egreedy_policy)):
-            experiences.append(traj_step)
-            returns += traj_step.reward
-            if step - 1 > 0:
-                # this will be updated in the next `step`
-                # we modify it to avoid changing indeces below.
-                step -= 1
-                if step < final_step:
-                    if (
-                        experiences[step + 1].terminated
-                        or experiences[step + 1].truncated
-                    ):
-                        final_step = step + 1
-                tau = step - nstep + 1
-                if tau >= 0 and experiences[tau].info["ok_nstep_tau"]:
-                    min_idx = tau + 1
-                    max_idx = min(tau + nstep, final_step)
-                    nstep_returns = 0.0
+        while True:
+            if step > final_step or empty_steps > nstep:
+                break
+            try:
+                traj_step = next(trajectory)
+            except StopIteration:
+                empty_steps += 1
+            else:
+                experiences[traj_step_idx] = traj_step
+                traj_step_idx += 1
+                returns += traj_step.reward
 
-                    for i in range(min_idx, max_idx + 1):
-                        nstep_returns += (gamma ** (i - tau - 1)) * experiences[
-                            i - 1
-                        ].reward
-                    if tau + nstep < final_step:
-                        nstep_returns += (gamma**nstep) * qtable[
-                            state_id_fn(experiences[tau + nstep].observation),
-                            action_id_fn(experiences[tau + nstep].action),
-                        ]
-                    state_id = state_id_fn(experiences[tau].observation)
-                    action_id = action_id_fn(experiences[tau].action)
-                    alpha = lrs(episode=episode, step=steps_counter)
-                    qtable[state_id, action_id] += alpha * (
-                        nstep_returns - qtable[state_id, action_id]
-                    )
-                    # update the qtable before generating the
-                    # next step in the trajectory
-                    setattr(
-                        egreedy_policy.exploit_policy,
-                        "_state_action_value_table",
-                        qtable,
-                    )
+            # SARSA requires at least one next state
+            if len(experiences) < 2:
+                continue
+            # keep the last n steps
+            experiences.pop(step - nstep, None)
+
+            if step < final_step:
+                if experiences[step + 1].terminated or experiences[step + 1].truncated:
+                    final_step = step + 1
+            tau = step - nstep + 1
+            if tau >= 0 and experiences[tau].info["ok_nstep_tau"]:
+                min_idx = tau + 1
+                max_idx = min(tau + nstep, final_step)
+                nstep_returns = 0.0
+                for i in range(min_idx, max_idx + 1):
+                    nstep_returns += (gamma ** (i - tau - 1)) * experiences[
+                        i - 1
+                    ].reward
+                if tau + nstep < final_step:
+                    nstep_returns += (gamma**nstep) * qtable[
+                        state_id_fn(experiences[tau + nstep].observation),
+                        action_id_fn(experiences[tau + nstep].action),
+                    ]
+                state_id = state_id_fn(experiences[tau].observation)
+                action_id = action_id_fn(experiences[tau].action)
+                alpha = lrs(episode=episode, step=steps_counter)
+                qtable[state_id, action_id] += alpha * (
+                    nstep_returns - qtable[state_id, action_id]
+                )
+                # update the qtable before generating the
+                # next step in the trajectory
+                setattr(
+                    egreedy_policy.exploit_policy,
+                    "_state_action_value_table",
+                    qtable,
+                )
                 steps_counter += 1
+            step += 1
         # need to copy qtable because it's a mutable numpy array
         yield policycontrol.PolicyControlSnapshot(
-            steps=len(experiences), returns=returns, action_values=copy.deepcopy(qtable)
+            steps=traj_step_idx, returns=returns, action_values=copy.deepcopy(qtable)
         )

@@ -26,9 +26,9 @@ class UniformlyRandomCompositeActionPolicy(
         emit_log_probability: bool = False,
     ):
         super().__init__(emit_log_probability=emit_log_probability)
-        self.actions = tuple(actions)
+        self.primitive_actions = tuple(actions)
         self.options_duration = options_duration
-        self._num_options = len(self.actions) ** options_duration
+        self._num_options = len(self.primitive_actions) ** options_duration
 
     def get_initial_state(self, batch_size: Optional[int] = None) -> Any:
         """Returns an initial state usable by the policy.
@@ -76,7 +76,7 @@ class UniformlyRandomCompositeActionPolicy(
             option_step = policy_state["option_step"] + 1
 
         option = self._get_option(option_id)
-        action = self.actions[option[option_step]]
+        action = self.primitive_actions[option[option_step]]
         return core.PolicyStep(
             action=action,
             state={
@@ -113,7 +113,7 @@ class UniformlyRandomCompositeActionPolicy(
         computations.
         """
         return combinatorics.interger_to_sequence(
-            space_size=len(self.actions),
+            space_size=len(self.primitive_actions),
             sequence_length=self.options_duration,
             index=option_id,
         )

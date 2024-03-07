@@ -51,7 +51,6 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         daaf_config=experiment_task.experiment.daaf_config,
         num_episodes=experiment_task.run_config.num_episodes,
         algorithm=experiment_task.experiment.daaf_config.algorithm,
-        initial_state_values=create_initial_values(env_spec.mdp.env_desc.num_states),
         learnign_args=experiment_task.experiment.learning_args,
         generate_steps_fn=task.create_generate_episode_fn(mappers=traj_mappers),
     )
@@ -111,7 +110,6 @@ def evaluate_policy(
     daaf_config: expconfig.DaafConfig,
     num_episodes: int,
     algorithm: str,
-    initial_state_values: np.ndarray,
     learnign_args: expconfig.LearningArgs,
     generate_steps_fn: Callable[
         [gym.Env, core.PyPolicy, int],
@@ -121,6 +119,7 @@ def evaluate_policy(
     """
     Runs policy evaluation with given algorithm, env, and policy spec.
     """
+    initial_state_values = create_initial_values(env_spec.mdp.env_desc.num_states)
     if algorithm == constants.ONE_STEP_TD:
         return policyeval.onpolicy_one_step_td_state_values(
             policy=policy,
