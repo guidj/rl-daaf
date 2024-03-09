@@ -2,7 +2,6 @@
 Experiment constants.
 """
 
-
 IDENTITY_MAPPER = "identity-mapper"
 DAAF_IMPUTE_REWARD_MAPPER = "daaf-impute-missing-reward-mapper"
 DAAF_LSQ_REWARD_ATTRIBUTION_MAPPER = "daaf-lsq-reward-attribution-mapper"

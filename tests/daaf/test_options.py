@@ -1,8 +1,7 @@
 import hypothesis
+from daaf import options
 from hypothesis import strategies as st
 from rlplg import core
-
-from daaf import options
 
 
 @hypothesis.given(
@@ -13,7 +12,7 @@ def test_uniformly_random_composite_actions_options_policy_init(
     num_actions: int, options_duration: int
 ):
     policy = options.UniformlyRandomCompositeActionPolicy(
-        actions=tuple(range(num_actions)), options_duration=options_duration
+        primitive_actions=tuple(range(num_actions)), options_duration=options_duration
     )
 
     assert policy.primitive_actions == tuple(range(num_actions))
@@ -25,7 +24,7 @@ def test_uniformly_random_composite_actions_options_policy_init(
 def test_uniformly_random_composite_actions_options_policy_action():
     # Four possible options: (a, a), (a, b), (b, a), (b, b)
     policy = options.UniformlyRandomCompositeActionPolicy(
-        actions=(
+        primitive_actions=(
             "A",
             "B",
         ),
@@ -71,7 +70,7 @@ def test_uniformly_random_composite_actions_options_policy_state_action_prob(
     num_actions: int, options_duration: int, num_trials: int
 ):
     policy = options.UniformlyRandomCompositeActionPolicy(
-        actions=tuple(range(num_actions)), options_duration=options_duration
+        primitive_actions=tuple(range(num_actions)), options_duration=options_duration
     )
     for _ in range(num_trials):
         assert policy.state_action_prob((), ()) == 1.0 / (num_actions**options_duration)

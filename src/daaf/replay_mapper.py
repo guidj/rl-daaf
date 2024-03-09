@@ -5,7 +5,6 @@ These mappers alters the sequence of events that was observed, e.g. including th
 They can process batched transitions, but emit them as single events.
 """
 
-
 import abc
 import copy
 import dataclasses

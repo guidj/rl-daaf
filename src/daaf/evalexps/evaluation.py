@@ -3,7 +3,6 @@ In this module, we can do on-policy evaluation with
 delayed aggregate feedback - for tabular problems.
 """
 
-
 import copy
 import dataclasses
 import json
@@ -287,7 +286,7 @@ def create_eval_policy(
     """
     if daaf_config.policy_type == constants.OPTIONS_POLICY:
         return options.UniformlyRandomCompositeActionPolicy(
-            actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
+            primitive_actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
             options_duration=daaf_config.reward_period,
         )
     elif daaf_config.policy_type == constants.SINGLE_STEP_POLICY:

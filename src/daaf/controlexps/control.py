@@ -3,7 +3,6 @@ In this module, we can do on-policy evaluation with
 delayed aggregate feedback - for tabular problems.
 """
 
-
 import copy
 import dataclasses
 import json
@@ -13,10 +12,11 @@ from typing import Any, Callable, Dict, Generator, Iterator, Optional, Set
 import gymnasium as gym
 import numpy as np
 from rlplg import core, envplay
+from rlplg.learning import utils as rlplg_utils
 from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import policies, policycontrol
 
-from daaf import constants, expconfig, task, utils
+from daaf import constants, expconfig, options, task, utils
 
 
 def run_fn(experiment_task: expconfig.ExperimentTask):
@@ -120,10 +120,9 @@ def policy_control(
         initial_learning_rate=learnign_args.learning_rate,
         schedule=task.constant_learning_rate,
     )
-    initial_action_values = create_initial_values(
-        env_spec.mdp.env_desc.num_states, env_spec.mdp.env_desc.num_actions
+    initial_action_values, create_egreedy_policy = create_qtable_and_egreedy_policy(
+        env_spec=env_spec, daaf_config=daaf_config
     )
-
     if algorithm == constants.SARSA:
         return policycontrol.onpolicy_sarsa_control(
             environment=env_spec.environment,
@@ -133,6 +132,7 @@ def policy_control(
             epsilon=learnign_args.epsilon,
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
+            create_egreedy_policy=create_egreedy_policy,
             initial_qtable=initial_action_values,
             generate_episode=generate_steps_fn,
         )
@@ -166,6 +166,7 @@ def policy_control(
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
             initial_qtable=initial_action_values,
+            create_egreedy_policy=create_egreedy_policy,
             generate_episode=generate_steps_fn,
         )
 
@@ -179,13 +180,46 @@ def policy_control(
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
             initial_qtable=initial_action_values,
+            create_egreedy_policy=create_egreedy_policy,
             generate_episode=generate_steps_fn,
         )
 
     raise ValueError(f"Unsupported algorithm {algorithm}")
 
 
-def create_initial_values(
+def create_qtable_and_egreedy_policy(
+    env_spec: core.EnvSpec,
+    daaf_config: expconfig.DaafConfig,
+    dtype: np.dtype = np.float64,
+    random: bool = False,
+    terminal_states: Optional[Set[int]] = None,
+) -> np.ndarray:
+    if daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
+        qtable = _create_initial_values(
+            env_spec.mdp.env_desc.num_states,
+            env_spec.mdp.env_desc.num_actions,
+            dtype=dtype,
+            random=random,
+            terminal_states=terminal_states,
+        )
+
+        return qtable, rlplg_utils.create_egreedy_policy
+    elif daaf_config.policy_type == constants.OPTIONS_POLICY:
+        num_options = env_spec.mdp.env_desc.num_actions**daaf_config.reward_period
+        qtable = _create_initial_values(
+            env_spec.mdp.env_desc.num_states,
+            num_options,
+            dtype=dtype,
+            random=random,
+            terminal_states=terminal_states,
+        )
+
+        return qtable, create_options_egreedy_policy
+
+    raise ValueError(f"Unsupported policy type {daaf_config.policy_type}")
+
+
+def _create_initial_values(
     num_states: int,
     num_actions: int,
     dtype: np.dtype = np.float64,
@@ -205,6 +239,20 @@ def create_initial_values(
     return np.zeros(shape=(num_states, num_actions), dtype=dtype)
 
 
+def create_options_egreedy_policy(
+    initial_qtable: np.ndarray,
+    state_id_fn: Callable[[Any], int],
+    epsilon: float,
+) -> policies.PyEpsilonGreedyPolicy:
+    return options.OptionsQGreedyPolicy(
+        policy=policies.PyQGreedyPolicy(
+            state_id_fn=state_id_fn, action_values=initial_qtable
+        ),
+        num_actions=initial_qtable.shape[1],
+        epsilon=epsilon,
+    )
+
+
 def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
     environment: gym.Env,
     num_episodes: int,
@@ -215,6 +263,9 @@ def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
     state_id_fn: Callable[[Any], int],
     action_id_fn: Callable[[Any], int],
     initial_qtable: np.ndarray,
+    create_egreedy_policy: Callable[
+        [np.ndarray, Callable[[Any], int], float], policies.PyEpsilonGreedyPolicy
+    ],
     generate_episode: Callable[
         [
             gym.Env,
@@ -252,13 +303,7 @@ def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
     So index wise, we subtract reward access references by one.
     """
     qtable = copy.deepcopy(initial_qtable)
-    egreedy_policy = policies.PyEpsilonGreedyPolicy(
-        policy=policies.PyQGreedyPolicy(
-            state_id_fn=state_id_fn, action_values=initial_qtable
-        ),
-        num_actions=initial_qtable.shape[1],
-        epsilon=epsilon,
-    )
+    egreedy_policy = create_egreedy_policy(qtable, state_id_fn, epsilon)
     steps_counter = 0
     for episode in range(num_episodes):
         final_step = np.iinfo(np.int64).max
