@@ -805,7 +805,7 @@ rfc3986-validator==0.1.1
     #   -r nb-requirements.txt
     #   jsonschema
     #   jupyter-events
-rlplg @ git+https://github.com/guidj/rlplg.git@v0.19.5
+rlplg @ git+https://github.com/guidj/rlplg.git@v0.19.7
     # via
     #   -r nb-requirements.txt
     #   -r requirements.txt
@@ -816,7 +816,7 @@ rsa==4.9
     #   -r requirements.txt
     #   -r test-requirements.txt
     #   google-auth
-ruff==0.2.2
+ruff==0.3.1
     # via -r dev-requirements.in
 scipy==1.10.1
     # via
