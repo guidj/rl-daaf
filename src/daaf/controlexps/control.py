@@ -154,6 +154,7 @@ def policy_control(
                 state_id_fn=env_spec.discretizer.state,
                 action_id_fn=env_spec.discretizer.action,
                 initial_qtable=initial_action_values,
+                create_egreedy_policy=create_egreedy_policy,
                 generate_episode=generate_steps_fn,
             )
         return policycontrol.onpolicy_nstep_sarsa_control(
@@ -196,8 +197,8 @@ def create_qtable_and_egreedy_policy(
 ) -> np.ndarray:
     if daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
         qtable = _create_initial_values(
-            env_spec.mdp.env_desc.num_states,
-            env_spec.mdp.env_desc.num_actions,
+            num_states=env_spec.mdp.env_desc.num_states,
+            num_actions=env_spec.mdp.env_desc.num_actions,
             dtype=dtype,
             random=random,
             terminal_states=terminal_states,
@@ -207,14 +208,16 @@ def create_qtable_and_egreedy_policy(
     elif daaf_config.policy_type == constants.OPTIONS_POLICY:
         num_options = env_spec.mdp.env_desc.num_actions**daaf_config.reward_period
         qtable = _create_initial_values(
-            env_spec.mdp.env_desc.num_states,
-            num_options,
+            num_states=env_spec.mdp.env_desc.num_states,
+            num_actions=num_options,
             dtype=dtype,
             random=random,
             terminal_states=terminal_states,
         )
 
-        return qtable, create_options_egreedy_policy
+        return qtable, create_options_egreedy_policy_fn(
+            env_desc=env_spec.mdp.env_desc, options_duration=daaf_config.reward_period
+        )
 
     raise ValueError(f"Unsupported policy type {daaf_config.policy_type}")
 
@@ -239,18 +242,23 @@ def _create_initial_values(
     return np.zeros(shape=(num_states, num_actions), dtype=dtype)
 
 
-def create_options_egreedy_policy(
-    initial_qtable: np.ndarray,
-    state_id_fn: Callable[[Any], int],
-    epsilon: float,
-) -> policies.PyEpsilonGreedyPolicy:
-    return options.OptionsQGreedyPolicy(
-        policy=policies.PyQGreedyPolicy(
+def create_options_egreedy_policy_fn(env_desc: core.EnvDesc, options_duration: int):
+    def create_options_egreedy_policy(
+        initial_qtable: np.ndarray,
+        state_id_fn: Callable[[Any], int],
+        epsilon: float,
+    ) -> policies.PyEpsilonGreedyPolicy:
+        greedy_policy = policies.PyQGreedyPolicy(
             state_id_fn=state_id_fn, action_values=initial_qtable
-        ),
-        num_actions=initial_qtable.shape[1],
-        epsilon=epsilon,
-    )
+        )
+        return options.OptionsQGreedyPolicy(
+            policy=greedy_policy,
+            options_duration=options_duration,
+            primitive_actions=range(env_desc.num_actions),
+            epsilon=epsilon,
+        )
+
+    return create_options_egreedy_policy
 
 
 def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
