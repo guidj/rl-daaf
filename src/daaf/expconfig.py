@@ -114,7 +114,6 @@ def parse_experiment_configs(
                 "policy": str,
                 "traj_mapper": str,
                 "algorithm": str,
-                "algorithm_args": str,
                 "reward_period": np.int64,
                 "drop_truncated_feedback_episodes": np.bool_,
                 "discount_factor": np.float64,
