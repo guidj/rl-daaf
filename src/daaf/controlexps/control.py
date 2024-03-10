@@ -47,7 +47,6 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         env_spec=env_spec,
         daaf_config=experiment_task.experiment.daaf_config,
         num_episodes=experiment_task.run_config.num_episodes,
-        algorithm=experiment_task.experiment.daaf_config.algorithm,
         learnign_args=experiment_task.experiment.learning_args,
         generate_steps_fn=task.create_generate_episode_fn(mappers=traj_mappers),
     )
@@ -106,7 +105,6 @@ def policy_control(
     env_spec: core.EnvSpec,
     daaf_config: expconfig.DaafConfig,
     num_episodes: int,
-    algorithm: str,
     learnign_args: expconfig.LearningArgs,
     generate_steps_fn: Callable[
         [gym.Env, core.PyPolicy, int],
@@ -123,7 +121,7 @@ def policy_control(
     initial_action_values, create_egreedy_policy = create_qtable_and_egreedy_policy(
         env_spec=env_spec, daaf_config=daaf_config
     )
-    if algorithm == constants.SARSA:
+    if daaf_config.algorithm == constants.SARSA:
         return policycontrol.onpolicy_sarsa_control(
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -136,7 +134,7 @@ def policy_control(
             initial_qtable=initial_action_values,
             generate_episode=generate_steps_fn,
         )
-    elif algorithm == constants.NSTEP_SARSA:
+    elif daaf_config.algorithm == constants.NSTEP_SARSA:
         # To avoid misconfigured experiments (e.g. using an identity mapper
         # with the n-step DAAF aware evaluation fn) we verify the
         # mapper and functions match.
@@ -150,7 +148,7 @@ def policy_control(
                 lrs=lrs,
                 gamma=learnign_args.discount_factor,
                 epsilon=learnign_args.epsilon,
-                nstep=daaf_config.reward_period,
+                nstep=daaf_config.algorithm_args["nstep"],
                 state_id_fn=env_spec.discretizer.state,
                 action_id_fn=env_spec.discretizer.action,
                 initial_qtable=initial_action_values,
@@ -163,7 +161,7 @@ def policy_control(
             lrs=lrs,
             gamma=learnign_args.discount_factor,
             epsilon=learnign_args.epsilon,
-            nstep=daaf_config.reward_period,
+            nstep=daaf_config.algorithm_args["nstep"],
             state_id_fn=env_spec.discretizer.state,
             action_id_fn=env_spec.discretizer.action,
             initial_qtable=initial_action_values,
@@ -171,7 +169,7 @@ def policy_control(
             generate_episode=generate_steps_fn,
         )
 
-    elif algorithm == constants.Q_LEARNING:
+    elif daaf_config.algorithm == constants.Q_LEARNING:
         return policycontrol.onpolicy_qlearning_control(
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -185,7 +183,7 @@ def policy_control(
             generate_episode=generate_steps_fn,
         )
 
-    raise ValueError(f"Unsupported algorithm {algorithm}")
+    raise ValueError(f"Unsupported algorithm {daaf_config.algorithm}")
 
 
 def create_qtable_and_egreedy_policy(

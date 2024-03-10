@@ -34,6 +34,7 @@ class DaafConfig:
     policy_type: str
     traj_mapping_method: str
     algorithm: str
+    algorithm_args: Mapping[str, Any]
     reward_period: int
     drop_truncated_feedback_episodes: bool
 
@@ -113,11 +114,13 @@ def parse_experiment_configs(
                 "policy": str,
                 "traj_mapper": str,
                 "algorithm": str,
+                "algorithm_args": str,
                 "reward_period": np.int64,
                 "drop_truncated_feedback_episodes": np.bool_,
                 "discount_factor": np.float64,
                 "learning_rate": np.float64,
             },
+            converters={"algorithm_args": json.loads},
         )
     configs = []
     for entry in df_config.to_dict(orient="records"):
@@ -129,7 +132,6 @@ def parse_experiment_configs(
         )
         daaf_config = DaafConfig(**entry)
         configs.append((daaf_config, learning_args))
-
     return tuple(configs)
 
 
