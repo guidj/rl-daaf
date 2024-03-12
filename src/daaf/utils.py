@@ -3,6 +3,7 @@ Utilities, helpers.
 """
 
 import contextlib
+import copy
 import dataclasses
 import json
 import logging
@@ -267,5 +268,30 @@ def dataclass_from_dict(clazz: Callable, data: Mapping[str, Any]):  # type: igno
     """
     Creates an instance of a dataclass from a dictionary.
     """
+    if not (dataclasses.is_dataclass(clazz) and isinstance(clazz, type)):
+        raise ValueError(f"Expecting a dataclass class. Got {clazz}")
     fields = list(dataclasses.fields(clazz))
     return clazz(**{field.name: data[field.name] for field in fields})
+
+
+def json_from_dict(
+    obj: Mapping[str, Any], dict_encode_level: Optional[int] = None
+) -> Mapping[str, Any]:
+    """
+    Converts a dict into a json object.
+    If `level` is set, then nested fields at depth `level + 1`
+    are converted to strings.
+    """
+    mapping = copy.deepcopy(obj)
+    if dict_encode_level is None:
+        return mapping
+
+    def go(data: Any, level: int):
+        if isinstance(data, Mapping):
+            if level >= dict_encode_level:
+                return str(data)
+            else:
+                return {key: go(value, level + 1) for key, value in data.items()}
+        return data
+
+    return {key: go(value, level=0) for key, value in mapping.items()}
