@@ -69,9 +69,11 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
+        state_actions: Optional[np.ndarray] = None
         try:
             for episode, snapshot in enumerate(results):
-                state_values = snapshot.action_values
+                state_values = np.max(snapshot.action_values, axis=1)
+                state_actions = np.argmax(snapshot.action_values, axis=1)
                 if episode % experiment_task.run_config.log_episode_frequency == 0:
                     logging.info(
                         "Run %d of experiment %s, Episode %d: %d steps, %f returns",
@@ -86,8 +88,12 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                         episode=episode,
                         steps=snapshot.steps,
                         returns=mean_returns,
+                        # Action values can be large tables
+                        # especially for options policies
+                        # so we log state values and best actions
                         info={
                             "state_values": state_values.tolist(),
+                            "action_argmax": state_actions.tolist(),
                         },
                     )
 
