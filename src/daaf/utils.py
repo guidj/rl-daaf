@@ -289,7 +289,7 @@ def json_from_dict(
     def go(data: Any, level: int):
         if isinstance(data, Mapping):
             if level >= dict_encode_level:
-                return str(data)
+                return json.dumps(data)
             else:
                 return {key: go(value, level + 1) for key, value in data.items()}
         return data
