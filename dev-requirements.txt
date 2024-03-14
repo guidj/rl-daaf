@@ -774,7 +774,7 @@ pyzmq==25.0.1
     #   jupyter-server
     #   nbclassic
     #   notebook
-ray[data,default]==2.9.0
+ray[data,default]==2.9.3
     # via
     #   -r nb-requirements.txt
     #   -r requirements.txt
