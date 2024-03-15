@@ -58,11 +58,5 @@
         "args": {
             "num_disks": 4
         }
-    },
-    {
-        "name": "TowerOfHanoi",
-        "args": {
-            "num_disks": 5
-        }
     }
 ]
