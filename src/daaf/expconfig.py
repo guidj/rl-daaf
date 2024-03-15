@@ -197,3 +197,29 @@ def generate_tasks_from_experiments_context_and_run_config(
                 ),
                 context=context,
             )
+
+
+def create_experiment_task(
+    exp_id: str,
+    run_id: int,
+    run_config: RunConfig,
+    experiment_and_context: Tuple[Experiment, Mapping[str, Any]],
+) -> ExperimentTask:
+    experiment, context = experiment_and_context
+    return ExperimentTask(
+        exp_id=exp_id,
+        run_id=run_id,
+        experiment=experiment,
+        run_config=dataclasses.replace(
+            run_config,
+            # replace run output with run specific values
+            output_dir=os.path.join(
+                run_config.output_dir,
+                exp_id,
+                f"run{run_id}",
+                experiment.daaf_config.traj_mapping_method,
+                f"p{experiment.daaf_config.reward_period}",
+            ),
+        ),
+        context=context,
+    )

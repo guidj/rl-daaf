@@ -42,7 +42,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
     # before other mappers change it.
     returns_collector = task.returns_collection_mapper()
     traj_mappers = tuple([returns_collector] + list(traj_mappers))
-    logging.info("Starting DAAF Control Experiments")
+    logging.debug("Starting DAAF Control Experiments")
     results = policy_control(
         env_spec=env_spec,
         daaf_config=experiment_task.experiment.daaf_config,
@@ -89,7 +89,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                         },
                     )
 
-            logging.info(
+            logging.debug(
                 "\nEstimated values run %d of %s:\n%s",
                 experiment_task.run_id,
                 experiment_task.exp_id,

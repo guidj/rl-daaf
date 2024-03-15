@@ -45,7 +45,7 @@ def main(args: ControlPipelineArgs):
         logging.info("Ray Context: %s", context)
         logging.info("Ray Nodes: %s", ray.nodes())
 
-        tasks_futures = create_tasks(
+        tasks_results_refs = create_tasks(
             envs_path=args.envs_path,
             config_path=args.config_path,
             num_runs=args.num_runs,
@@ -59,8 +59,8 @@ def main(args: ControlPipelineArgs):
 
         # since ray tracks objectref items
         # we swap the key:value
-        futures = [future for _, future in tasks_futures]
-        unfinished_tasks = futures
+        results_refs = [result_ref for _, result_ref in tasks_results_refs]
+        unfinished_tasks = results_refs
         while True:
             finished_tasks, unfinished_tasks = ray.wait(unfinished_tasks)
             for finished_task in finished_tasks:
@@ -68,7 +68,7 @@ def main(args: ControlPipelineArgs):
                     "Completed task %s, %d left out of %d.",
                     ray.get(finished_task),
                     len(unfinished_tasks),
-                    len(futures),
+                    len(results_refs),
                 )
 
             if len(unfinished_tasks) == 0:
@@ -100,32 +100,29 @@ def create_tasks(
         )
     )
     experiments_and_context = add_experiment_context(experiments, assets_dir=assets_dir)
-    experiment_tasks = tuple(
-        expconfig.generate_tasks_from_experiments_context_and_run_config(
-            run_config=expconfig.RunConfig(
-                num_episodes=num_episodes,
-                log_episode_frequency=log_episode_frequency,
-                metrics_last_k_episodes=metrics_last_k_episodes,
-                output_dir=output_dir,
-            ),
-            experiments_and_context=experiments_and_context,
-            num_runs=num_runs,
-            task_prefix=task_prefix,
-        )
+    run_config = expconfig.RunConfig(
+        num_episodes=num_episodes,
+        log_episode_frequency=log_episode_frequency,
+        metrics_last_k_episodes=metrics_last_k_episodes,
+        output_dir=output_dir,
     )
     # shuffle tasks to balance workload
-    experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))
+    experiments_and_context = random.sample(
+        experiments_and_context, len(experiments_and_context)
+    )
     logging.info(
         "Parsed %d DAAF configs and %d environments into %d tasks",
         len(experiment_configs),
         len(envs_configs),
-        len(experiment_tasks),
+        len(experiments_and_context),
     )
-    futures = []
-    for exp_task in experiment_tasks:
-        future = evaluate.remote(exp_task)
-        futures.append((exp_task, future))
-    return futures
+    results_refs = []
+    for experiment_and_context in experiments_and_context:
+        result_ref = evaluate.remote(
+            run_config, experiment_and_context, num_runs, task_prefix
+        )
+        results_refs.append((experiment_and_context, result_ref))
+    return results_refs
 
 
 def add_experiment_context(
@@ -168,15 +165,35 @@ def add_experiment_context(
 
 
 @ray.remote
-def evaluate(experiment_task: expconfig.ExperimentTask) -> str:
+def evaluate(
+    run_config: expconfig.RunConfig,
+    experiment_and_context: Tuple[expconfig.Experiment, Mapping[str, Any]],
+    num_runs: int,
+    task_prefix: str,
+) -> str:
     """
     Runs evaluation.
     """
-    task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
-    logging.info("Experiment %s starting: %s", task_id, experiment_task)
-    control.run_fn(experiment_task)
-    logging.info("Experiment %s finished", task_id)
-    return task_id
+    experiment, _ = experiment_and_context
+    exp_id = "-".join(
+        [
+            utils.create_task_id(task_prefix),
+            experiment.env_config.name,
+        ]
+    )
+
+    logging.info("Experiment %s starting: %s", exp_id, experiment)
+    for run_id in range(num_runs):
+        experiment_task = expconfig.create_experiment_task(
+            exp_id=exp_id,
+            run_id=run_id,
+            run_config=run_config,
+            experiment_and_context=experiment_and_context,
+        )
+
+        control.run_fn(experiment_task)
+    logging.info("Experiment %s finished", exp_id)
+    return exp_id
 
 
 def parse_args() -> ControlPipelineArgs:
