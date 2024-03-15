@@ -75,14 +75,6 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                 state_values = np.max(snapshot.action_values, axis=1)
                 state_actions = np.argmax(snapshot.action_values, axis=1)
                 if episode % experiment_task.run_config.log_episode_frequency == 0:
-                    logging.info(
-                        "Run %d of experiment %s, Episode %d: %d steps, %f returns",
-                        experiment_task.run_id,
-                        experiment_task.exp_id,
-                        episode,
-                        snapshot.steps,
-                        returns_collector.traj_returns[-1],
-                    )
                     mean_returns = np.mean(returns_collector.traj_returns)
                     exp_logger.log(
                         episode=episode,
