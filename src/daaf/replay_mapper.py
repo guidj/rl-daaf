@@ -300,7 +300,7 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
             trajectory: A iterator of trajectory steps.
         """
         reward_sum = 0.0
-        traj_steps: List[core.TrajectoryStep] = []
+        traj_steps: List[core.TrajectoryStep] = {}
         tau = 0
 
         for step, traj_step in enumerate(trajectory):
@@ -312,18 +312,17 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
             else:
                 reward, imputed = self.impute_value, True
 
-            traj_steps.append(
-                dataclasses.replace(
-                    traj_step,
-                    reward=reward,
-                    info={**traj_step.info, "imputed": imputed, "ok_nstep_tau": False},
-                )
+            traj_steps[step] = dataclasses.replace(
+                traj_step,
+                reward=reward,
+                info={**traj_step.info, "imputed": imputed, "ok_nstep_tau": False},
             )
             if tau >= 0:
                 yield traj_steps[tau]
                 # clear emitted step
-                traj_steps[tau] = ()  # type: ignore
-        yield from traj_steps[tau + 1 :]
+                del traj_steps[tau]
+        for idx in range(tau + 1, tau + 1 + len(traj_steps)):
+            yield traj_steps[idx]
 
 
 class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
