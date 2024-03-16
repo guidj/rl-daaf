@@ -321,7 +321,8 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
                 yield traj_steps[tau]
                 # clear emitted step
                 del traj_steps[tau]
-        for idx in range(tau + 1, tau + 1 + len(traj_steps)):
+
+        for idx in sorted(traj_steps.keys()):
             yield traj_steps[idx]
 
 
