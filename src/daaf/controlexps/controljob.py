@@ -173,7 +173,7 @@ def evaluate(experiment_task: expconfig.ExperimentTask) -> str:
     Runs evaluation.
     """
     task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
-    logging.debug("Experiment %s starting", task_id)
+    logging.info("Experiment %s starting: %s", task_id, experiment_task)
     control.run_fn(experiment_task)
     logging.debug("Experiment %s finished", task_id)
     return task_id
