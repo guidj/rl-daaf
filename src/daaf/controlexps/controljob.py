@@ -10,7 +10,7 @@ from typing import Any, Mapping, Optional, Sequence, Tuple
 
 import ray
 
-from daaf import expconfig, task, utils
+from daaf import constants, expconfig, task, utils
 from daaf.controlexps import control
 
 
@@ -115,16 +115,19 @@ def create_tasks(
     )
     # shuffle tasks to balance workload
     experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))
+    experiment_batches = utils.bundle(
+        experiment_tasks, bundle_size=constants.DEFAULT_BATCH_SIZE
+    )
     logging.info(
         "Parsed %d DAAF configs and %d environments into %d tasks",
         len(experiment_configs),
         len(envs_configs),
-        len(experiment_tasks),
+        len(experiment_batches),
     )
     results_refs = []
-    for exp_task in experiment_tasks:
-        result_ref = evaluate.remote(exp_task)
-        results_refs.append((exp_task, result_ref))
+    for batch in experiment_batches:
+        result_ref = evaluate.remote(batch)
+        results_refs.append((batch, result_ref))
     return results_refs
 
 
@@ -168,19 +171,22 @@ def add_experiment_context(
 
 
 @ray.remote
-def evaluate(experiment_task: expconfig.ExperimentTask) -> str:
+def evaluate(experiments_batch: Sequence[expconfig.ExperimentTask]) -> str:
     """
     Runs evaluation.
     """
-    task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
-    logging.debug(
-        "Experiment %s starting: %s",
-        task_id,
-        experiment_task,
-    )
-    control.run_fn(experiment_task)
-    logging.debug("Experiment %s finished", task_id)
-    return task_id
+    ids = []
+    for experiment_task in experiments_batch:
+        task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
+        logging.debug(
+            "Experiment %s starting: %s",
+            task_id,
+            experiment_task,
+        )
+        control.run_fn(experiment_task)
+        ids.append(task_id)
+        logging.debug("Experiment %s finished", task_id)
+    return ids
 
 
 def parse_args() -> ControlPipelineArgs:

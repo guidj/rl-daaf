@@ -18,6 +18,7 @@ OPTIONS_POLICY = "options"
 SINGLE_STEP_POLICY = "single-step"
 
 DEFAULT_BUFFER_SIZE_MULTIPLIER = 2**10
+DEFAULT_BATCH_SIZE = 8
 
 SARSA = "sarsa"
 NSTEP_SARSA = "nstep-sarsa"
