@@ -4,6 +4,7 @@ Module contains job to run policy evaluation with replay mappers.
 
 import argparse
 import dataclasses
+import json
 import logging
 import random
 from typing import Any, Mapping, Optional, Sequence, Tuple
@@ -173,7 +174,11 @@ def evaluate(experiment_task: expconfig.ExperimentTask) -> str:
     Runs evaluation.
     """
     task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
-    logging.info("Experiment %s starting: %s", task_id, experiment_task)
+    logging.info(
+        "Experiment %s starting: %s",
+        task_id,
+        experiment_task,
+    )
     control.run_fn(experiment_task)
     logging.debug("Experiment %s finished", task_id)
     return task_id
