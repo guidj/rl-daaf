@@ -394,11 +394,17 @@ jupyter-client==8.0.3
     #   nbclassic
     #   nbclient
     #   notebook
+jupyter-contrib-core==0.4.2
+    # via
+    #   -r nb-requirements.txt
+    #   jupyter-nbextensions-configurator
 jupyter-core==5.2.0
     # via
     #   -r nb-requirements.txt
     #   ipykernel
     #   jupyter-client
+    #   jupyter-contrib-core
+    #   jupyter-nbextensions-configurator
     #   jupyter-server
     #   jupyterlab
     #   nbclassic
@@ -410,9 +416,14 @@ jupyter-events==0.6.3
     # via
     #   -r nb-requirements.txt
     #   jupyter-server-fileid
+jupyter-nbextensions-configurator==0.6.3
+    # via -r nb-requirements.txt
+jupyter-resource-usage==0.7.2
+    # via -r nb-requirements.txt
 jupyter-server==1.23.6
     # via
     #   -r nb-requirements.txt
+    #   jupyter-resource-usage
     #   jupyter-server-fileid
     #   jupyterlab
     #   jupyterlab-server
@@ -529,6 +540,8 @@ nest-asyncio==1.5.6
 notebook==6.5.4
     # via
     #   -r nb-requirements.txt
+    #   jupyter-contrib-core
+    #   jupyter-nbextensions-configurator
     #   jupyterlab
 notebook-shim==0.2.2
     # via
@@ -649,6 +662,7 @@ prometheus-client==0.13.1
     #   -r nb-requirements.txt
     #   -r requirements.txt
     #   -r test-requirements.txt
+    #   jupyter-resource-usage
     #   jupyter-server
     #   nbclassic
     #   notebook
@@ -674,6 +688,7 @@ psutil==5.9.4
     #   -r test-requirements.txt
     #   gpustat
     #   ipykernel
+    #   jupyter-resource-usage
 ptyprocess==0.7.0
     # via
     #   -r nb-requirements.txt
@@ -765,12 +780,14 @@ pyyaml==6.0
     #   -r requirements.txt
     #   -r test-requirements.txt
     #   jupyter-events
+    #   jupyter-nbextensions-configurator
     #   ray
 pyzmq==25.0.1
     # via
     #   -r nb-requirements.txt
     #   ipykernel
     #   jupyter-client
+    #   jupyter-resource-usage
     #   jupyter-server
     #   nbclassic
     #   notebook
@@ -926,6 +943,8 @@ tornado==6.2
     #   -r nb-requirements.txt
     #   ipykernel
     #   jupyter-client
+    #   jupyter-contrib-core
+    #   jupyter-nbextensions-configurator
     #   jupyter-server
     #   jupyterlab
     #   nbclassic
@@ -938,8 +957,10 @@ traitlets==5.9.0
     #   ipykernel
     #   ipython
     #   jupyter-client
+    #   jupyter-contrib-core
     #   jupyter-core
     #   jupyter-events
+    #   jupyter-nbextensions-configurator
     #   jupyter-server
     #   matplotlib-inline
     #   nbclassic

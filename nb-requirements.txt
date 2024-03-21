@@ -250,10 +250,14 @@ jupyter-client==8.0.3
     #   nbclassic
     #   nbclient
     #   notebook
+jupyter-contrib-core==0.4.2
+    # via jupyter-nbextensions-configurator
 jupyter-core==5.2.0
     # via
     #   ipykernel
     #   jupyter-client
+    #   jupyter-contrib-core
+    #   jupyter-nbextensions-configurator
     #   jupyter-server
     #   jupyterlab
     #   nbclassic
@@ -263,8 +267,13 @@ jupyter-core==5.2.0
     #   notebook
 jupyter-events==0.6.3
     # via jupyter-server-fileid
+jupyter-nbextensions-configurator==0.6.3
+    # via -r nb-requirements.in
+jupyter-resource-usage==0.7.2
+    # via -r nb-requirements.in
 jupyter-server==1.23.6
     # via
+    #   jupyter-resource-usage
     #   jupyter-server-fileid
     #   jupyterlab
     #   jupyterlab-server
@@ -347,7 +356,10 @@ nest-asyncio==1.5.6
     #   nbclassic
     #   notebook
 notebook==6.5.4
-    # via jupyterlab
+    # via
+    #   jupyter-contrib-core
+    #   jupyter-nbextensions-configurator
+    #   jupyterlab
 notebook-shim==0.2.2
     # via nbclassic
 numpy==1.23.5
@@ -428,6 +440,7 @@ platformdirs==3.1.1
 prometheus-client==0.13.1
     # via
     #   -r requirements.txt
+    #   jupyter-resource-usage
     #   jupyter-server
     #   nbclassic
     #   notebook
@@ -447,6 +460,7 @@ psutil==5.9.4
     #   -r requirements.txt
     #   gpustat
     #   ipykernel
+    #   jupyter-resource-usage
 ptyprocess==0.7.0
     # via
     #   pexpect
@@ -504,11 +518,13 @@ pyyaml==6.0
     # via
     #   -r requirements.txt
     #   jupyter-events
+    #   jupyter-nbextensions-configurator
     #   ray
 pyzmq==25.0.1
     # via
     #   ipykernel
     #   jupyter-client
+    #   jupyter-resource-usage
     #   jupyter-server
     #   nbclassic
     #   notebook
@@ -609,6 +625,8 @@ tornado==6.2
     # via
     #   ipykernel
     #   jupyter-client
+    #   jupyter-contrib-core
+    #   jupyter-nbextensions-configurator
     #   jupyter-server
     #   jupyterlab
     #   nbclassic
@@ -620,8 +638,10 @@ traitlets==5.9.0
     #   ipykernel
     #   ipython
     #   jupyter-client
+    #   jupyter-contrib-core
     #   jupyter-core
     #   jupyter-events
+    #   jupyter-nbextensions-configurator
     #   jupyter-server
     #   matplotlib-inline
     #   nbclassic

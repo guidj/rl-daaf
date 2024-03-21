@@ -1,5 +1,7 @@
 -r requirements.txt
 
 jupyterlab>=3.6.6
+jupyter_nbextensions_configurator
+jupyter-resource-usage
 matplotlib
 seaborn
