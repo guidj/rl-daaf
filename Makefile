@@ -9,7 +9,7 @@ pip-compile: requirements.in test-requirements.in nb-requirements.in dev-require
 pip-install: pip-compile
 	pip install -r dev-requirements.txt -e .
 
-format:
+format: pip-install
 	ruff format src tests
 	ruff check --fix
 
