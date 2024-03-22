@@ -93,6 +93,43 @@ class DaafImputeMissingRewardMapper(TrajMapper):
             )
 
 
+class DaafTrajectoryMapper(TrajMapper):
+    """
+    Simulates a trajectory of aggregate anonymous feedback:
+        - Only shows aggregate rewards at every Kth step
+        - Other rewards are kept
+    """
+
+    def __init__(self, reward_period: int):
+        """
+        Args:
+            reward_period: the interval for aggregate rewards.
+        """
+        if reward_period < 1:
+            raise ValueError(f"Reward period must be positive. Got {reward_period}.")
+        super().__init__()
+        self.reward_period = reward_period
+
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
+        """
+        Args:
+            trajectory: A iterator of trajectory steps.
+        """
+        reward_sum = 0.0
+
+        for step, traj_step in enumerate(trajectory):
+            reward_sum += traj_step.reward
+            if (step + 1) % self.reward_period == 0:
+                reward, reward_sum, imputed = reward_sum, 0.0, False
+            else:
+                reward, imputed = np.nan, True
+            yield dataclasses.replace(
+                traj_step, reward=reward, info={**traj_step.info, "imputed": imputed}
+            )
+
+
 class DaafLsqRewardAttributionMapper(TrajMapper):
     """
     Simulates a trajectory of aggregate anonymous feedback:

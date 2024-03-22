@@ -59,6 +59,8 @@ def create_trajectory_mappers(
         )
     if traj_mapping_method == constants.IDENTITY_MAPPER:
         mappers.append(replay_mapper.IdentityMapper())
+    elif traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
+        mappers.append(replay_mapper.DaafTrajectoryMapper(reward_period=reward_period))
     elif traj_mapping_method == constants.DAAF_IMPUTE_REWARD_MAPPER:
         mappers.append(
             replay_mapper.DaafImputeMissingRewardMapper(
