@@ -3,7 +3,7 @@ Functions relying on ReplayBuffer are for TF classes (agents, environment, etc).
 Generators are for Py classes (agents, environment, etc).
 """
 
-from typing import Any, Callable, Generator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Generator, List, Mapping, Optional, Sequence, Tuple
 
 import gymnasium as gym
 from rlplg import core, envplay, envsuite
@@ -33,7 +33,7 @@ def create_trajectory_mappers(
     traj_mapping_method: str,
     buffer_size_or_multiplier: Tuple[Optional[int], Optional[int]],
     drop_truncated_feedback_episodes: bool,
-) -> replay_mapper.TrajMapper:
+) -> Sequence[replay_mapper.TrajMapper]:
     """
     Creates an object that alters the trajectory data.
 
@@ -50,7 +50,7 @@ def create_trajectory_mappers(
         A trajectory mapper.
     """
 
-    mappers: Sequence[replay_mapper.TrajMapper] = []
+    mappers: List[replay_mapper.TrajMapper] = []
     if drop_truncated_feedback_episodes:
         mappers.append(
             replay_mapper.DaafDropEpisodeWithTruncatedFeedbackMapper(
@@ -127,7 +127,7 @@ def create_generate_episode_fn(
     def generate_episode(
         environment: gym.Env,
         policy: core.PyPolicy,
-        max_steps: int = None,
+        max_steps: Optional[int] = None,
     ) -> Generator[core.TrajectoryStep, None, None]:
         """
         Generates events for `num_episodes` given an environment and policy.

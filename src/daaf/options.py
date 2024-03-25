@@ -29,8 +29,8 @@ class UniformlyRandomCompositeActionPolicy(
         super().__init__(emit_log_probability=emit_log_probability)
         self.primitive_actions = tuple(primitive_actions)
         self.options_duration = options_duration
-        self._num_options = len(self.primitive_actions) ** options_duration
-        self._action_prob = 1.0 / self._num_options
+        self._num_options: int = len(self.primitive_actions) ** options_duration
+        self._action_prob: float = 1.0 / self._num_options
 
     def get_initial_state(self, batch_size: Optional[int] = None) -> Any:
         """Returns an initial state usable by the policy.

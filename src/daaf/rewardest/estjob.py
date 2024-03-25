@@ -69,7 +69,7 @@ def main(args: EstimationPipelineArgs):
     Program entry point.
     """
 
-    ray_env = {}
+    ray_env: Mapping[str, Any] = {}
     logging.info("Ray environment: %s", ray_env)
     with ray.init(args.cluster_uri, runtime_env=ray_env) as context:
         logging.info("Ray Context: %s", context)

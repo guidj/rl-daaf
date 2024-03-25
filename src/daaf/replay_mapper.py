@@ -9,7 +9,7 @@ import abc
 import copy
 import dataclasses
 import logging
-from typing import Any, Callable, Iterator, List, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Set, Tuple
 
 import numpy as np
 from rlplg import core
@@ -337,7 +337,7 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
             trajectory: A iterator of trajectory steps.
         """
         reward_sum = 0.0
-        traj_steps: List[core.TrajectoryStep] = {}
+        traj_steps: Dict[int, core.TrajectoryStep] = {}
         tau = 0
 
         for step, traj_step in enumerate(trajectory):
@@ -420,7 +420,7 @@ class CollectReturnsMapper(TrajMapper):
 
     @property
     def traj_returns(self) -> Sequence[float]:
-        return self.__traj_returns[:]
+        return self.__traj_returns[:]  # type: ignore
 
 
 class AbQueueBuffer:
