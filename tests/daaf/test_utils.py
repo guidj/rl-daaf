@@ -3,7 +3,6 @@ import os.path
 import tempfile
 
 import pytest
-
 from daaf import utils
 
 
@@ -103,3 +102,45 @@ def test_bundle():
     assert utils.bundle([1, 2, 3], bundle_size=2) == [[1, 2], [3]]
     assert utils.bundle([1, 2, 3], bundle_size=3) == [[1, 2, 3]]
     assert utils.bundle([1, 2, 3], bundle_size=4) == [[1, 2, 3]]
+
+
+def test_json_from_dict():
+    input_ = {
+        "context": {"event_id": 1, "time": 5},
+        "data": {
+            "user_id": 5,
+            "preferences": {
+                "items": [1, 2, 3],
+            },
+        },
+        "version": 5,
+    }
+
+    level_0_ser = {
+        "context": str({"event_id": 1, "time": 5}),
+        "data": str(
+            {
+                "user_id": 5,
+                "preferences": {
+                    "items": [1, 2, 3],
+                },
+            }
+        ),
+        "version": 5,
+    }
+    level_1_ser = {
+        "context": {"event_id": 1, "time": 5},
+        "data": {
+            "user_id": 5,
+            "preferences": str(
+                {
+                    "items": [1, 2, 3],
+                }
+            ),
+        },
+        "version": 5,
+    }
+
+    assert utils.json_from_dict(input_) == input_
+    assert utils.json_from_dict(input_, dict_encode_level=0) == level_0_ser
+    assert utils.json_from_dict(input_, dict_encode_level=1) == level_1_ser

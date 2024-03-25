@@ -18,10 +18,11 @@ include mypy.ini
 # notebooks
 recursive-include notebooks *.ipynb
 recursive-include notebooks *.py
+recursive-include notebooks *.pdf
 
 # experiments
-include experiments/policyeval/envs.json
-include experiments/policyeval/experiments.csv
+recursive-include experiments *.csv
+recursive-include experiments *.json
 
 # make
 include Makefile

@@ -41,48 +41,6 @@ def test_identity_mapper_apply():
         assert_trajectory(output=output, expected=expected)
 
 
-@hypothesis.given(reward_period=st.integers(min_value=2))
-def test_daaf_average_reward_mapper_init(reward_period: int):
-    mapper = replay_mapper.DaafAverageRewardMapper(reward_period=reward_period)
-    assert mapper.reward_period == reward_period
-
-
-@hypothesis.given(reward_period=st.integers(max_value=0))
-def test_daaf_average_reward_mapper_init_with_invalid_reward_period(reward_period: int):
-    with pytest.raises(ValueError):
-        replay_mapper.DaafAverageRewardMapper(reward_period=reward_period)
-
-
-def test_daaf_average_reward_mapper_apply():
-    """
-    Each step is unpacked into its own Trajectory object.
-    The reward is divided equally.
-    Everything else is the same.
-    """
-    mapper = replay_mapper.DaafAverageRewardMapper(reward_period=2)
-
-    inputs = [
-        traj_step(state=0, action=0, reward=-1.0, prob=0.3),
-        traj_step(state=1, action=1, reward=-7.0, prob=0.8),
-        traj_step(state=0, action=0, reward=13.0, prob=0.1),
-        traj_step(state=1, action=1, reward=-9.0, prob=0.2),
-        # skipped; falls within period
-        traj_step(state=2, action=2, reward=2.0, prob=0.2),
-    ]
-
-    expectactions = [
-        traj_step(state=0, action=0, reward=-4.0, prob=0.3),
-        traj_step(state=1, action=1, reward=-4.0, prob=0.8),
-        traj_step(state=0, action=0, reward=2.0, prob=0.1),
-        traj_step(state=1, action=1, reward=2.0, prob=0.2),
-    ]
-
-    outputs = tuple(mapper.apply(inputs))
-    assert len(outputs) == 4
-    for output, expected in zip(outputs, expectactions):
-        assert_trajectory(output=output, expected=expected)
-
-
 @hypothesis.given(
     reward_period=st.integers(min_value=1),
     impute_value=st.floats(allow_nan=False, allow_infinity=False),
@@ -312,8 +270,8 @@ def test_daaf_lsq_reward_attribution_mapper_apply():
         np.testing.assert_array_equal(output.truncated, expected.truncated)
 
 
-def test_mdp_with_options_mapper_apply_given_truncated_options():
-    mapper = replay_mapper.MdpWithOptionsMapper()
+def test_daaf_mdp_with_options_mapper_apply_given_truncated_options():
+    mapper = replay_mapper.DaafMdpWithOptionsMapper()
     inputs = [
         # three step option
         traj_step(
@@ -375,10 +333,16 @@ def test_mdp_with_options_mapper_apply_given_truncated_options():
             action=4,
             reward=2.0,
         ),
-        traj_step(state=6, action=0, reward=1.0, truncated=True),
+        traj_step(state=6, action=0, reward=1.0),
+        traj_step(
+            state=7,
+            action=3,
+            reward=0.0,
+            truncated=True,
+        ),
     ]
     outputs = tuple(mapper.apply(inputs))
-    assert len(outputs) == 3
+    assert len(outputs) == 4
     for output, expected in zip(outputs, expectactions):
         # reward can only be approximately equal
         np.testing.assert_array_equal(output.observation, expected.observation)
@@ -389,8 +353,8 @@ def test_mdp_with_options_mapper_apply_given_truncated_options():
         np.testing.assert_array_equal(output.truncated, expected.truncated)
 
 
-def test_mdp_with_options_mapper_apply_given_terminating_option():
-    mapper = replay_mapper.MdpWithOptionsMapper()
+def test_daaf_mdp_with_options_mapper_apply_given_terminating_option():
+    mapper = replay_mapper.DaafMdpWithOptionsMapper()
     inputs = [
         # three step option
         traj_step(
@@ -558,6 +522,41 @@ def test_daaf_drop_episode_with_truncated_feedback_mapper_apply():
     outputs = tuple(mapper.apply(inputs[:4]))
     for output, expected in zip(outputs, expectations):
         assert_trajectory(output=output, expected=expected)
+
+
+def test_collect_returns_mapper_apply():
+    mapper = replay_mapper.CollectReturnsMapper()
+
+    inputs = [
+        traj_step(
+            state=1,
+            action=0,
+            reward=-7.0,
+        ),
+        traj_step(
+            state=2,
+            action=1,
+            reward=-1.0,
+        ),
+        traj_step(state=3, action=0, reward=-7.0, terminated=True, truncated=True),
+        traj_step(state=4, action=1, reward=5.0, terminated=True),
+        traj_step(state=5, action=0, reward=-7.0, truncated=True),
+    ]
+
+    assert len(mapper.traj_returns) == 0
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 5
+    for output, expected in zip(outputs, inputs):
+        assert_trajectory(output=output, expected=expected)
+    assert mapper.traj_returns == [-17.0]
+
+    # second pass, first three steps
+    outputs = tuple(mapper.apply(inputs[:3]))
+    assert len(outputs) == 3
+    for output, expected in zip(outputs, inputs[:3]):
+        assert_trajectory(output=output, expected=expected)
+
+    assert mapper.traj_returns == [-17.0, -15.0]
 
 
 def test_counter_init():
