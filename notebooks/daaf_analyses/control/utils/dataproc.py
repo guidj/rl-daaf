@@ -13,11 +13,10 @@ import ray
 import scipy
 import seaborn as sns
 import tensorflow as tf
+from daaf import estimator_metrics
 from matplotlib import pyplot as plt
 from scipy import stats
 from statsmodels.stats import proportion
-
-from daaf import estimator_metrics
 
 ENVS_MAPPING = {
     (
@@ -58,7 +57,6 @@ ENVS_MAPPING = {
 }
 
 
-# single-step', 'option
 MAPPERS_NAMES = {
     "identity-mapper": "FR",
     "daaf-trajectory-mapper": "DMR",
