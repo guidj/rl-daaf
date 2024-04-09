@@ -111,7 +111,7 @@ def evaluate_policy(
     """
     initial_state_values = create_initial_values(env_spec.mdp.env_desc.num_states)
     if algorithm == constants.ONE_STEP_TD:
-        yield from policyeval.onpolicy_one_step_td_state_values(
+        return policyeval.onpolicy_one_step_td_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -132,7 +132,7 @@ def evaluate_policy(
             daaf_config.traj_mapping_method
             == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER
         ):
-            yield from methods.nstep_td_state_values_on_aggregate_start_steps(
+            return methods.nstep_td_state_values_on_aggregate_start_steps(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
@@ -146,7 +146,7 @@ def evaluate_policy(
                 initial_values=initial_state_values,
                 generate_episode=generate_steps_fn,
             )
-        yield from policyeval.onpolicy_nstep_td_state_values(
+        return policyeval.onpolicy_nstep_td_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -162,7 +162,7 @@ def evaluate_policy(
         )
 
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
-        yield from policyeval.onpolicy_first_visit_monte_carlo_state_values(
+        return policyeval.onpolicy_first_visit_monte_carlo_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
