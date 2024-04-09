@@ -112,19 +112,34 @@ def evaluate_policy(
     initial_state_values = create_initial_values(env_spec.mdp.env_desc.num_states)
     eval_fn: Optional[Iterator[policyeval.PolicyEvalSnapshot]] = None
     if algorithm == constants.ONE_STEP_TD:
-        eval_fn = policyeval.onpolicy_one_step_td_state_values(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            lrs=schedules.LearningRateSchedule(
-                initial_learning_rate=learnign_args.learning_rate,
-                schedule=task.constant_learning_rate,
-            ),
-            gamma=learnign_args.discount_factor,
-            state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_state_values,
-            generate_episode=generate_steps_fn,
-        )
+        if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
+            eval_fn = methods.onpolicy_one_step_td_state_values_only_aggregate_updates(
+                policy=policy,
+                environment=env_spec.environment,
+                num_episodes=num_episodes,
+                lrs=schedules.LearningRateSchedule(
+                    initial_learning_rate=learnign_args.learning_rate,
+                    schedule=task.constant_learning_rate,
+                ),
+                gamma=learnign_args.discount_factor,
+                state_id_fn=env_spec.discretizer.state,
+                initial_values=initial_state_values,
+                generate_episode=generate_steps_fn,
+            )
+        else:
+            eval_fn = policyeval.onpolicy_one_step_td_state_values(
+                policy=policy,
+                environment=env_spec.environment,
+                num_episodes=num_episodes,
+                lrs=schedules.LearningRateSchedule(
+                    initial_learning_rate=learnign_args.learning_rate,
+                    schedule=task.constant_learning_rate,
+                ),
+                gamma=learnign_args.discount_factor,
+                state_id_fn=env_spec.discretizer.state,
+                initial_values=initial_state_values,
+                generate_episode=generate_steps_fn,
+            )
     elif algorithm == constants.NSTEP_TD:
         # To avoid misconfigured experiments (e.g. using an identity mapper
         # with the n-step DAAF aware evaluation fn) we verify the
@@ -147,20 +162,21 @@ def evaluate_policy(
                 initial_values=initial_state_values,
                 generate_episode=generate_steps_fn,
             )
-        eval_fn = policyeval.onpolicy_nstep_td_state_values(
-            policy=policy,
-            environment=env_spec.environment,
-            num_episodes=num_episodes,
-            lrs=schedules.LearningRateSchedule(
-                initial_learning_rate=learnign_args.learning_rate,
-                schedule=task.constant_learning_rate,
-            ),
-            gamma=learnign_args.discount_factor,
-            nstep=daaf_config.reward_period,
-            state_id_fn=env_spec.discretizer.state,
-            initial_values=initial_state_values,
-            generate_episode=generate_steps_fn,
-        )
+        else:
+            eval_fn = policyeval.onpolicy_nstep_td_state_values(
+                policy=policy,
+                environment=env_spec.environment,
+                num_episodes=num_episodes,
+                lrs=schedules.LearningRateSchedule(
+                    initial_learning_rate=learnign_args.learning_rate,
+                    schedule=task.constant_learning_rate,
+                ),
+                gamma=learnign_args.discount_factor,
+                nstep=daaf_config.reward_period,
+                state_id_fn=env_spec.discretizer.state,
+                initial_values=initial_state_values,
+                generate_episode=generate_steps_fn,
+            )
 
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
         eval_fn = policyeval.onpolicy_first_visit_monte_carlo_state_values(
