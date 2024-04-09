@@ -10,7 +10,7 @@ pip-install: pip-compile
 	pip install -r dev-requirements.txt -e .
 
 format:
-	ruff format src tests
+	ruff format src tests --line-length 88
 	ruff check --fix
 
 test-coverage:

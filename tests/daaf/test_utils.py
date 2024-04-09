@@ -3,6 +3,7 @@ import os.path
 import tempfile
 
 import pytest
+
 from daaf import utils
 
 
@@ -117,8 +118,8 @@ def test_json_from_dict():
     }
 
     level_0_ser = {
-        "context": str({"event_id": 1, "time": 5}),
-        "data": str(
+        "context": json.dumps({"event_id": 1, "time": 5}),
+        "data": json.dumps(
             {
                 "user_id": 5,
                 "preferences": {
@@ -132,7 +133,7 @@ def test_json_from_dict():
         "context": {"event_id": 1, "time": 5},
         "data": {
             "user_id": 5,
-            "preferences": str(
+            "preferences": json.dumps(
                 {
                     "items": [1, 2, 3],
                 }

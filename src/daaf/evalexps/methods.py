@@ -14,7 +14,6 @@ from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import policyeval
 
 
-
 def nstep_td_state_values_on_aggregate_start_steps(
     policy: core.PyPolicy,
     environment: gym.Env,
