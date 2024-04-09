@@ -132,9 +132,10 @@ class DynaProgStateValueIndex:
         This function does not override existing
         entries.
         """
-        state_value_mapping: Dict[Tuple[str, str, float], np.ndarray] = dict(
-            **DynaProgStateValueIndex._parse_index(path)
-        )
+        state_value_mapping: Dict[Tuple[str, str, float], np.ndarray] = {
+            key: value
+            for key, value in DynaProgStateValueIndex._parse_index(path).items()
+        }
         for name, level, gamma, mdp in specs:
             key = (name, level, gamma)
             if key not in state_value_mapping:
