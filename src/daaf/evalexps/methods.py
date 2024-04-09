@@ -4,7 +4,7 @@ delayed aggregate feedback - for tabular problems.
 """
 
 import copy
-from typing import Generator
+from typing import Dict, Generator
 
 import gymnasium as gym
 import numpy as np
@@ -51,11 +51,33 @@ def nstep_td_state_values_on_aggregate_start_steps(
     values = copy.deepcopy(initial_values)
     steps_counter = 0
     for episode in range(num_episodes):
-        # This can be memory intensive, for long episodes and large state/action representations.
-        # TODO: refactor - memory efficiency
-        experiences = list(generate_episode(environment, policy))
         final_step = np.iinfo(np.int64).max
-        for step, _ in enumerate(experiences):
+        experiences: Dict[int, core.TrajectoryStep] = {}
+        trajectory = generate_episode(environment, policy)
+        step = 0
+        # `traj_step_idx` tracks the step in the traj
+        traj_step_idx = 0
+        # In the absence of a step as terminal
+        # or truncated, `empty_steps` prevents
+        # infinite loops
+        empty_steps = 0
+        while True:
+            if step > final_step or empty_steps > nstep:
+                break
+            try:
+                traj_step = next(trajectory)
+            except StopIteration:
+                empty_steps += 1
+            else:
+                experiences[traj_step_idx] = traj_step
+                traj_step_idx += 1
+
+            # TD requires at least one next state
+            if len(experiences) < 2:
+                continue
+            # keep the last n steps
+            experiences.pop(step - nstep, None)
+
             if step < final_step:
                 if experiences[step + 1].terminated or experiences[step + 1].truncated:
                     final_step = step + 1
@@ -64,7 +86,6 @@ def nstep_td_state_values_on_aggregate_start_steps(
                 min_idx = tau + 1
                 max_idx = min(tau + nstep, final_step)
                 returns = 0.0
-
                 for i in range(min_idx, max_idx + 1):
                     returns += (gamma ** (i - tau - 1)) * experiences[i - 1].reward
                 if tau + nstep < final_step:
@@ -74,8 +95,9 @@ def nstep_td_state_values_on_aggregate_start_steps(
                 state_id = state_id_fn(experiences[tau].observation)
                 alpha = lrs(episode=episode, step=steps_counter)
                 values[state_id] += alpha * (returns - values[state_id])
-            steps_counter += 1
+                steps_counter += 1
+            step += 1
         # need to copy qtable because it's a mutable numpy array
         yield policyeval.PolicyEvalSnapshot(
-            steps=len(experiences), values=copy.deepcopy(values)
+            steps=traj_step_idx, values=copy.deepcopy(values)
         )
