@@ -110,8 +110,9 @@ def evaluate_policy(
     Runs policy evaluation with given algorithm, env, and policy spec.
     """
     initial_state_values = create_initial_values(env_spec.mdp.env_desc.num_states)
+    eval_fn: Optional[Iterator[policyeval.PolicyEvalSnapshot]] = None
     if algorithm == constants.ONE_STEP_TD:
-        return policyeval.onpolicy_one_step_td_state_values(
+        eval_fn = policyeval.onpolicy_one_step_td_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -132,7 +133,7 @@ def evaluate_policy(
             daaf_config.traj_mapping_method
             == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER
         ):
-            return methods.nstep_td_state_values_on_aggregate_start_steps(
+            eval_fn = methods.nstep_td_state_values_on_aggregate_start_steps(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
@@ -146,7 +147,7 @@ def evaluate_policy(
                 initial_values=initial_state_values,
                 generate_episode=generate_steps_fn,
             )
-        return policyeval.onpolicy_nstep_td_state_values(
+        eval_fn = policyeval.onpolicy_nstep_td_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -162,7 +163,7 @@ def evaluate_policy(
         )
 
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
-        return policyeval.onpolicy_first_visit_monte_carlo_state_values(
+        eval_fn = policyeval.onpolicy_first_visit_monte_carlo_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -172,7 +173,9 @@ def evaluate_policy(
             generate_episode=generate_steps_fn,
         )
 
-    raise ValueError(f"Unsupported algorithm {algorithm}")
+    if eval_fn is None:
+        raise ValueError(f"Unsupported algorithm {algorithm}")
+    return eval_fn
 
 
 def create_initial_values(
