@@ -125,7 +125,7 @@ def parse_experiment_configs(
     for entry in df_config.to_dict(orient="records"):
         # epsilon has a default value - no exploration
         learning_args = LearningArgs(
-            epsilon=entry.pop("epsilon", 0.0),
+            epsilon=entry.pop("epsilon"),
             learning_rate=entry.pop("learning_rate"),
             discount_factor=entry.pop("discount_factor"),
         )
