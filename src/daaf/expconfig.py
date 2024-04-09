@@ -34,6 +34,7 @@ class DaafConfig:
     policy_type: str
     traj_mapping_method: str
     algorithm: str
+    algorithm_args: Mapping[str, Any]
     reward_period: int
     drop_truncated_feedback_episodes: bool
 
@@ -56,6 +57,7 @@ class RunConfig:
 
     num_episodes: int
     log_episode_frequency: int
+    metrics_last_k_episodes: int
     output_dir: str
 
 
@@ -117,18 +119,18 @@ def parse_experiment_configs(
                 "discount_factor": np.float64,
                 "learning_rate": np.float64,
             },
+            converters={"algorithm_args": json.loads},
         )
     configs = []
     for entry in df_config.to_dict(orient="records"):
         # epsilon has a default value - no exploration
         learning_args = LearningArgs(
-            epsilon=entry.pop("epsilon", 0.0),
+            epsilon=entry.pop("epsilon"),
             learning_rate=entry.pop("learning_rate"),
             discount_factor=entry.pop("discount_factor"),
         )
-        daaf_config = DaafConfig(**entry)
+        daaf_config = DaafConfig(**entry)  # type: ignore
         configs.append((daaf_config, learning_args))
-
     return tuple(configs)
 
 

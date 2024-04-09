@@ -2,8 +2,8 @@
 Utilities, helpers.
 """
 
-
 import contextlib
+import copy
 import dataclasses
 import json
 import logging
@@ -11,7 +11,18 @@ import math
 import os.path
 import types
 import uuid
-from typing import Any, Callable, Mapping, Optional, Sequence, Tuple, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+)
 
 import numpy as np
 import tensorflow as tf
@@ -121,8 +132,10 @@ class DynaProgStateValueIndex:
         This function does not override existing
         entries.
         """
-        state_value_mapping: Mapping[Tuple[str, str, float], np.ndarray] = {}
-        state_value_mapping = DynaProgStateValueIndex._parse_index(path)
+        state_value_mapping: Dict[Tuple[str, str, float], np.ndarray] = {
+            key: value
+            for key, value in DynaProgStateValueIndex._parse_index(path).items()
+        }
         for name, level, gamma, mdp in specs:
             key = (name, level, gamma)
             if key not in state_value_mapping:
@@ -152,10 +165,10 @@ class DynaProgStateValueIndex:
         return DynaProgStateValueIndex(state_values)
 
     @staticmethod
-    def _parse_index(path: str):
+    def _parse_index(path: str) -> Mapping[Tuple[str, str, float], np.ndarray]:
         file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
         logging.info("Loading dynamic programming index from %s", file_path)
-        state_values: Mapping[Tuple[str, str, float], np.ndarray] = {}
+        state_values: Dict[Tuple[str, str, float], np.ndarray] = {}
         with tf.io.gfile.GFile(file_path, "r") as readable:
             for line in readable:
                 row = json.loads(line)
@@ -215,7 +228,7 @@ def dynamic_prog_estimation(
     return state_values, action_values
 
 
-def create_task_id(task_prefix: str):
+def create_task_id(task_prefix: str) -> str:
     """
     Creates a task id using a given prefix
     and a generated partial uuid.
@@ -251,8 +264,8 @@ def bundle(items: Sequence[Any], bundle_size: int) -> Sequence[Sequence[Any]]:
     if bundle_size < 1:
         raise ValueError("`bundle_size` must be positive.")
 
-    bundles = []
-    bundle_ = []
+    bundles: List[List[Any]] = []
+    bundle_: List[Any] = []
     for idx, item in enumerate(items):
         if idx > 0 and (idx % bundle_size) == 0:
             if bundle_:
@@ -268,5 +281,30 @@ def dataclass_from_dict(clazz: Callable, data: Mapping[str, Any]):  # type: igno
     """
     Creates an instance of a dataclass from a dictionary.
     """
+    if not (dataclasses.is_dataclass(clazz) and isinstance(clazz, type)):
+        raise ValueError(f"Expecting a dataclass class. Got {clazz}")
     fields = list(dataclasses.fields(clazz))
     return clazz(**{field.name: data[field.name] for field in fields})
+
+
+def json_from_dict(
+    obj: Mapping[str, Any], dict_encode_level: Optional[int] = None
+) -> Mapping[str, Any]:
+    """
+    Converts a dict into a json object.
+    If `level` is set, then nested fields at depth `level + 1`
+    are converted to strings.
+    """
+    mapping = copy.deepcopy(obj)
+    if dict_encode_level is None:
+        return mapping
+
+    def go(data: Any, level: int):
+        if isinstance(data, Mapping):
+            if level >= dict_encode_level:
+                return json.dumps(data)
+            else:
+                return {key: go(value, level + 1) for key, value in data.items()}
+        return data
+
+    return {key: go(value, level=0) for key, value in mapping.items()}

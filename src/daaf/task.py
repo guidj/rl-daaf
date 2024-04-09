@@ -3,15 +3,13 @@ Functions relying on ReplayBuffer are for TF classes (agents, environment, etc).
 Generators are for Py classes (agents, environment, etc).
 """
 
-
-from typing import Any, Callable, Generator, Mapping, Optional, Sequence, Tuple
+from typing import Any, Generator, List, Mapping, Optional, Sequence, Tuple
 
 import gymnasium as gym
 from rlplg import core, envplay, envsuite
 from rlplg.learning import utils
-from rlplg.learning.tabular import policies
 
-from daaf import constants, expconfig, options, replay_mapper
+from daaf import constants, replay_mapper
 
 
 def create_env_spec(
@@ -35,7 +33,7 @@ def create_trajectory_mappers(
     traj_mapping_method: str,
     buffer_size_or_multiplier: Tuple[Optional[int], Optional[int]],
     drop_truncated_feedback_episodes: bool,
-) -> replay_mapper.TrajMapper:
+) -> Sequence[replay_mapper.TrajMapper]:
     """
     Creates an object that alters the trajectory data.
 
@@ -52,7 +50,7 @@ def create_trajectory_mappers(
         A trajectory mapper.
     """
 
-    mappers: Sequence[replay_mapper.TrajMapper] = []
+    mappers: List[replay_mapper.TrajMapper] = []
     if drop_truncated_feedback_episodes:
         mappers.append(
             replay_mapper.DaafDropEpisodeWithTruncatedFeedbackMapper(
@@ -61,15 +59,13 @@ def create_trajectory_mappers(
         )
     if traj_mapping_method == constants.IDENTITY_MAPPER:
         mappers.append(replay_mapper.IdentityMapper())
+    elif traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
+        mappers.append(replay_mapper.DaafTrajectoryMapper(reward_period=reward_period))
     elif traj_mapping_method == constants.DAAF_IMPUTE_REWARD_MAPPER:
         mappers.append(
             replay_mapper.DaafImputeMissingRewardMapper(
                 reward_period=reward_period, impute_value=0.0
             )
-        )
-    elif traj_mapping_method == constants.DAAF_AVERAGE_REWARD_MAPPER:
-        mappers.append(
-            replay_mapper.DaafAverageRewardMapper(reward_period=reward_period)
         )
     elif traj_mapping_method == constants.DAAF_LSQ_REWARD_ATTRIBUTION_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
@@ -93,7 +89,7 @@ def create_trajectory_mappers(
             )
         )
     elif traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
-        mappers.append(replay_mapper.MdpWithOptionsMapper())
+        mappers.append(replay_mapper.DaafMdpWithOptionsMapper())
     elif traj_mapping_method == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER:
         mappers.append(
             replay_mapper.DaafNStepTdUpdateMarkMapper(reward_period=reward_period)
@@ -106,31 +102,17 @@ def create_trajectory_mappers(
     return mappers
 
 
-def create_eval_policy(
-    env_spec: core.EnvSpec, daaf_config: expconfig.DaafConfig
-) -> core.PyPolicy:
+def returns_collection_mapper() -> replay_mapper.CollectReturnsMapper:
     """
-    Creates a policy to be evaluated.
+    Returns:
+        A returns collection mapper.
     """
-    if daaf_config.policy_type == constants.OPTIONS_POLICY:
-        return options.UniformlyRandomCompositeActionPolicy(
-            actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
-            options_duration=daaf_config.reward_period,
-        )
-    elif daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
-        return policies.PyRandomPolicy(
-            num_actions=env_spec.mdp.env_desc.num_actions,
-            emit_log_probability=True,
-        )
-    raise ValueError(f"Unknown policy {daaf_config.policy_type}")
+    return replay_mapper.CollectReturnsMapper()
 
 
-def create_generate_episodes_fn(
+def create_generate_episode_fn(
     mappers: Sequence[replay_mapper.TrajMapper],
-) -> Callable[
-    [gym.Env, core.PyPolicy, int],
-    Generator[core.TrajectoryStep, None, None],
-]:
+) -> core.GeneratesEpisode:
     """
     Creates a function that transform trajectory events a provided
     `mapper`.
@@ -139,22 +121,20 @@ def create_generate_episodes_fn(
         mapper: A TrajMapper that transforms trajectory events.
     """
 
-    def generate_episodes(
+    def generate_episode(
         environment: gym.Env,
         policy: core.PyPolicy,
-        num_episodes: int,
+        max_steps: Optional[int] = None,
     ) -> Generator[core.TrajectoryStep, None, None]:
         """
         Generates events for `num_episodes` given an environment and policy.
         """
-        # Unroll one trajectory at a time
-        for _ in range(num_episodes):
-            trajectory = envplay.generate_episodes(environment, policy, num_episodes=1)
-            for mapper in mappers:
-                trajectory = mapper.apply(trajectory)
-            yield from trajectory
+        trajectory = envplay.generate_episode(environment, policy, max_steps=max_steps)
+        for mapper in mappers:
+            trajectory = mapper.apply(trajectory)
+        yield from trajectory
 
-    return generate_episodes
+    return generate_episode
 
 
 def constant_learning_rate(initial_lr: float, episode: int, step: int):

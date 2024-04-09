@@ -7,6 +7,7 @@ import functools
 import random
 from typing import Any, Iterable, Optional
 
+import numpy as np
 from rlplg import combinatorics, core
 from rlplg.core import ObsType
 from rlplg.learning.tabular import policies
@@ -21,14 +22,15 @@ class UniformlyRandomCompositeActionPolicy(
 
     def __init__(
         self,
-        actions: Iterable[Any],
+        primitive_actions: Iterable[Any],
         options_duration: int,
         emit_log_probability: bool = False,
     ):
         super().__init__(emit_log_probability=emit_log_probability)
-        self.actions = tuple(actions)
+        self.primitive_actions = tuple(primitive_actions)
         self.options_duration = options_duration
-        self._num_options = len(self.actions) ** options_duration
+        self._num_options: int = len(self.primitive_actions) ** options_duration
+        self._action_prob: float = 1.0 / self._num_options
 
     def get_initial_state(self, batch_size: Optional[int] = None) -> Any:
         """Returns an initial state usable by the policy.
@@ -63,7 +65,8 @@ class UniformlyRandomCompositeActionPolicy(
             `info`: Optional side information such as action log probabilities.
         """
         del observation
-        del seed
+        if seed is not None:
+            raise NotImplementedError(f"Seed is not supported; but got seed: {seed}")
         if policy_state and (
             policy_state["option_step"] + 1 == self.options_duration
             or policy_state["option_id"] is None
@@ -76,17 +79,24 @@ class UniformlyRandomCompositeActionPolicy(
             option_step = policy_state["option_step"] + 1
 
         option = self._get_option(option_id)
-        action = self.actions[option[option_step]]
+        action = self.primitive_actions[option[option_step]]
+        policy_info = {
+            "option_id": option_id,
+            "option_terminated": option_step == self.options_duration - 1,
+        }
+
+        if self.emit_log_probability:
+            policy_info["log_probability"] = np.array(
+                np.log(self._action_prob),
+                np.float32,
+            )
         return core.PolicyStep(
             action=action,
             state={
                 "option_id": option_id,
                 "option_step": option_step,
             },
-            info={
-                "option_id": option_id,
-                "option_terminated": option_step == self.options_duration - 1,
-            },
+            info=policy_info,
         )
 
     def state_action_prob(self, state, action) -> float:
@@ -95,7 +105,7 @@ class UniformlyRandomCompositeActionPolicy(
         """
         del state
         del action
-        return 1.0 / self._num_options
+        return self._action_prob
 
     @functools.lru_cache(maxsize=64)
     def _get_option(self, option_id: int):
@@ -113,7 +123,101 @@ class UniformlyRandomCompositeActionPolicy(
         computations.
         """
         return combinatorics.interger_to_sequence(
-            space_size=len(self.actions),
+            space_size=len(self.primitive_actions),
+            sequence_length=self.options_duration,
+            index=option_id,
+        )
+
+
+class OptionsQGreedyPolicy(policies.PyEpsilonGreedyPolicy):
+    def __init__(
+        self,
+        policy: core.PyPolicy,
+        primitive_actions: Iterable[Any],
+        options_duration: int,
+        epsilon: float,
+        emit_log_probability: bool = False,
+        seed: Optional[int] = None,
+    ):
+        self.primitive_actions = tuple(primitive_actions)
+        self.options_duration = options_duration
+        self._num_options = len(self.primitive_actions) ** options_duration
+
+        super().__init__(
+            policy,
+            num_actions=self._num_options,
+            epsilon=epsilon,
+            emit_log_probability=emit_log_probability,
+            seed=seed,
+        )
+        self.options_duration = self.options_duration
+
+    def get_initial_state(self, batch_size: Optional[int] = None) -> Any:
+        """Returns an initial state usable by the policy.
+
+        Args:
+          batch_size: An optional batch size.
+
+        Returns:
+          An initial policy state.
+        """
+        del batch_size
+        return {"option_id": None, "option_step": -1}
+
+    def action(
+        self,
+        observation: ObsType,
+        policy_state: Any = (),
+        seed: Optional[int] = None,
+    ) -> core.PolicyStep:
+        if seed is not None:
+            raise NotImplementedError(f"Seed is not supported; but got seed: {seed}")
+        if policy_state and (
+            policy_state["option_step"] + 1 == self.options_duration
+            or policy_state["option_id"] is None
+        ):
+            # Random policy chooses a new option
+            explore = self._rng.random() <= self.epsilon
+            policy_: core.PyPolicy = (
+                self.explore_policy if explore else self.exploit_policy
+            )
+            prob = self._probs["explore"] if explore else self._probs["exploit"]
+            policy_step_ = policy_.action(observation, policy_state)
+
+            option_id = policy_step_.action
+            option_step = 0
+        else:
+            option_id = policy_state["option_id"]
+            option_step = policy_state["option_step"] + 1
+
+        option = self._get_option(option_id)
+        action = self.primitive_actions[option[option_step]]
+        policy_info = {
+            "option_id": option_id,
+            "option_terminated": option_step == self.options_duration - 1,
+        }
+        if self.emit_log_probability:
+            policy_info["log_probability"] = np.array(
+                np.log(prob),
+                np.float32,
+            )
+        return core.PolicyStep(
+            action=action,
+            state={
+                "option_id": option_id,
+                "option_step": option_step,
+            },
+            info=policy_info,
+        )
+
+    @functools.lru_cache(maxsize=64)
+    def _get_option(self, option_id: int):
+        """
+        This method is here to avoid re-generating an option
+        from an Id on every call.
+        """
+        return combinatorics.interger_to_sequence(
+            space_size=len(self.primitive_actions),
             sequence_length=self.options_duration,
             index=option_id,
         )

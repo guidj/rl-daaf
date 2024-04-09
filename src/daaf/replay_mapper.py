@@ -5,12 +5,11 @@ These mappers alters the sequence of events that was observed, e.g. including th
 They can process batched transitions, but emit them as single events.
 """
 
-
 import abc
 import copy
 import dataclasses
 import logging
-from typing import Any, Callable, Iterator, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, Iterator, Optional, Sequence, Set, Tuple
 
 import numpy as np
 from rlplg import core
@@ -48,46 +47,7 @@ class IdentityMapper(TrajMapper):
         Args:
             trajectory: A iterator of trajectory steps.
         """
-        for traj_step in trajectory:
-            yield traj_step
-
-
-class DaafAverageRewardMapper(TrajMapper):
-    """
-    Simulates a trajectory of periodic aggregate anonymous feedback:
-      - For a set of actions, K, we take their reward, add it up, and divide it equally.
-      - Each K action is emitted as is.
-    """
-
-    def __init__(self, reward_period: int):
-        """
-        Args:
-            reward_period: the interval for aggregate rewards.
-        """
-        if reward_period < 1:
-            raise ValueError(f"Reward period must be positive. Got {reward_period}.")
-        self.reward_period = reward_period
-
-    def apply(
-        self, trajectory: Iterator[core.TrajectoryStep]
-    ) -> Iterator[core.TrajectoryStep]:
-        """
-        Args:
-            trajectory: A iterator of trajectory steps.
-        """
-
-        buffer: List[core.TrajectoryStep] = []
-        reward_sum = 0.0
-        for step, traj_step in enumerate(trajectory):
-            buffer.append(traj_step)
-            reward_sum += traj_step.reward
-            if (step + 1) % self.reward_period == 0:
-                average_reward = reward_sum / self.reward_period
-                for buffer_traj_step in buffer:
-                    yield dataclasses.replace(buffer_traj_step, reward=average_reward)
-                # reset
-                buffer.clear()
-                reward_sum = 0.0
+        yield from trajectory
 
 
 class DaafImputeMissingRewardMapper(TrajMapper):
@@ -109,7 +69,7 @@ class DaafImputeMissingRewardMapper(TrajMapper):
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
         if np.isnan(impute_value) or np.isinf(impute_value):
             raise ValueError(f"Impute value must be a float. Got {impute_value}.")
-
+        super().__init__()
         self.reward_period = reward_period
         self.impute_value = impute_value
 
@@ -128,6 +88,43 @@ class DaafImputeMissingRewardMapper(TrajMapper):
                 reward, reward_sum, imputed = reward_sum, 0.0, False
             else:
                 reward, imputed = self.impute_value, True
+            yield dataclasses.replace(
+                traj_step, reward=reward, info={**traj_step.info, "imputed": imputed}
+            )
+
+
+class DaafTrajectoryMapper(TrajMapper):
+    """
+    Simulates a trajectory of aggregate anonymous feedback:
+        - Only shows aggregate rewards at every Kth step
+        - Other rewards are kept
+    """
+
+    def __init__(self, reward_period: int):
+        """
+        Args:
+            reward_period: the interval for aggregate rewards.
+        """
+        if reward_period < 1:
+            raise ValueError(f"Reward period must be positive. Got {reward_period}.")
+        super().__init__()
+        self.reward_period = reward_period
+
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
+        """
+        Args:
+            trajectory: A iterator of trajectory steps.
+        """
+        reward_sum = 0.0
+
+        for step, traj_step in enumerate(trajectory):
+            reward_sum += traj_step.reward
+            if (step + 1) % self.reward_period == 0:
+                reward, reward_sum, imputed = reward_sum, 0.0, False
+            else:
+                reward, imputed = np.nan, True
             yield dataclasses.replace(
                 traj_step, reward=reward, info={**traj_step.info, "imputed": imputed}
             )
@@ -185,6 +182,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
                 f"""Tensor initial_rtable must have shape[{num_states},{num_actions}].
                 Got [{init_rtable}]."""
             )
+        super().__init__()
 
         num_factors = num_states * num_actions
         self.num_states = num_states
@@ -250,7 +248,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
                             # matix being unsuitable (no solution).
                             logging.debug("Reward estimation failed: %s", err)
                 else:
-                    # zero impute before estimation
+                    # Use impute value before estimation
                     reward = self.impute_value
             else:
                 reward = float(self.rtable[state_id, action_id])
@@ -258,7 +256,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
             yield dataclasses.replace(traj_step, reward=reward)
 
 
-class MdpWithOptionsMapper(TrajMapper):
+class DaafMdpWithOptionsMapper(TrajMapper):
     """
     Simulates a trajectory with an options policy.
     The trajectory generated is that of the parent policy only.
@@ -278,30 +276,29 @@ class MdpWithOptionsMapper(TrajMapper):
         # Use policy info to determine if option has ended.
         reward_sum = 0.0
         current_traj_step: Optional[core.TrajectoryStep] = None
-        options_traj_steps = []
         for traj_step in trajectory:
             if current_traj_step is None:
                 current_traj_step = traj_step
             reward_sum += traj_step.reward
             if traj_step.policy_info["option_terminated"]:
                 reward, reward_sum = reward_sum, 0.0
-                options_traj_steps.append(
-                    dataclasses.replace(
-                        current_traj_step,
-                        reward=reward,
-                        action=current_traj_step.policy_info["option_id"],
-                        policy_info={},
-                    )
+                yield dataclasses.replace(
+                    current_traj_step,
+                    reward=reward,
+                    action=current_traj_step.policy_info["option_id"],
+                    policy_info={},
                 )
                 current_traj_step = None
 
         # options termination did not coincide with end of episode
-        if options_traj_steps and current_traj_step is not None:
-            options_traj_steps[-1] = dataclasses.replace(
-                options_traj_steps[-1], truncated=True
+        if current_traj_step is not None:
+            yield dataclasses.replace(
+                current_traj_step,
+                reward=0.0,
+                action=current_traj_step.policy_info["option_id"],
+                truncated=True,
+                policy_info={},
             )
-        for traj_step in options_traj_steps:
-            yield traj_step
 
 
 class DaafNStepTdUpdateMarkMapper(TrajMapper):
@@ -327,6 +324,7 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
+        super().__init__()
         self.reward_period = reward_period
         self.nstep = reward_period
         self.impute_value = impute_value
@@ -339,13 +337,14 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
             trajectory: A iterator of trajectory steps.
         """
         reward_sum = 0.0
-        traj_steps = list(trajectory)
-        for step, traj_step in enumerate(traj_steps):
+        traj_steps: Dict[int, core.TrajectoryStep] = {}
+        tau = 0
+
+        for step, traj_step in enumerate(trajectory):
             reward_sum += traj_step.reward
-            if (step + 1) % self.reward_period == 0:
-                tau = step - self.nstep + 1
-                if tau >= 0:
-                    traj_steps[tau].info["ok_nstep_tau"] = True
+            tau = step - self.nstep + 1
+            if tau >= 0 and (step + 1) % self.reward_period == 0:
+                traj_steps[tau].info["ok_nstep_tau"] = True
                 reward, reward_sum, imputed = reward_sum, 0.0, False
             else:
                 reward, imputed = self.impute_value, True
@@ -355,7 +354,13 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
                 reward=reward,
                 info={**traj_step.info, "imputed": imputed, "ok_nstep_tau": False},
             )
-        yield from traj_steps
+            if tau >= 0:
+                yield traj_steps[tau]
+                # clear emitted step
+                del traj_steps[tau]
+
+        for idx in sorted(traj_steps.keys()):
+            yield traj_steps[idx]
 
 
 class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
@@ -376,6 +381,7 @@ class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
         """
         if reward_period < 1:
             raise ValueError(f"Reward period must be positive. Got {reward_period}.")
+        super().__init__()
         self.reward_period = reward_period
 
     def apply(
@@ -388,6 +394,33 @@ class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
         traj_steps = list(trajectory)
         if len(traj_steps) % self.reward_period == 0:
             yield from traj_steps
+
+
+class CollectReturnsMapper(TrajMapper):
+    """
+    Tracks trajectory returns internally.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.__traj_returns = []
+
+    def apply(
+        self, trajectory: Iterator[core.TrajectoryStep]
+    ) -> Iterator[core.TrajectoryStep]:
+        """
+        Args:
+            trajectory: A iterator of trajectory steps.
+        """
+        returns = 0.0
+        for traj_step in trajectory:
+            returns += traj_step.reward
+            yield traj_step
+        self.__traj_returns.append(returns)
+
+    @property
+    def traj_returns(self) -> Sequence[float]:
+        return self.__traj_returns[:]  # type: ignore
 
 
 class AbQueueBuffer:
