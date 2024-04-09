@@ -57,7 +57,7 @@ class ReturnsAggretator(aggregate.AggregateFn):
     Aggregates returns.
     """
 
-    AggType = Mapping[Tuple[str, int], Tuple[Any, Sequence[float]]]
+    AggType = Mapping[Tuple[str, int], Any]
     Row = Mapping[str, Any]
 
     def __init__(self, name: str = "ReturnsAggretator()"):
@@ -77,7 +77,7 @@ class ReturnsAggretator(aggregate.AggregateFn):
         """
         Add a single row to aggregation.
         """
-        new_acc = copy.deepcopy(acc)
+        new_acc = dict(**copy.deepcopy(acc))
         if row["exp_id"] not in acc:
             meta = copy.deepcopy(row["meta"])
             # Path is a random pick
@@ -94,7 +94,7 @@ class ReturnsAggretator(aggregate.AggregateFn):
         """
         Combine two accumulators.
         """
-        acc = copy.deepcopy(acc_left)
+        acc = dict(**copy.deepcopy(acc_left))
         for key, value in acc_right.items():
             if key not in acc:
                 # copy meta and values
@@ -178,14 +178,14 @@ def join_logs_and_metadata(
     """
 
     def get_exp_id(df: pd.DataFrame) -> pd.Series:
-        return df["meta"].apply(lambda meta: meta["exp_id"])
+        return df["meta"].apply(lambda meta: meta["exp_id"])  # type: ignore
 
     def get_run_id(df: pd.DataFrame) -> pd.Series:
-        return df["meta"].apply(lambda meta: meta["run_id"])
+        return df["meta"].apply(lambda meta: meta["run_id"])  # type: ignore
 
     def get_metadata(df: pd.DataFrame) -> pd.Series:
         paths = df["path"].apply(parse_path_from_filename)
-        return paths.apply(lambda path: metadata[path])
+        return paths.apply(lambda path: metadata[path])  # type: ignore
 
     return (
         ds_logs.add_column("meta", get_metadata)

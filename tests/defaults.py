@@ -122,7 +122,7 @@ class SingleStateEnv(gym.Env[Mapping[str, Any], int]):
 
         # env specific
         self._observation: Optional[np.ndarray] = None
-        self._seed = None
+        self._seed: Optional[int] = None
 
     def step(self, action: int) -> TimeStep:
         """Updates the environment according to action and returns a `TimeStep`.

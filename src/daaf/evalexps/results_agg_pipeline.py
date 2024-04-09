@@ -10,7 +10,7 @@ import dataclasses
 import json
 import logging
 import os.path
-from typing import Any, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 import numpy as np
 import pandas as pd
@@ -62,7 +62,7 @@ class StateValueAggretator(aggregate.AggregateFn):
     Aggregates state-values.
     """
 
-    AggType = Mapping[Tuple[str, int], Tuple[Any, Sequence[np.ndarray]]]
+    AggType = Dict[str, Any]
     Row = Mapping[str, Any]
 
     def __init__(self, name: str = "StateValueAggretator()"):
@@ -183,14 +183,14 @@ def join_logs_and_metadata(
     """
 
     def get_exp_id(df: pd.DataFrame) -> pd.Series:
-        return df["meta"].apply(lambda meta: meta["exp_id"])
+        return df["meta"].apply(lambda meta: meta["exp_id"])  # type: ignore
 
     def get_run_id(df: pd.DataFrame) -> pd.Series:
-        return df["meta"].apply(lambda meta: meta["run_id"])
+        return df["meta"].apply(lambda meta: meta["run_id"])  # type: ignore
 
     def get_metadata(df: pd.DataFrame) -> pd.Series:
         paths = df["path"].apply(parse_path_from_filename)
-        return paths.apply(lambda path: metadata[path])
+        return paths.apply(lambda path: metadata[path])  # type: ignore
 
     return (
         ds_logs.add_column("meta", get_metadata)

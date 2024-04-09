@@ -25,7 +25,7 @@ class EvalPipelineArgs:
     config_path: str
     num_runs: int
     num_episodes: int
-    assets_dir: int
+    assets_dir: str
     output_dir: str
     log_episode_frequency: int
     metrics_last_k_episodes: int
@@ -39,7 +39,7 @@ def main(args: EvalPipelineArgs):
     Program entry point.
     """
 
-    ray_env = {}
+    ray_env: Mapping[str, Any] = {}
     logging.info("Ray environment: %s", ray_env)
     with ray.init(args.cluster_uri, runtime_env=ray_env) as context:
         logging.info("Ray Context: %s", context)
@@ -114,7 +114,7 @@ def create_tasks(
         )
     )
     # shuffle tasks to balance workload
-    experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))
+    experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))  # type: ignore
     logging.info(
         "Parsed %d DAAF configs and %d environments into %d tasks",
         len(experiment_configs),

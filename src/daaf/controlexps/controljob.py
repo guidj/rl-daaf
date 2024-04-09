@@ -6,7 +6,7 @@ import argparse
 import dataclasses
 import logging
 import random
-from typing import Any, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import ray
 
@@ -25,7 +25,7 @@ class ControlPipelineArgs:
     config_path: str
     num_runs: int
     num_episodes: int
-    assets_dir: int
+    assets_dir: str
     output_dir: str
     log_episode_frequency: int
     metrics_last_k_episodes: int
@@ -39,7 +39,7 @@ def main(args: ControlPipelineArgs):
     Program entry point.
     """
 
-    ray_env = {}
+    ray_env: Dict[str, Any] = {}
     logging.info("Ray environment: %s", ray_env)
     with ray.init(args.cluster_uri, runtime_env=ray_env) as context:
         logging.info("Ray Context: %s", context)
@@ -114,7 +114,10 @@ def create_tasks(
         )
     )
     # shuffle tasks to balance workload
-    experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))
+    experiment_tasks = random.sample(
+        experiment_tasks,
+        len(experiment_tasks),  # type: ignore
+    )
     experiment_batches = utils.bundle(
         experiment_tasks, bundle_size=constants.DEFAULT_BATCH_SIZE
     )
@@ -171,11 +174,11 @@ def add_experiment_context(
 
 
 @ray.remote
-def evaluate(experiments_batch: Sequence[expconfig.ExperimentTask]) -> str:
+def evaluate(experiments_batch: Sequence[expconfig.ExperimentTask]) -> Sequence[str]:
     """
     Runs evaluation.
     """
-    ids = []
+    ids: List[str] = []
     for experiment_task in experiments_batch:
         task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
         logging.debug(

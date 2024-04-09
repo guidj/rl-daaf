@@ -6,7 +6,7 @@ delayed aggregate feedback - for tabular problems.
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Iterator, Optional, Set
+from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Set
 
 import gymnasium as gym
 import numpy as np
@@ -50,22 +50,25 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         learnign_args=experiment_task.experiment.learning_args,
         generate_steps_fn=task.create_generate_episode_fn(mappers=traj_mappers),
     )
+    env_info: Mapping[str, Any] = {
+        "env": {
+            "name": env_spec.name,
+            "level": env_spec.level,
+            "args": json.dumps(experiment_task.experiment.env_config.args),
+        },
+    }
     with utils.ExperimentLogger(
         log_dir=experiment_task.run_config.output_dir,
         exp_id=experiment_task.exp_id,
         run_id=experiment_task.run_id,
         params={
+            **env_info,
             **utils.json_from_dict(
                 dataclasses.asdict(experiment_task.experiment.daaf_config),
                 dict_encode_level=0,
             ),
             **dataclasses.asdict(experiment_task.experiment.learning_args),
             **experiment_task.context,
-            "env": {
-                "name": env_spec.name,
-                "level": env_spec.level,
-                "args": json.dumps(experiment_task.experiment.env_config.args),
-            },
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
@@ -108,7 +111,7 @@ def policy_control(
     num_episodes: int,
     learnign_args: expconfig.LearningArgs,
     generate_steps_fn: Callable[
-        [gym.Env, core.PyPolicy, int],
+        [gym.Env, core.PyPolicy],
         Generator[core.TrajectoryStep, None, None],
     ],
 ) -> Iterator[policycontrol.PolicyControlSnapshot]:
@@ -124,10 +127,10 @@ def policy_control(
     )
     if daaf_config.algorithm == constants.SARSA:
         if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
-            fn = methods.onpolicy_sarsa_control_only_aggregate_updates
+            sarsa_fn = methods.onpolicy_sarsa_control_only_aggregate_updates
         else:
-            fn = policycontrol.onpolicy_sarsa_control
-        return fn(
+            sarsa_fn = policycontrol.onpolicy_sarsa_control
+        return sarsa_fn(
             environment=env_spec.environment,
             num_episodes=num_episodes,
             lrs=lrs,
@@ -147,11 +150,11 @@ def policy_control(
             daaf_config.traj_mapping_method
             == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER
         ):
-            fn = methods.onpolicy_nstep_sarsa_on_aggregate_start_steps_control
+            nstep_fn = methods.onpolicy_nstep_sarsa_on_aggregate_start_steps_control
         else:
-            fn = policycontrol.onpolicy_nstep_sarsa_control
+            nstep_fn = policycontrol.onpolicy_nstep_sarsa_control
 
-        return fn(
+        return nstep_fn(
             environment=env_spec.environment,
             num_episodes=num_episodes,
             lrs=lrs,
@@ -167,10 +170,10 @@ def policy_control(
 
     elif daaf_config.algorithm == constants.Q_LEARNING:
         if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
-            fn = methods.onpolicy_qlearning_control_only_aggregate_updates
+            qlearn_fn = methods.onpolicy_qlearning_control_only_aggregate_updates
         else:
-            fn = policycontrol.onpolicy_qlearning_control
-        return fn(
+            qlearn_fn = policycontrol.onpolicy_qlearning_control
+        return qlearn_fn(
             environment=env_spec.environment,
             num_episodes=num_episodes,
             lrs=lrs,

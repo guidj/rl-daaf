@@ -3,7 +3,7 @@ Functions relying on ReplayBuffer are for TF classes (agents, environment, etc).
 Generators are for Py classes (agents, environment, etc).
 """
 
-from typing import Any, Callable, Generator, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Generator, List, Mapping, Optional, Sequence, Tuple
 
 import gymnasium as gym
 from rlplg import core, envplay, envsuite
@@ -112,10 +112,7 @@ def returns_collection_mapper() -> replay_mapper.CollectReturnsMapper:
 
 def create_generate_episode_fn(
     mappers: Sequence[replay_mapper.TrajMapper],
-) -> Callable[
-    [gym.Env, core.PyPolicy, int],
-    Generator[core.TrajectoryStep, None, None],
-]:
+) -> core.GeneratesEpisode:
     """
     Creates a function that transform trajectory events a provided
     `mapper`.

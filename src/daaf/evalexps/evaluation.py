@@ -3,19 +3,18 @@ In this module, we can do on-policy evaluation with
 delayed aggregate feedback - for tabular problems.
 """
 
-import copy
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Iterator, Optional, Set
+from typing import Any, Iterator, Mapping, Optional, Set
 
-import gymnasium as gym
 import numpy as np
-from rlplg import core, envplay
+from rlplg import core
 from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import policies, policyeval
 
 from daaf import constants, expconfig, options, task, utils
+from daaf.evalexps import methods
 
 
 def run_fn(experiment_task: expconfig.ExperimentTask):
@@ -53,6 +52,13 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         learnign_args=experiment_task.experiment.learning_args,
         generate_steps_fn=task.create_generate_episode_fn(mappers=traj_mappers),
     )
+    env_info: Mapping[str, Any] = {
+        "env": {
+            "name": env_spec.name,
+            "level": env_spec.level,
+            "args": json.dumps(experiment_task.experiment.env_config.args),
+        },
+    }
     with utils.ExperimentLogger(
         log_dir=experiment_task.run_config.output_dir,
         exp_id=experiment_task.exp_id,
@@ -61,11 +67,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
             **dataclasses.asdict(experiment_task.experiment.daaf_config),
             **dataclasses.asdict(experiment_task.experiment.learning_args),
             **experiment_task.context,
-            "env": {
-                "name": env_spec.name,
-                "level": env_spec.level,
-                "args": json.dumps(experiment_task.experiment.env_config.args),
-            },
+            **env_info,
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
@@ -102,17 +104,14 @@ def evaluate_policy(
     num_episodes: int,
     algorithm: str,
     learnign_args: expconfig.LearningArgs,
-    generate_steps_fn: Callable[
-        [gym.Env, core.PyPolicy, int],
-        Generator[core.TrajectoryStep, None, None],
-    ],
+    generate_steps_fn: core.GeneratesEpisode,
 ) -> Iterator[policyeval.PolicyEvalSnapshot]:
     """
     Runs policy evaluation with given algorithm, env, and policy spec.
     """
     initial_state_values = create_initial_values(env_spec.mdp.env_desc.num_states)
     if algorithm == constants.ONE_STEP_TD:
-        return policyeval.onpolicy_one_step_td_state_values(
+        yield from policyeval.onpolicy_one_step_td_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -133,7 +132,7 @@ def evaluate_policy(
             daaf_config.traj_mapping_method
             == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER
         ):
-            return nstep_td_state_values_on_aggregate_start_steps(
+            yield from methods.nstep_td_state_values_on_aggregate_start_steps(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
@@ -147,7 +146,7 @@ def evaluate_policy(
                 initial_values=initial_state_values,
                 generate_episode=generate_steps_fn,
             )
-        return policyeval.onpolicy_nstep_td_state_values(
+        yield from policyeval.onpolicy_nstep_td_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -163,7 +162,7 @@ def evaluate_policy(
         )
 
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
-        return policyeval.onpolicy_first_visit_monte_carlo_state_values(
+        yield from policyeval.onpolicy_first_visit_monte_carlo_state_values(
             policy=policy,
             environment=env_spec.environment,
             num_episodes=num_episodes,
@@ -195,79 +194,6 @@ def create_initial_values(
         vtable[list(terminal_states or [])] = 0.0
         return vtable.astype(dtype)
     return np.zeros(shape=(num_states,), dtype=dtype)
-
-
-def nstep_td_state_values_on_aggregate_start_steps(
-    policy: core.PyPolicy,
-    environment: gym.Env,
-    num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
-    gamma: float,
-    nstep: int,
-    state_id_fn: Callable[[Any], int],
-    initial_values: np.ndarray,
-    generate_episode: Callable[
-        [
-            gym.Env,
-            core.PyPolicy,
-        ],
-        Generator[core.TrajectoryStep, None, None],
-    ] = envplay.generate_episode,
-) -> Generator[policyeval.PolicyEvalSnapshot, None, None]:
-    """
-    n-step TD learning.
-    Estimates V(s) for a fixed policy pi.
-    Source: https://en.wikipedia.org/wiki/Temporal_difference_learning
-
-    Args:
-        policy: A target policy, pi, whose value function we wish to evaluate.
-        environment: The environment used to generate episodes for evaluation.
-        num_episodes: The number of episodes to generate for evaluation.
-        lrs: The learning rate schedule.
-        gamma: The discount rate.
-        state_id_fn: A function that maps observations to an int ID for
-            the V(s) table.
-        initial_values: Initial state-value estimates.
-        generate_episodes: A function that generates episodic
-            trajectories given an environment and policy.
-
-    Yields:
-        A tuple of steps (count) and v-table.
-
-    Note: the first reward (in the book) is R_{1} for R_{0 + 1};
-    So index wise, we subtract reward access references by one.
-    """
-    values = copy.deepcopy(initial_values)
-    steps_counter = 0
-    for episode in range(num_episodes):
-        # This can be memory intensive, for long episodes and large state/action representations.
-        # TODO: refactor - memory efficiency
-        experiences = list(generate_episode(environment, policy))
-        final_step = np.iinfo(np.int64).max
-        for step, _ in enumerate(experiences):
-            if step < final_step:
-                if experiences[step + 1].terminated or experiences[step + 1].truncated:
-                    final_step = step + 1
-            tau = step - nstep + 1
-            if tau >= 0 and experiences[tau].info["ok_nstep_tau"]:
-                min_idx = tau + 1
-                max_idx = min(tau + nstep, final_step)
-                returns = 0.0
-
-                for i in range(min_idx, max_idx + 1):
-                    returns += (gamma ** (i - tau - 1)) * experiences[i - 1].reward
-                if tau + nstep < final_step:
-                    returns += (gamma**nstep) * values[
-                        state_id_fn(experiences[tau + nstep].observation),
-                    ]
-                state_id = state_id_fn(experiences[tau].observation)
-                alpha = lrs(episode=episode, step=steps_counter)
-                values[state_id] += alpha * (returns - values[state_id])
-            steps_counter += 1
-        # need to copy qtable because it's a mutable numpy array
-        yield policyeval.PolicyEvalSnapshot(
-            steps=len(experiences), values=copy.deepcopy(values)
-        )
 
 
 def create_eval_policy(

@@ -129,7 +129,7 @@ def parse_experiment_configs(
             learning_rate=entry.pop("learning_rate"),
             discount_factor=entry.pop("discount_factor"),
         )
-        daaf_config = DaafConfig(**entry)
+        daaf_config = DaafConfig(**entry)  # type: ignore
         configs.append((daaf_config, learning_args))
     return tuple(configs)
 

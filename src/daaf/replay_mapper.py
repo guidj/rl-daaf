@@ -9,7 +9,7 @@ import abc
 import copy
 import dataclasses
 import logging
-from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, Iterator, Optional, Sequence, Set, Tuple
 
 import numpy as np
 from rlplg import core
