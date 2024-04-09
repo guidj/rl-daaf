@@ -3,8 +3,9 @@ In this module, we can do on-policy evaluation with
 delayed aggregate feedback - for tabular problems.
 """
 
+import collections
 import copy
-from typing import Dict, Generator
+from typing import DefaultDict, Dict, Generator, List
 
 import gymnasium as gym
 import numpy as np
@@ -85,6 +86,87 @@ def onpolicy_one_step_td_state_values_only_aggregate_updates(
         # need to copy values because it's a mutable numpy array
         yield policyeval.PolicyEvalSnapshot(
             steps=traj_step_idx, values=copy.deepcopy(values)
+        )
+
+
+def onpolicy_first_visit_monte_carlo_state_values_only_aggregate_updates(
+    policy: core.PyPolicy,
+    environment: gym.Env,
+    num_episodes: int,
+    gamma: float,
+    state_id_fn: MapsToIntId,
+    initial_values: np.ndarray,
+    generate_episode: core.GeneratesEpisode = envplay.generate_episode,
+) -> Generator[policyeval.PolicyEvalSnapshot, None, None]:
+    """
+    First-Visit Monte Carlo Prediction.
+    Estimates V(s) for a fixed policy pi.
+    Source: http://www.incompleteideas.net/book/ebook/node51.html
+
+    Args:
+        policy: A target policy, pi, whose value function we wish to evaluate.
+        environment: The environment used to generate episodes for evaluation.
+        num_episodes: The number of episodes to generate for evaluation.
+        gamma: The discount rate.
+        state_id_fn: A function that maps observations to an int ID for
+            the V(s) table.
+        initial_values: Initial state-value estimates.
+        generate_episode: A function that generates episodic
+            trajectories given an environment and policy.
+
+    Yields:
+        A tuple of steps (count) and v-table.
+
+    Note: the first reward (in Sutton & Barto, 2018) is R_{1} for R_{0 + 1};
+    So index wise, we subtract them all by one.
+    """
+    values = copy.deepcopy(initial_values)
+    state_updates: DefaultDict[int, int] = collections.defaultdict(int)
+    state_visits: DefaultDict[int, int] = collections.defaultdict(int)
+
+    for _ in range(num_episodes):
+        # This can be memory intensive, for long episodes and large state/action representations.
+        experiences_ = list(generate_episode(environment, policy))
+        num_steps = len(experiences_)
+        # reverse list and ammortize state visits
+        experiences: List[core.TrajectoryStep] = []
+        while len(experiences_) > 0:
+            experience = experiences_.pop()
+            state_visits[state_id_fn(experience.observation)] += 1
+            experiences.append(experience)
+
+        episode_return = np.nan
+        while True:
+            try:
+                # delete what we no longer need
+                experience = experiences.pop(0)
+            except IndexError:
+                break
+            state_id = state_id_fn(experience.observation)
+            reward = experience.reward
+            # update return
+            if experience.info["imputed"] is False:
+                if np.isnan(episode_return):
+                    episode_return = 0.0
+                episode_return = gamma * episode_return + reward
+            state_visits[state_id] -= 1
+
+            # no feedback; no updates
+            if np.isnan(episode_return):
+                continue
+            if state_visits[state_id] == 0:
+                if state_updates[state_id] == 0:
+                    # first value
+                    values[state_id] = episode_return
+                else:
+                    values[state_id] = values[state_id] + (
+                        (episode_return - values[state_id]) / state_updates[state_id]
+                    )
+                state_updates[state_id] += 1
+
+        # need to copy values because it's a mutable numpy array
+        yield policyeval.PolicyEvalSnapshot(
+            steps=num_steps, values=copy.deepcopy(values)
         )
 
 
