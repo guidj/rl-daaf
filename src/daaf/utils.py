@@ -9,12 +9,14 @@ import json
 import logging
 import math
 import os.path
+import tempfile
 import types
 import uuid
 from typing import (
     Any,
     Callable,
     Dict,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -104,6 +106,82 @@ class ExperimentLogger(contextlib.AbstractContextManager):
         if self._writer is None:
             raise RuntimeError("File is not opened")
         self._writer.write(f"{json.dumps(entry)}\n")
+
+
+class TrajFileBuffer(contextlib.AbstractContextManager):
+    """
+    Saves a trajectory to file storage
+    and streams from it.
+    """
+
+    def __init__(self, path: Optional[str] = None, write_buffer_size: int = 1024 * 10):
+        if path is None:
+            path = os.path.join(tempfile.gettempdir(), str(uuid.uuid4()))
+        self.path = path
+        self.write_buffer_size = write_buffer_size
+        self.num_steps = 0
+        self.num_parts = 0
+
+    def open(self):
+        tf.io.gfile.makedirs(self.path)
+
+    def close(self) -> None:
+        """
+        Clean up resources.
+        """
+
+        if tf.io.gfile.exists(self.path):
+            tf.io.gfile.rmtree(self.path)
+
+    def __enter__(self) -> "TrajFileBuffer":
+        self.open()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        traceback: Optional[types.TracebackType],
+    ) -> None:
+        self.close()
+        super().__exit__(exc_type, exc_value, traceback)
+
+    def save(self, trajectory: Iterator[core.TrajectoryStep]) -> None:
+        """
+        Logs an experiment entry for an episode.
+        """
+        write_buffer = []
+        part = 0
+        for traj_step in trajectory:
+            entry = dataclasses.asdict(traj_step)
+            write_buffer.append(json.dumps(entry))
+            self.num_steps += 1
+            if len(write_buffer) >= self.write_buffer_size:
+                with tf.io.gfile.GFile(
+                    os.path.join(self.path, str(part)), "w"
+                ) as writable:
+                    writable.write("\n".join(write_buffer))
+                    writable.write("\n")
+                    write_buffer = []
+                    part += 1
+        if len(write_buffer) >= 0:
+            with tf.io.gfile.GFile(os.path.join(self.path, str(part)), "w") as writable:
+                writable.write("\n".join(write_buffer))
+                writable.write("\n")
+                part += 1
+        self.num_parts = part
+
+    def stream(self) -> Iterator[core.TrajectoryStep]:
+        """
+        Logs an experiment entry for an episode.
+        """
+        for part in range(self.num_parts):
+            # if tf.io.gfile.exists(self.path):
+            with tf.io.gfile.GFile(os.path.join(self.path, str(part)), "r") as readable:
+                for line in readable:
+                    yield dataclass_from_dict(
+                        core.TrajectoryStep, data=json.loads(line)
+                    )
 
 
 class DynaProgStateValueIndex:

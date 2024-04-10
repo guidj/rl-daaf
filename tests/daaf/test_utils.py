@@ -3,11 +3,11 @@ import os.path
 import tempfile
 
 import pytest
-
 from daaf import utils
+from rlplg import core
 
 
-def test_experiment_logger():
+def test_experimentlogger():
     with tempfile.TemporaryDirectory() as tempdir:
         params = {"param-1": 1, "param-2": "z"}
         with utils.ExperimentLogger(
@@ -43,7 +43,7 @@ def test_experiment_logger():
             assert output_logs == expected_output
 
 
-def test_experiment_logger_with_logging_uninitialized():
+def test_experimentlogger_with_logging_uninitialized():
     with tempfile.TemporaryDirectory() as tempdir:
         params = {"param-1": 1, "param-2": "z"}
         experiment_logger = utils.ExperimentLogger(
@@ -54,7 +54,7 @@ def test_experiment_logger_with_logging_uninitialized():
             experiment_logger.log(episode=1, steps=10, returns=100)
 
 
-def test_experiment_logger_with_nonexisitng_dir():
+def test_experimentlogger_with_nonexisitng_dir():
     with tempfile.TemporaryDirectory() as tempdir:
         params = {"param-1": 1, "param-2": "z"}
         log_dir = os.path.join(tempdir, "subdir")
@@ -89,6 +89,43 @@ def test_experiment_logger_with_nonexisitng_dir():
             ]
             output_logs = [json.loads(line) for line in readable]
             assert output_logs == expected_output
+
+
+def test_trajfilebuffer_init():
+    trajectory = [
+        core.TrajectoryStep(
+            0, 0, policy_info={}, terminated=False, truncated=False, reward=1.0, info={}
+        ),
+        core.TrajectoryStep(
+            0, 1, policy_info={}, terminated=False, truncated=False, reward=1.0, info={}
+        ),
+        core.TrajectoryStep(
+            0,
+            1,
+            policy_info={},
+            terminated=False,
+            truncated=False,
+            reward=1.0,
+            info={"string_key": "value", "int_key": 8, "float_key": 1.67},
+        ),
+        core.TrajectoryStep(
+            1,
+            1,
+            policy_info={"imputed": False},
+            terminated=False,
+            truncated=False,
+            reward=1.0,
+            info={"string_key": "value", "int_key": 8, "float_key": 1.67},
+        ),
+    ]
+    with utils.TrajFileBuffer() as buffer:
+        assert os.path.exists(buffer.path) is False
+        buffer.save(trajectory)
+        assert os.path.exists(buffer.path)
+        output = list(buffer.stream())
+        assert output == trajectory
+        output = list(buffer.stream())
+        assert output == trajectory
 
 
 def test_partition():
