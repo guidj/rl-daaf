@@ -200,7 +200,6 @@ def parse_args() -> ControlPipelineArgs:
     arg_parser.add_argument("--assets-dir", type=str, required=True)
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
-    arg_parser.add_argument("--metrics-last-k-episodes", type=int, required=True)
     arg_parser.add_argument("--task-prefix", type=str, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
     known_args, unknown_args = arg_parser.parse_known_args()
