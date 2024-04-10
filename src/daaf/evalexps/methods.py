@@ -1,6 +1,6 @@
 """
-In this module, we can do on-policy evaluation with
-delayed aggregate feedback - for tabular problems.
+This modules has baseline methods for
+policy evaluation with DAAF.
 """
 
 import collections

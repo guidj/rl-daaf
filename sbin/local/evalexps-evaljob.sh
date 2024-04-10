@@ -13,5 +13,4 @@ python $PARENT_DIR/src/daaf/evalexps/evaljob.py \
     --assets-dir=$HOME/fs/daaf/assets \
     --output-dir=$HOME/fs/daaf/exp/evaljob/logs/$TIMESTAMP \
     --task-prefix $TIMESTAMP \
-    --log-episode-frequency=10 \
-    --metrics-last-k-episodes=100
+    --log-episode-frequency=10

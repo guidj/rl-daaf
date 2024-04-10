@@ -28,7 +28,6 @@ class EvalPipelineArgs:
     assets_dir: str
     output_dir: str
     log_episode_frequency: int
-    metrics_last_k_episodes: int
     task_prefix: str
     # ray args
     cluster_uri: Optional[str]
@@ -54,7 +53,6 @@ def main(args: EvalPipelineArgs):
             output_dir=args.output_dir,
             task_prefix=args.task_prefix,
             log_episode_frequency=args.log_episode_frequency,
-            metrics_last_k_episodes=args.metrics_last_k_episodes,
         )
 
         # since ray tracks objectref items
@@ -84,7 +82,6 @@ def create_tasks(
     output_dir: str,
     task_prefix: str,
     log_episode_frequency: int,
-    metrics_last_k_episodes: int,
 ) -> Sequence[Tuple[ray.ObjectRef, expconfig.ExperimentTask]]:
     """
     Runs numerical experiments on policy evaluation.
@@ -105,7 +102,6 @@ def create_tasks(
             run_config=expconfig.RunConfig(
                 num_episodes=num_episodes,
                 log_episode_frequency=log_episode_frequency,
-                metrics_last_k_episodes=metrics_last_k_episodes,
                 output_dir=output_dir,
             ),
             experiments_and_context=experiments_and_context,
