@@ -9,7 +9,7 @@ import copy
 import dataclasses
 import logging
 import os.path
-from typing import Any, Mapping, Optional, Sequence, Tuple
+from typing import Any, Mapping, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -28,28 +28,6 @@ class PipelineArgs:
 
     input_dir: str
     output_dir: str
-
-
-@dataclasses.dataclass(frozen=True)
-class StatTest:
-    """
-    Outputs of a statistical test.
-    """
-
-    statistic: float
-    pvalue: float
-
-
-@dataclasses.dataclass(frozen=True)
-class MetricStat:
-    """
-    Statics over a metric.
-    """
-
-    mean: float
-    stddev: float
-    stderr: Optional[float]
-    normal_test: Optional[StatTest]
 
 
 class ReturnsAggretator(aggregate.AggregateFn):
