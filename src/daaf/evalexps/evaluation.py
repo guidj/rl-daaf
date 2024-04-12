@@ -88,7 +88,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
                         },
                     )
 
-            logging.info(
+            logging.debug(
                 "\nEstimated values run %d of %s:\n%s",
                 experiment_task.run_id,
                 experiment_task.exp_id,
