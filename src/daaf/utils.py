@@ -122,9 +122,6 @@ class TrajFileBuffer(contextlib.AbstractContextManager):
         self.num_steps = 0
         self.num_parts = 0
 
-    def open(self):
-        tf.io.gfile.makedirs(self.path)
-
     def close(self) -> None:
         """
         Clean up resources.
@@ -134,7 +131,6 @@ class TrajFileBuffer(contextlib.AbstractContextManager):
             tf.io.gfile.rmtree(self.path)
 
     def __enter__(self) -> "TrajFileBuffer":
-        self.open()
         return self
 
     def __exit__(
@@ -150,33 +146,34 @@ class TrajFileBuffer(contextlib.AbstractContextManager):
         """
         Logs an experiment entry for an episode.
         """
+        if not tf.io.gfile.exists(self.path):
+            tf.io.gfile.makedirs(self.path)
         write_buffer = []
-        part = 0
         for traj_step in trajectory:
             entry = dataclasses.asdict(traj_step)
             write_buffer.append(json.dumps(entry))
             self.num_steps += 1
             if len(write_buffer) >= self.write_buffer_size:
                 with tf.io.gfile.GFile(
-                    os.path.join(self.path, str(part)), "w"
+                    os.path.join(self.path, str(self.num_parts)), "w"
                 ) as writable:
                     writable.write("\n".join(write_buffer))
                     writable.write("\n")
                     write_buffer = []
-                    part += 1
+                    self.num_parts += 1
         if len(write_buffer) >= 0:
-            with tf.io.gfile.GFile(os.path.join(self.path, str(part)), "w") as writable:
+            with tf.io.gfile.GFile(
+                os.path.join(self.path, str(self.num_parts)), "w"
+            ) as writable:
                 writable.write("\n".join(write_buffer))
                 writable.write("\n")
-                part += 1
-        self.num_parts = part
+                self.num_parts += 1
 
     def stream(self) -> Iterator[core.TrajectoryStep]:
         """
         Logs an experiment entry for an episode.
         """
         for part in range(self.num_parts):
-            # if tf.io.gfile.exists(self.path):
             with tf.io.gfile.GFile(os.path.join(self.path, str(part)), "r") as readable:
                 for line in readable:
                     yield dataclass_from_dict(

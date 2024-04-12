@@ -3,8 +3,9 @@ import os.path
 import tempfile
 
 import pytest
-from daaf import utils
 from rlplg import core
+
+from daaf import utils
 
 
 def test_experimentlogger():
