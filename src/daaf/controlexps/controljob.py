@@ -125,7 +125,7 @@ def create_tasks(
     )
     results_refs = []
     for batch in experiment_batches:
-        result_ref = evaluate.remote(batch)
+        result_ref = run_experiments.remote(batch)
         results_refs.append((batch, result_ref))
     return results_refs
 
@@ -170,9 +170,11 @@ def add_experiment_context(
 
 
 @ray.remote
-def evaluate(experiments_batch: Sequence[expconfig.ExperimentTask]) -> Sequence[str]:
+def run_experiments(
+    experiments_batch: Sequence[expconfig.ExperimentTask],
+) -> Sequence[str]:
     """
-    Runs evaluation.
+    Run experiments.
     """
     ids: List[str] = []
     for experiment_task in experiments_batch:
