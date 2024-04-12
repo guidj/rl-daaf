@@ -1,16 +1,18 @@
 """
-Module contains job to run policy evaluation with replay mappers.
+This module contains components for policy evaluation
+with delayed aggregate and anonymous feedback,
+for tabular problems.
 """
 
 import argparse
 import dataclasses
 import logging
 import random
-from typing import Any, Mapping, Optional, Sequence, Tuple
+from typing import Any, List, Mapping, Optional, Sequence, Tuple
 
 import ray
 
-from daaf import expconfig, task, utils
+from daaf import constants, expconfig, task, utils
 from daaf.evalexps import evaluation
 
 
@@ -28,7 +30,6 @@ class EvalPipelineArgs:
     assets_dir: str
     output_dir: str
     log_episode_frequency: int
-    metrics_last_k_episodes: int
     task_prefix: str
     # ray args
     cluster_uri: Optional[str]
@@ -54,7 +55,6 @@ def main(args: EvalPipelineArgs):
             output_dir=args.output_dir,
             task_prefix=args.task_prefix,
             log_episode_frequency=args.log_episode_frequency,
-            metrics_last_k_episodes=args.metrics_last_k_episodes,
         )
 
         # since ray tracks objectref items
@@ -84,7 +84,6 @@ def create_tasks(
     output_dir: str,
     task_prefix: str,
     log_episode_frequency: int,
-    metrics_last_k_episodes: int,
 ) -> Sequence[Tuple[ray.ObjectRef, expconfig.ExperimentTask]]:
     """
     Runs numerical experiments on policy evaluation.
@@ -105,7 +104,6 @@ def create_tasks(
             run_config=expconfig.RunConfig(
                 num_episodes=num_episodes,
                 log_episode_frequency=log_episode_frequency,
-                metrics_last_k_episodes=metrics_last_k_episodes,
                 output_dir=output_dir,
             ),
             experiments_and_context=experiments_and_context,
@@ -115,17 +113,21 @@ def create_tasks(
     )
     # shuffle tasks to balance workload
     experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))  # type: ignore
+    # bundle tasks
+    experiment_batches = utils.bundle(
+        experiment_tasks, bundle_size=constants.DEFAULT_BATCH_SIZE
+    )
     logging.info(
         "Parsed %d DAAF configs and %d environments into %d tasks",
         len(experiment_configs),
         len(envs_configs),
-        len(experiment_tasks),
+        len(experiment_batches),
     )
-    futures = []
-    for exp_task in experiment_tasks:
-        future = evaluate.remote(exp_task)
-        futures.append((exp_task, future))
-    return futures
+    results_refs = []
+    for batch in experiment_batches:
+        result_ref = run_experiments.remote(batch)
+        results_refs.append((batch, result_ref))
+    return results_refs
 
 
 def add_experiment_context(
@@ -168,15 +170,24 @@ def add_experiment_context(
 
 
 @ray.remote
-def evaluate(experiment_task: expconfig.ExperimentTask) -> str:
+def run_experiments(
+    experiments_batch: Sequence[expconfig.ExperimentTask],
+) -> Sequence[str]:
     """
-    Runs evaluation.
+    Runs experiments.
     """
-    task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
-    logging.info("Experiment %s starting: %s", task_id, experiment_task)
-    evaluation.run_fn(experiment_task)
-    logging.info("Experiment %s finished", task_id)
-    return task_id
+    ids: List[str] = []
+    for experiment_task in experiments_batch:
+        task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
+        logging.debug(
+            "Experiment %s starting: %s",
+            task_id,
+            experiment_task,
+        )
+        evaluation.run_fn(experiment_task)
+        ids.append(task_id)
+        logging.debug("Experiment %s finished", task_id)
+    return ids
 
 
 def parse_args() -> EvalPipelineArgs:
@@ -191,7 +202,6 @@ def parse_args() -> EvalPipelineArgs:
     arg_parser.add_argument("--assets-dir", type=str, required=True)
     arg_parser.add_argument("--output-dir", type=str, required=True)
     arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
-    arg_parser.add_argument("--metrics-last-k-episodes", type=int, required=True)
     arg_parser.add_argument("--task-prefix", type=str, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
     known_args, unknown_args = arg_parser.parse_known_args()

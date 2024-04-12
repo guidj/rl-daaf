@@ -10,7 +10,7 @@ import dataclasses
 import json
 import logging
 import os.path
-from typing import Any, Dict, Mapping, Optional, Sequence
+from typing import Any, Dict, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -33,28 +33,6 @@ class PipelineArgs:
 
     input_dir: str
     output_dir: str
-
-
-@dataclasses.dataclass(frozen=True)
-class StatTest:
-    """
-    Outputs of a statistical test.
-    """
-
-    statistic: float
-    pvalue: float
-
-
-@dataclasses.dataclass(frozen=True)
-class MetricStat:
-    """
-    Statics over a metric.
-    """
-
-    mean: float
-    stddev: float
-    stderr: Optional[float]
-    normal_test: Optional[StatTest]
 
 
 class StateValueAggretator(aggregate.AggregateFn):
@@ -247,10 +225,7 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
     def calc_metrics(y_preds, y_true, axis):
         mae = estimator_metrics.mean_absolute_error(y_preds, y_true, axis=axis)
         rmse = estimator_metrics.rmse(y_preds, y_true, axis=axis)
-        return {
-            "mae": {"mean": np.mean(mae), "std": np.std(mae)},
-            "rmse": {"mean": np.mean(rmse), "std": np.std(rmse)},
-        }
+        return {"mae": mae.tolist(), "rmse": rmse.tolist()}
 
     def calc_policy_metrics(env_def, gamma, y_preds, y_true):
         env_spec = envsuite.load(env_def["name"], **json.loads(env_def["args"]))
@@ -266,7 +241,7 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
             )
             best_actions = np.argmax(action_values, axis=1)
             results.append(np.mean(best_actions == dyna_best_actions))
-        return {"pi_equi": {"mean": np.mean(results), "std": np.std(results)}}
+        return {"pi_equi": results}
 
     def apply(row):
         y_preds = row["state_values"]

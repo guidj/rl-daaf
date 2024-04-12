@@ -517,7 +517,7 @@ rfc3986-validator==0.1.1
     # via
     #   jsonschema
     #   jupyter-events
-rlplg @ git+https://github.com/guidj/rlplg.git@v0.19.8
+rlplg @ git+https://github.com/guidj/rlplg.git@v0.19.9
     # via -r requirements.txt
 rsa==4.9
     # via

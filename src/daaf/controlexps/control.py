@@ -1,6 +1,7 @@
 """
-In this module, we can do on-policy evaluation with
-delayed aggregate feedback - for tabular problems.
+This module contains components for policy control
+with delayed aggregate and anonymous feedback,
+for tabular problems.
 """
 
 import dataclasses

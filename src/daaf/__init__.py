@@ -1,5 +1,5 @@
 __author__ = "guilherme"
-__version__ = "0.15.1"
+__version__ = "0.15.2"
 __email__ = "guilherme@dsv.su.se"
 __description__ = "RL DAAF experiments"
 __uri__ = "https://github.com/dsv-data-science/rl-daaf"

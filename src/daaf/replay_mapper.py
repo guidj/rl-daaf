@@ -391,6 +391,7 @@ class DaafDropEpisodeWithTruncatedFeedbackMapper(TrajMapper):
         Args:
             trajectory: A iterator of trajectory steps.
         """
+        # this can be memory intensive
         traj_steps = list(trajectory)
         if len(traj_steps) % self.reward_period == 0:
             yield from traj_steps

@@ -57,7 +57,6 @@ class RunConfig:
 
     num_episodes: int
     log_episode_frequency: int
-    metrics_last_k_episodes: int
     output_dir: str
 
 
