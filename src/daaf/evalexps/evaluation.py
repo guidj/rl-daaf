@@ -78,10 +78,11 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
             for episode, snapshot in enumerate(results):
                 state_values = snapshot.values
                 if episode % experiment_task.run_config.log_episode_frequency == 0:
+                    mean_returns = np.mean(returns_collector.traj_returns)
                     exp_logger.log(
                         episode=episode,
                         steps=snapshot.steps,
-                        returns=returns_collector.traj_returns[-1],
+                        returns=mean_returns,
                         info={
                             "state_values": state_values.tolist(),
                         },
