@@ -64,7 +64,10 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
         exp_id=experiment_task.exp_id,
         run_id=experiment_task.run_id,
         params={
-            **dataclasses.asdict(experiment_task.experiment.daaf_config),
+            **utils.json_from_dict(
+                dataclasses.asdict(experiment_task.experiment.daaf_config),
+                dict_encode_level=0,
+            ),
             **dataclasses.asdict(experiment_task.experiment.learning_args),
             **experiment_task.context,
             **env_info,
