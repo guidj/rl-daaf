@@ -1,5 +1,7 @@
 """
-Module contains job to run policy evaluation with replay mappers.
+This module contains components for policy evaluation
+with delayed aggregate and anonymous feedback,
+for tabular problems.
 """
 
 import argparse
