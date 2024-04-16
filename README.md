@@ -4,12 +4,9 @@ Code for experiments on RL policy evaluation with delayed, aggregated and anonym
 
 
 Contains
-  - Algorithms implementation (ZI-M, LEAST...)
+  - Algorithms for policy control with DAAF
+  - Algorithms for policy evaluation with DAAF
   - Notebooks with analysis results
-
-Missing
-  - Pipeline that aggregates results from multiple results (output is used in notebooks)
-
 
 ## Dev Env
 First, make sure the following python development tools are installed:
