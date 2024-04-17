@@ -130,6 +130,71 @@ def test_daaf_impute_missing_reward_mapper_apply():
         assert_trajectory(output=output, expected=expected)
 
 
+@hypothesis.given(reward_period=st.integers(min_value=2))
+def test_daaf_trajectory_mapper_init(
+    reward_period: int,
+):
+    mapper = replay_mapper.DaafTrajectoryMapper(reward_period=reward_period)
+    assert mapper.reward_period == reward_period
+
+
+@hypothesis.given(reward_period=st.integers(max_value=0))
+def test_daaf_trajectory_mapper_init_with_invalid_reward_period(reward_period: int):
+    with pytest.raises(ValueError):
+        replay_mapper.DaafTrajectoryMapper(reward_period=reward_period)
+
+
+def test_daaf_trajectory_mapper_apply():
+    mapper = replay_mapper.DaafTrajectoryMapper(reward_period=2)
+
+    inputs = [
+        traj_step(state=0, action=0, reward=-1.0, prob=0.3),
+        traj_step(state=1, action=1, reward=-7.0, prob=0.8),
+        traj_step(
+            state=0,
+            action=0,
+            reward=3.0,
+            prob=0.3,
+            info={"prior": "entry"},
+        ),
+        traj_step(state=1, action=1, reward=6.0, prob=0.8, truncated=True),
+        traj_step(state=1, action=1, reward=11.0, prob=0.9, terminated=True),
+    ]
+
+    expectactions = [
+        traj_step(state=0, action=0, reward=np.nan, prob=0.3, info={"imputed": True}),
+        traj_step(state=1, action=1, reward=-8.0, prob=0.8, info={"imputed": False}),
+        traj_step(
+            state=0,
+            action=0,
+            reward=np.nan,
+            prob=0.3,
+            info={"imputed": True, "prior": "entry"},
+        ),
+        traj_step(
+            state=1,
+            action=1,
+            reward=9.0,
+            prob=0.8,
+            truncated=True,
+            info={"imputed": False},
+        ),
+        traj_step(
+            state=1,
+            action=1,
+            reward=np.nan,
+            prob=0.9,
+            terminated=True,
+            info={"imputed": True},
+        ),
+    ]
+
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 5
+    for output, expected in zip(outputs, expectactions):
+        assert_trajectory(output=output, expected=expected)
+
+
 def test_daaf_lsq_reward_attribution_mapper_init():
     rtable = [[0, 1], [0, 1], [0, 1], [0, 1]]
     mapper = replay_mapper.DaafLsqRewardAttributionMapper(
