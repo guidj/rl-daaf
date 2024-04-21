@@ -114,9 +114,12 @@ def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
                 state_id = state_id_fn(experiences[tau].observation)
                 action_id = action_id_fn(experiences[tau].action)
                 alpha = lrs(episode=episode, step=steps_counter)
-                qtable[state_id, action_id] += alpha * (
-                    nstep_returns - qtable[state_id, action_id]
-                )
+                if experiences[tau].terminated:
+                    qtable[state_id, action_id] = 0.0
+                else:
+                    qtable[state_id, action_id] += alpha * (
+                        nstep_returns - qtable[state_id, action_id]
+                    )
                 # update the qtable before generating the
                 # next step in the trajectory
                 egreedy_policy.exploit_policy.set_action_values(qtable)
@@ -210,11 +213,14 @@ def onpolicy_sarsa_control_only_aggregate_updates(
                 next_state_id = state_id_fn(experiences[step + 1].observation)
                 next_action_id = action_id_fn(experiences[step + 1].action)
                 alpha = lrs(episode=episode, step=steps_counter)
-                qtable[state_id, action_id] += alpha * (
-                    reward
-                    + gamma * qtable[next_state_id, next_action_id]
-                    - qtable[state_id, action_id]
-                )
+                if experiences[step].terminated:
+                    qtable[state_id, action_id] = 0.0
+                else:
+                    qtable[state_id, action_id] += alpha * (
+                        reward
+                        + gamma * qtable[next_state_id, next_action_id]
+                        - qtable[state_id, action_id]
+                    )
                 # update the qtable before generating the
                 # next step in the trajectory
                 egreedy_policy.exploit_policy.set_action_values(qtable)
@@ -304,11 +310,14 @@ def onpolicy_qlearning_control_only_aggregate_updates(
                 alpha = lrs(episode=episode, step=steps_counter)
                 # Q-learning uses the next best action's
                 # value
-                qtable[state_id, action_id] += alpha * (
-                    reward
-                    + gamma * np.max(qtable[next_state_id])
-                    - qtable[state_id, action_id]
-                )
+                if experiences[step].terminated:
+                    qtable[state_id, action_id] = 0.0
+                else:
+                    qtable[state_id, action_id] += alpha * (
+                        reward
+                        + gamma * np.max(qtable[next_state_id])
+                        - qtable[state_id, action_id]
+                    )
                 # update the qtable before generating the
                 # next step in the trajectory
                 egreedy_policy.exploit_policy.set_action_values(qtable)
