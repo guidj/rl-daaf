@@ -7,7 +7,6 @@ runs from each experiment.
 import argparse
 import copy
 import dataclasses
-import json
 import logging
 import os.path
 from typing import Any, Dict, Mapping, Sequence
@@ -19,8 +18,6 @@ import ray.data
 import ray.data.datasource
 import tensorflow as tf
 from ray.data import aggregate
-from rlplg import envsuite
-from rlplg.learning.tabular import dynamicprog
 
 from daaf import estimator_metrics
 
@@ -227,38 +224,15 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
         rmse = estimator_metrics.rmse(y_preds, y_true, axis=axis)
         return {"mae": mae.tolist(), "rmse": rmse.tolist()}
 
-    def calc_policy_metrics(env_def, gamma, y_preds, y_true):
-        env_spec = envsuite.load(env_def["name"], **json.loads(env_def["args"]))
-        # just need to do it once for the solution
-        dyna_action_values = dynamicprog.action_values_from_state_values(
-            mdp=env_spec.mdp, state_values=y_true[0], gamma=gamma
-        )
-        dyna_best_actions = np.argmax(dyna_action_values, axis=1)
-        results = []
-        for idx in range(y_preds.shape[0]):
-            action_values = dynamicprog.action_values_from_state_values(
-                mdp=env_spec.mdp, state_values=y_preds[idx], gamma=gamma
-            )
-            best_actions = np.argmax(action_values, axis=1)
-            results.append(np.mean(best_actions == dyna_best_actions))
-        return {"pi_equi": results}
-
     def apply(row):
         y_preds = row["state_values"]
         y_true = np.tile(row["meta"]["dyna_prog_state_values"], reps=(len(y_preds), 1))
         over_runs_then_states = calc_metrics(y_preds=y_preds, y_true=y_true, axis=0)
         over_states_then_runs = calc_metrics(y_preds=y_preds, y_true=y_true, axis=1)
-        policy_equivalence = calc_policy_metrics(
-            row["meta"]["env"],
-            gamma=row["meta"]["discount_factor"],
-            y_preds=y_preds,
-            y_true=y_true,
-        )
         return {
             **row,
             "over_states_then_runs": over_states_then_runs,
             "over_runs_then_states": over_runs_then_states,
-            "policy_metrics": policy_equivalence,
         }
 
     return ds.map(apply)

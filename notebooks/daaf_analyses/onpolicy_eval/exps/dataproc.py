@@ -55,8 +55,10 @@ POLICY_NAMES = {"options": "OP", "single-step": "PP"}
 
 
 def read_data(files):
-    ds_metrics = ray.data.read_parquet(files)
-    df_metrics = ds_metrics.to_pandas()
+    with ray.init():
+        ds_metrics = ray.data.read_parquet(files)
+        df_metrics = ds_metrics.to_pandas()
+    del ds_metrics
     return process_data(df_metrics, envs_mapping=ENVS_MAPPING)
 
 

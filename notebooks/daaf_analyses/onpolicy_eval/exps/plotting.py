@@ -56,8 +56,20 @@ def plot_eval_result(
         & (df_data["episode"] <= max_episode)
         & (df_data["reward_period"] <= max_reward_period)
     )
-    df_result = copy.deepcopy(df_data[filter_mask])
-    df_result[metric_col] = df_result[metric_family].apply(lambda mp: mp[metric_col])
+    df_data = df_data[filter_mask]
+    metric_values = df_data[metric_family].apply(lambda mp: mp[metric_col])
+    df_result = copy.deepcopy(
+        df_data.drop(
+            columns=[
+                "state_values",
+                "over_states_then_runs",
+                "over_runs_then_states",
+                "policy_metrics",
+            ]
+        )
+    )
+    del df_data
+    df_result[metric_col] = metric_values
     df_result = df_result.explode(metric_col)
 
     def rename_env(env: str):
