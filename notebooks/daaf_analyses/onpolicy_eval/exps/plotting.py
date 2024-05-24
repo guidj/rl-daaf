@@ -131,4 +131,10 @@ def export_figure(
     base_dir = os.path.dirname(name)
     if not os.path.exists(base_dir):
         tf.io.gfile.makedirs(base_dir)
-    figure.savefig(f"{name}.{format}", dpi=dpi, format=format, transparent=transparent)
+    figure.savefig(
+        f"{name}.{format}",
+        dpi=dpi,
+        format=format,
+        transparent=transparent,
+        bbox_inches="tight",
+    )
