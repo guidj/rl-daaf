@@ -64,7 +64,6 @@ def plot_eval_result(
                 "state_values",
                 "over_states_then_runs",
                 "over_runs_then_states",
-                "policy_metrics",
             ]
         )
     )
