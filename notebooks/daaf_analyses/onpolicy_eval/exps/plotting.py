@@ -96,7 +96,6 @@ def plot_eval_result(
         )
         df_algo = df_result[df_result["A"] == algorithm]
         df_algo = df_algo.explode(metric_col.upper())
-
         reward_periods = sorted(df_algo["P"].unique())
         fig, axes = plt.subplots(
             nrows=1,
@@ -117,6 +116,7 @@ def plot_eval_result(
                 errorbar="sd",
                 dashes=DASHES,
             )
+            ax.legend(fontsize="small")
             title_template = ", ".join(
                 ["".join([rename_env(env), "(", level, ")"]), f"P = {reward_period}"]
             )
