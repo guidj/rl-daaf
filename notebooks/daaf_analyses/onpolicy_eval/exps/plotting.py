@@ -69,7 +69,6 @@ def plot_eval_result(
     )
     del df_data
     df_result[metric_col] = metric_values
-    df_result = df_result.explode(metric_col)
 
     def rename_env(env: str):
         try:
@@ -95,27 +94,34 @@ def plot_eval_result(
         name_prefix = "_".join(
             [str(token) for token in ["rc", algorithm, env, level, discount_factor]]
         )
-        df_plot = df_result[df_result["A"] == algorithm]
-        facet_grid = sns.relplot(
-            data=df_plot,
-            x="Episode",
-            y=metric_col.upper(),
-            col="P",
-            row="A",
-            hue="Method",
-            style="Method",
-            kind="line",
-            palette=METHODS_PALETTES,
-            errorbar="sd",
-            height=2,
-            dashes=DASHES,
+        df_algo = df_result[df_result["A"] == algorithm]
+        df_algo = df_algo.explode(metric_col.upper())
+
+        reward_periods = sorted(df_algo["P"].unique())
+        fig, axes = plt.subplots(
+            nrows=1,
+            ncols=len(reward_periods),
+            sharey=True,
+            figsize=(3 * len(reward_periods), 3),
         )
-        title_template = ", ".join([f"{rename_env(env)}({level})", "P = {col_name}"])
-        facet_grid.set_titles(title_template)
-        export_figure(
-            facet_grid.figure, os.path.join(output_dir, f"{name_prefix}_{suffix}")
-        )
-        plt.show()
+        for reward_period, ax in zip(reward_periods, axes.flatten()):
+            df_plot = df_algo[df_algo["P"] == reward_period]
+            plot = sns.lineplot(
+                data=df_plot,
+                ax=ax,
+                x="Episode",
+                y=metric_col.upper(),
+                hue="Method",
+                style="Method",
+                palette=METHODS_PALETTES,
+                errorbar="sd",
+                dashes=DASHES,
+            )
+            title_template = ", ".join(
+                ["".join([rename_env(env), "(", level, ")"]), f"P = {reward_period}"]
+            )
+            plot.set_title(title_template)
+            export_figure(fig, os.path.join(output_dir, f"{name_prefix}_{suffix}"))
 
 
 def export_figure(
