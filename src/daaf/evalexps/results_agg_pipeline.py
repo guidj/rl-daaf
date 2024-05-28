@@ -219,20 +219,41 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
     entry.
     """
 
-    def calc_metrics(y_preds, y_true, axis):
-        mae = estimator_metrics.mean_absolute_error(y_preds, y_true, axis=axis)
-        rmse = estimator_metrics.rmse(y_preds, y_true, axis=axis)
-        return {"mae": mae.tolist(), "rmse": rmse.tolist()}
+    def calc_vector_metrics(y_preds, y_true):
+        cosine_distance = estimator_metrics.cosine_distance(y_preds, v_true=y_true)
+        dotproduct = estimator_metrics.dotproduct(y_preds, v_true=y_true)
+        # cosine
+        # dot product
+        return {
+            "cosine_distance": cosine_distance.tolist(),
+            "dotproduct": dotproduct.tolist(),
+        }
+
+    def calc_state_metrics(y_preds, y_true, axis):
+        mae = estimator_metrics.mean_absolute_error(y_preds, v_true=y_true, axis=axis)
+        rmse = estimator_metrics.rmse(y_preds, v_true=y_true, axis=axis)
+        # cosine
+        # dot product
+        return {
+            "mae": mae.tolist(),
+            "rmse": rmse.tolist(),
+        }
 
     def apply(row):
         y_preds = row["state_values"]
         y_true = np.tile(row["meta"]["dyna_prog_state_values"], reps=(len(y_preds), 1))
-        over_runs_then_states = calc_metrics(y_preds=y_preds, y_true=y_true, axis=0)
-        over_states_then_runs = calc_metrics(y_preds=y_preds, y_true=y_true, axis=1)
+        over_runs_then_states = calc_state_metrics(
+            y_preds=y_preds, y_true=y_true, axis=0
+        )
+        over_states_then_runs = calc_state_metrics(
+            y_preds=y_preds, y_true=y_true, axis=1
+        )
+        vector_metrics = calc_vector_metrics(y_preds=y_preds, y_true=y_true)
         return {
             **row,
             "over_states_then_runs": over_states_then_runs,
             "over_runs_then_states": over_runs_then_states,
+            "vector_metrics": vector_metrics,
         }
 
     return ds.map(apply)
