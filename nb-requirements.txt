@@ -40,6 +40,8 @@ astunparse==1.6.3
     # via
     #   -r requirements.txt
     #   tensorflow
+async-lru==2.0.4
+    # via jupyterlab
 async-timeout==4.0.2
     # via
     #   -r requirements.txt
@@ -49,6 +51,8 @@ attrs==22.2.0
     #   -r requirements.txt
     #   aiohttp
     #   jsonschema
+babel==2.15.0
+    # via jupyterlab-server
 backcall==0.2.0
     # via ipython
 beautifulsoup4==4.11.2
@@ -189,12 +193,16 @@ importlib-metadata==6.0.0
     #   -r requirements.txt
     #   gymnasium
     #   jupyter-client
+    #   jupyter-lsp
+    #   jupyterlab
+    #   jupyterlab-server
     #   markdown
     #   nbconvert
 importlib-resources==5.12.0
     # via matplotlib
 ipykernel==6.21.3
     # via
+    #   jupyterlab
     #   nbclassic
     #   notebook
 ipython==8.11.0
@@ -214,15 +222,20 @@ jedi==0.18.2
 jinja2==3.1.2
     # via
     #   jupyter-server
+    #   jupyterlab
+    #   jupyterlab-server
     #   nbclassic
     #   nbconvert
     #   notebook
+json5==0.9.25
+    # via jupyterlab-server
 jsonpointer==2.4
     # via jsonschema
 jsonschema[format-nongpl]==4.17.3
     # via
     #   -r requirements.txt
     #   jupyter-events
+    #   jupyterlab-server
     #   nbformat
     #   ray
 jupyter-client==8.0.3
@@ -241,6 +254,7 @@ jupyter-core==5.2.0
     #   jupyter-contrib-core
     #   jupyter-nbextensions-configurator
     #   jupyter-server
+    #   jupyterlab
     #   nbclassic
     #   nbclient
     #   nbconvert
@@ -248,6 +262,8 @@ jupyter-core==5.2.0
     #   notebook
 jupyter-events==0.6.3
     # via jupyter-server
+jupyter-lsp==2.2.5
+    # via jupyterlab
 jupyter-nbextensions-configurator==0.6.3
     # via -r nb-requirements.in
 jupyter-resource-usage==0.7.2
@@ -255,13 +271,20 @@ jupyter-resource-usage==0.7.2
 jupyter-server==2.7.0
     # via
     #   -r nb-requirements.in
+    #   jupyter-lsp
     #   jupyter-resource-usage
+    #   jupyterlab
+    #   jupyterlab-server
     #   nbclassic
     #   notebook-shim
 jupyter-server-terminals==0.5.3
     # via jupyter-server
+jupyterlab==4.0.13
+    # via -r nb-requirements.in
 jupyterlab-pygments==0.2.2
     # via nbconvert
+jupyterlab-server==2.24.0
+    # via jupyterlab
 keras==2.13.1
     # via
     #   -r requirements.txt
@@ -327,7 +350,9 @@ notebook==6.5.4
     #   jupyter-contrib-core
     #   jupyter-nbextensions-configurator
 notebook-shim==0.2.2
-    # via nbclassic
+    # via
+    #   jupyterlab
+    #   nbclassic
 numpy==1.23.5
     # via
     #   -r requirements.txt
@@ -372,6 +397,8 @@ packaging==23.2
     #   -r requirements.txt
     #   ipykernel
     #   jupyter-server
+    #   jupyterlab
+    #   jupyterlab-server
     #   matplotlib
     #   nbconvert
     #   ray
@@ -495,6 +522,7 @@ requests==2.28.2
     # via
     #   -r requirements.txt
     #   google-api-core
+    #   jupyterlab-server
     #   ray
     #   requests-oauthlib
     #   tensorboard
@@ -580,6 +608,8 @@ terminado==0.17.1
     #   notebook
 tinycss2==1.2.1
     # via nbconvert
+tomli==2.0.1
+    # via jupyterlab
 tornado==6.2
     # via
     #   ipykernel
@@ -587,6 +617,7 @@ tornado==6.2
     #   jupyter-contrib-core
     #   jupyter-nbextensions-configurator
     #   jupyter-server
+    #   jupyterlab
     #   nbclassic
     #   notebook
     #   terminado
@@ -601,6 +632,7 @@ traitlets==5.9.0
     #   jupyter-events
     #   jupyter-nbextensions-configurator
     #   jupyter-server
+    #   jupyterlab
     #   matplotlib-inline
     #   nbclassic
     #   nbclient
@@ -612,6 +644,7 @@ types-python-dateutil==2.8.19.14
 typing-extensions==4.5.0
     # via
     #   -r requirements.txt
+    #   async-lru
     #   gymnasium
     #   pydantic
     #   tensorflow
