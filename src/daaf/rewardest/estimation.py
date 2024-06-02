@@ -1,3 +1,4 @@
+import itertools
 import logging
 from typing import Any, Mapping, Optional, Tuple
 
@@ -37,12 +38,13 @@ def estimate_reward(
     # collect data
     logging.info("Collecting data for %s", spec["name"])
     episode = 1
+    steps = 0
     yhat_lstsq: Optional[np.ndarray] = None
     yhat_ols_em: Optional[np.ndarray] = None
     meta: Mapping[str, Any] = {}
     while True:
         traj = envplay.generate_episode(env_spec.environment, policy=policy)
-        for _ in mapper.apply(traj):
+        for _, step in zip(mapper.apply(traj), itertools.count()):
             pass
 
         if (
@@ -56,6 +58,7 @@ def estimate_reward(
         if episode >= max_episodes:
             break
         episode += 1
+        steps += step + 1
 
     # estimate rewards
     if mapper._estimation_buffer.is_full_rank:
@@ -85,7 +88,8 @@ def estimate_reward(
     return {
         "least": yhat_lstsq,
         "ols_em": yhat_ols_em,
-        "episode": episode,
+        "episodes": episode,
+        "steps": steps,
         "full_rank": mapper._estimation_buffer.is_full_rank,
         "env_spec": spec,
         "reward_period": reward_period,
