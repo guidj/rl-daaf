@@ -39,6 +39,7 @@ def estimate_reward(
     episode = 1
     yhat_lstsq: Optional[np.ndarray] = None
     yhat_ols_em: Optional[np.ndarray] = None
+    meta: Mapping[str, Any] = {}
     while True:
         traj = envplay.generate_episode(env_spec.environment, policy=policy)
         for _ in mapper.apply(traj):
@@ -74,6 +75,7 @@ def estimate_reward(
             obs_matrix=mapper._estimation_buffer.matrix,
             agg_rewards=mapper._estimation_buffer.rhs,
         )
+        meta["ols_iters"] = iters
     else:
         logging.info(
             "Matrix is ill defined. Skipping reward estimation for %s: %s",
@@ -82,12 +84,13 @@ def estimate_reward(
         )
     return {
         "least": yhat_lstsq,
-        "ols-em": yhat_ols_em,
+        "ols_em": yhat_ols_em,
         "episode": episode,
         "full_rank": mapper._estimation_buffer.is_full_rank,
         "env_spec": spec,
         "reward_period": reward_period,
         "est_accuracy": accuracy,
+        "meta": meta,
     }
 
 

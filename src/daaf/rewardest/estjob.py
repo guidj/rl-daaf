@@ -14,8 +14,8 @@ import ray.data
 from daaf.rewardest import estimation
 
 ENV_SPECS = [
-    {"name": "ABCSeq", "args": {"length": 7}},
-    {"name": "ABCSeq", "args": {"length": 10}},
+    {"name": "ABCSeq", "args": {"length": 7, "distance_penalty": False}},
+    {"name": "ABCSeq", "args": {"length": 10, "distance_penalty": False}},
     {"name": "FrozenLake-v1", "args": {"is_slippery": False, "map_name": "4x4"}},
     {
         "name": "GridWorld",
@@ -33,7 +33,7 @@ ENV_SPECS = [
     {"name": "TowerOfHanoi", "args": {"num_disks": 5}},
 ]
 
-AGG_REWARD_PERIODS = [2, 4, 6]
+AGG_REWARD_PERIODS = [2, 4, 6, 8]
 
 EST_ACCURACY = 1e-8
 
