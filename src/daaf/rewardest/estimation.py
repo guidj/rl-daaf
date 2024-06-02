@@ -63,9 +63,10 @@ def estimate_reward(
     # estimate rewards
     if mapper._estimation_buffer.is_full_rank:
         logging.info(
-            "Estimating rewards for %s, after %d episodes. Matrix shape: %s",
+            "Estimating rewards for %s, after %d episodes (%d steps). Matrix shape: %s",
             spec["name"],
             episode,
+            steps,
             mapper._estimation_buffer.matrix.shape,
         )
         yhat_ols_em, iters = ols_em_reward_estimation(
@@ -91,6 +92,7 @@ def estimate_reward(
         "episodes": episode,
         "steps": steps,
         "full_rank": mapper._estimation_buffer.is_full_rank,
+        "samples": mapper._estimation_buffer.matrix.shape[0],
         "env_spec": spec,
         "reward_period": reward_period,
         "est_accuracy": accuracy,
