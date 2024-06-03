@@ -41,7 +41,7 @@ def estimate_reward(
     steps = 0
     yhat_lstsq: Optional[np.ndarray] = None
     yhat_ols_em: Optional[np.ndarray] = None
-    meta: Mapping[str, Any] = {}
+    meta: Mapping[str, Any] = {"max_episodes": max_episodes, "est_accuracy": accuracy}
     while True:
         traj = envplay.generate_episode(env_spec.environment, policy=policy)
         for _, step in zip(mapper.apply(traj), itertools.count()):
@@ -95,7 +95,6 @@ def estimate_reward(
         "samples": mapper._estimation_buffer.matrix.shape[0],
         "env_spec": spec,
         "reward_period": reward_period,
-        "est_accuracy": accuracy,
         "meta": meta,
     }
 
