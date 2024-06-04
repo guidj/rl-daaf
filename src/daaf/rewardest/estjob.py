@@ -4,6 +4,7 @@ Module contains job to run policy evaluation with replay mappers.
 
 import argparse
 import dataclasses
+import json
 import logging
 import uuid
 from typing import Any, Mapping, Optional, Sequence, Tuple
@@ -93,7 +94,9 @@ def main(args: EstimationPipelineArgs):
             for finished_task in finished_tasks:
                 task = task_ref_to_spec[finished_task]
                 result = {"result": ray.get(finished_task)}
-                entry = {**result, **dataclasses.asdict(task)}
+                task_dict = dataclasses.asdict(task)
+                task_dict["env_spec"] = json.dumps(task_dict["env_spec"])
+                entry = {**result, **task_dict}
                 results.append(entry)
 
                 logging.info(
