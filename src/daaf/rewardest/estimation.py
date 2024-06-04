@@ -93,8 +93,6 @@ def estimate_reward(
         "steps": steps,
         "full_rank": mapper._estimation_buffer.is_full_rank,
         "samples": mapper._estimation_buffer.matrix.shape[0],
-        "env_spec": spec,
-        "reward_period": reward_period,
         "meta": meta,
     }
 

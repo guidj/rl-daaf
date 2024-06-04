@@ -55,7 +55,7 @@ class EstimationPipelineArgs:
 @dataclasses.dataclass(frozen=True)
 class EstimationTask:
     uid: str
-    spec: Mapping[str, Any]
+    env_spec: Mapping[str, Any]
     run_id: int
     reward_period: int
     accuracy: float
@@ -117,12 +117,12 @@ def create_tasks(
     accuracy: float,
 ) -> Sequence[Tuple[EstimationTask, ray.ObjectRef]]:
     futures = []
-    for spec in env_specs:
+    for env_spec in env_specs:
         for reward_period in agg_reward_periods:
             for run_id in range(num_runs):
                 task = EstimationTask(
                     uid=str(uuid.uuid4()),
-                    spec=spec,
+                    env_spec=env_spec,
                     reward_period=reward_period,
                     run_id=run_id,
                     accuracy=accuracy,
@@ -141,12 +141,12 @@ def estimate(task: EstimationTask) -> Mapping[str, Any]:
     logging.info(
         "Task %s for %s/%d (%s) starting",
         task.uid,
-        task.spec["name"],
+        task.env_spec["name"],
         task.run_id,
-        task.spec["args"],
+        task.env_spec["args"],
     )
     result = estimation.estimate_reward(
-        spec=task.spec,
+        spec=task.env_spec,
         reward_period=task.reward_period,
         accuracy=task.accuracy,
         max_episodes=task.max_episodes,
@@ -155,9 +155,9 @@ def estimate(task: EstimationTask) -> Mapping[str, Any]:
     logging.info(
         "Task %s for %s/%d (%s) finished",
         task.uid,
-        task.spec["name"],
+        task.env_spec["name"],
         task.run_id,
-        task.spec["args"],
+        task.env_spec["args"],
     )
     return result
 
