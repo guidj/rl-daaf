@@ -101,7 +101,7 @@ def estimate_reward(
         "full_rank": mapper._estimation_buffer.is_full_rank,
         "samples": mapper._estimation_buffer.matrix.shape[0],
         "buffer_size": mapper._estimation_buffer.buffer_size,
-        "num_visited_states": dict(visited_states),
+        "episode_visited_states_count": dict(visited_states),
         "meta": meta,
     }
 
