@@ -624,6 +624,49 @@ def test_collect_returns_mapper_apply():
     assert mapper.traj_returns == [-17.0, -15.0]
 
 
+def test_abqueuebuffer_init():
+    buffer = replay_mapper.AbQueueBuffer(buffer_size=147, num_factors=37)
+    assert buffer.buffer_size == 147
+    assert buffer.num_factors == 37
+    assert buffer.is_empty is True
+    assert buffer.is_full_rank is False
+    assert len(buffer.matrix) == 0
+    assert len(buffer.rhs) == 0
+
+
+def test_abqueuebuffer():
+    buffer = replay_mapper.AbQueueBuffer(buffer_size=4, num_factors=3)
+
+    buffer.add(np.array([1, 0, 0]), 1)
+    assert getattr(buffer, "_factors_tracker") == set([4])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([1, 0, 0]))
+
+    buffer.add(np.array([1, 0, 1]), 2)
+    assert getattr(buffer, "_factors_tracker") == set([4, 5])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 0, 1]))
+
+    buffer.add(np.array([1, 1, 1]), 3)
+    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
+
+    # duplicate entry; no change
+    buffer.add(np.array([1, 0, 1]), 4)
+    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
+
+    np.testing.assert_allclose(
+        buffer.matrix, np.array([[1, 0, 0], [1, 0, 1], [1, 1, 1]])
+    )
+
+    buffer.add(np.array([1, 1, 0]), 5)
+    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7, 6])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([4, 2, 2]))
+
+    np.testing.assert_allclose(
+        buffer.matrix, np.array([[1, 0, 0], [1, 0, 1], [1, 1, 1], [1, 1, 0]])
+    )
+
+
 def test_counter_init():
     counter = replay_mapper.Counter()
     assert counter.value is None

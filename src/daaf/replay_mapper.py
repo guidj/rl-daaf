@@ -12,7 +12,7 @@ import logging
 from typing import Any, Callable, Dict, Iterator, Optional, Sequence, Set, Tuple
 
 import numpy as np
-from rlplg import core
+from rlplg import combinatorics, core
 
 from daaf import math_ops
 
@@ -450,7 +450,7 @@ class AbQueueBuffer:
         self._b = np.zeros(shape=(buffer_size,), dtype=np.float32)
         self._next_pos = 0
         self._additions = 0
-        self._factors_tracker: Set[Tuple] = set()
+        self._factors_tracker: Set[int] = set()
         self._rank_flag = np.zeros(shape=self.num_factors, dtype=np.float32)
 
     def add(self, row: np.ndarray, rhs: np.ndarray) -> None:
@@ -466,11 +466,17 @@ class AbQueueBuffer:
                 f"Expects row of dimension {self.num_factors}, received {len(row)}"
             )
 
-        mask = (row > 0).astype(np.int32)
-        row_key = tuple(mask.tolist())
+        mask = (row > 0).astype(np.int64)
+        row_key = combinatorics.sequence_to_integer(space_size=2, sequence=mask)
+        # Only add distict rows - based on their mask
         if row_key not in self._factors_tracker:
-            current_row_key = tuple((self._rows[self._next_pos] > 0).astype(np.int64))
+            current_row_key = combinatorics.sequence_to_integer(
+                space_size=2,
+                sequence=(self._rows[self._next_pos] > 0).astype(np.int64),
+            )
             if current_row_key in self._factors_tracker:
+                # Every row is unique, thus removing it
+                # removes it's marker
                 self._factors_tracker.remove(current_row_key)
                 self._rank_flag -= self._rows[self._next_pos]
             self._factors_tracker.add(row_key)
