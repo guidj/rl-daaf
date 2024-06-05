@@ -6,6 +6,7 @@ import argparse
 import dataclasses
 import json
 import logging
+import random
 import uuid
 from typing import Any, Mapping, Optional, Sequence, Tuple
 
@@ -119,6 +120,7 @@ def create_tasks(
     log_episode_frequency: int,
     accuracy: float,
 ) -> Sequence[Tuple[EstimationTask, ray.ObjectRef]]:
+    tasks = []
     futures = []
     for env_spec in env_specs:
         for reward_period in agg_reward_periods:
@@ -132,7 +134,11 @@ def create_tasks(
                     max_episodes=max_episodes,
                     log_episode_frequency=log_episode_frequency,
                 )
-                futures.append((task, estimate.remote(task)))
+                tasks.append(task)
+    # shuffle to workload
+    random.shuffle(tasks)
+    for task in tasks:
+        futures.append((task, estimate.remote(task)))
     return futures
 
 
