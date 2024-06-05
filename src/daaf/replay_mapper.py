@@ -154,6 +154,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         init_rtable: np.ndarray,
         buffer_size: int = 2**9,
         impute_value: float = 0.0,
+        terminal_states: Set[int] = frozenset(),
     ):
         """
         Args:
@@ -197,6 +198,16 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         )
         self.impute_value = impute_value
         self.rtable = copy.deepcopy(init_rtable)
+
+        # pre-fill buffer with terminal states
+        for state in terminal_states:
+            for action in range(self.num_actions):
+                state_action_mask = np.zeros(
+                    shape=(self.num_states, self.num_actions), dtype=np.float32
+                )
+                state_action_mask[state, action] += 1
+                matrix_entry = np.reshape(state_action_mask, newshape=[-1])
+                self._estimation_buffer.add(matrix_entry, rhs=0.0)
 
     def apply(
         self, trajectory: Iterator[core.TrajectoryStep]

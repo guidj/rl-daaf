@@ -4,7 +4,7 @@ import logging
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import numpy as np
-from rlplg import envplay, envsuite
+from rlplg import core, envplay, envsuite
 from rlplg.learning.tabular import policies
 
 from daaf import math_ops, replay_mapper
@@ -20,6 +20,7 @@ def estimate_reward(
     logging_steps: int = 100,
 ) -> Mapping[str, np.ndarray]:
     env_spec = envsuite.load(spec["name"], **spec["args"])
+    terminal_states = core.infer_env_terminal_states(env_spec.mdp.transition)
     init_rtable = np.zeros(
         shape=(env_spec.mdp.env_desc.num_states, env_spec.mdp.env_desc.num_actions),
         dtype=np.float64,
@@ -34,6 +35,7 @@ def estimate_reward(
         buffer_size=env_spec.mdp.env_desc.num_states
         * env_spec.mdp.env_desc.num_actions
         * BUFFER_MULT,
+        terminal_states=terminal_states,
     )
     policy = policies.PyRandomPolicy(num_actions=env_spec.mdp.env_desc.num_actions)
     # collect data
