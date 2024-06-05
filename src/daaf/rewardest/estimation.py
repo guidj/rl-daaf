@@ -1,6 +1,6 @@
 import itertools
 import logging
-from typing import Any, Mapping, Optional, Tuple
+from typing import Any, List, Mapping, Optional, Tuple
 
 import numpy as np
 from rlplg import envplay, envsuite
@@ -42,10 +42,16 @@ def estimate_reward(
     yhat_lstsq: Optional[np.ndarray] = None
     yhat_ols_em: Optional[np.ndarray] = None
     meta: Mapping[str, Any] = {"max_episodes": max_episodes, "est_accuracy": accuracy}
+    visited_states: List[int] = []
+
     while True:
         traj = envplay.generate_episode(env_spec.environment, policy=policy)
-        for _, step in zip(mapper.apply(traj), itertools.count()):
-            pass
+        episode_visited_states = set()
+        for traj_step, step in zip(mapper.apply(traj), itertools.count()):
+            episode_visited_states.add(
+                env_spec.discretizer.state(traj_step.observation)
+            )
+        visited_states.append(len(episode_visited_states))
 
         if (
             not mapper._estimation_buffer.is_empty
@@ -93,6 +99,7 @@ def estimate_reward(
         "steps": steps,
         "full_rank": mapper._estimation_buffer.is_full_rank,
         "samples": mapper._estimation_buffer.matrix.shape[0],
+        "visited_states": visited_states,
         "meta": meta,
     }
 
