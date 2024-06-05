@@ -43,7 +43,6 @@ def estimate_reward(
     yhat_ols_em: Optional[np.ndarray] = None
     meta: Mapping[str, Any] = {"max_episodes": max_episodes, "est_accuracy": accuracy}
     visited_states: List[int] = []
-    full_rank_episode: Optional[int] = None
 
     while True:
         traj = envplay.generate_episode(env_spec.environment, policy=policy)
@@ -87,7 +86,6 @@ def estimate_reward(
             agg_rewards=mapper._estimation_buffer.rhs,
         )
         meta["ols_iters"] = iters
-        full_rank_episode = episode
     else:
         logging.info(
             "Matrix is ill defined. Skipping reward estimation for %s: %s",
@@ -100,7 +98,6 @@ def estimate_reward(
         "episodes": episode,
         "steps": steps,
         "full_rank": mapper._estimation_buffer.is_full_rank,
-        "full_rank_episode": full_rank_episode,
         "samples": mapper._estimation_buffer.matrix.shape[0],
         "visited_states": visited_states,
         "meta": meta,
