@@ -1,5 +1,4 @@
 import numpy as np
-
 from daaf import math_ops
 
 
@@ -51,14 +50,14 @@ def test_solve_least_squares():
     """
 
     examples_0 = np.array(
-        [[1, 1, 0, 0], [0, 0, 1, 1], [0, 1, 1, 0], [0, 1, 0, 1]], np.float32
+        [[1, 1, 0, 0], [0, 0, 1, 1], [0, 1, 1, 0], [0, 1, 0, 1]], np.float64
     )
-    labels_0 = np.array([1, 1, 1, 2], np.float32)
-    expected_0 = np.array([0.0, 1.0, 0.0, 1.0], np.float32)
+    labels_0 = np.array([1, 1, 1, 2], np.float64)
+    expected_0 = np.array([0.0, 1.0, 0.0, 1.0], np.float64)
 
-    examples_1 = np.array([[3, 2], [4, 5], [0, 1], [1, 0]], np.float32)
-    labels_1 = np.array([9, 19, 3, 1], np.float32)
-    expected_1 = np.array([1.0, 3.0], np.float32)
+    examples_1 = np.array([[3, 2], [4, 5], [0, 1], [1, 0]], np.float64)
+    labels_1 = np.array([9, 19, 3, 1], np.float64)
+    expected_1 = np.array([1.0, 3.0], np.float64)
 
     np.testing.assert_array_almost_equal(
         math_ops.solve_least_squares(examples_0, labels_0), expected_0, decimal=3
@@ -101,14 +100,14 @@ def test_tf_solve_least_squares():
     """
 
     examples_0 = np.array(
-        [[1, 1, 0, 0], [0, 0, 1, 1], [0, 1, 1, 0], [0, 1, 0, 1]], np.float32
+        [[1, 1, 0, 0], [0, 0, 1, 1], [0, 1, 1, 0], [0, 1, 0, 1]], np.float64
     )
-    labels_0 = np.array([1, 1, 1, 2], np.float32)
-    expected_0 = np.array([0.0, 1.0, 0.0, 1.0], np.float32)
+    labels_0 = np.array([1, 1, 1, 2], np.float64)
+    expected_0 = np.array([0.0, 1.0, 0.0, 1.0], np.float64)
 
-    examples_1 = np.array([[3, 2], [4, 5], [0, 1], [1, 0]], np.float32)
-    labels_1 = np.array([9, 19, 3, 1], np.float32)
-    expected_1 = np.array([1.0, 3.0], np.float32)
+    examples_1 = np.array([[3, 2], [4, 5], [0, 1], [1, 0]], np.float64)
+    labels_1 = np.array([9, 19, 3, 1], np.float64)
+    expected_1 = np.array([1.0, 3.0], np.float64)
 
     np.testing.assert_array_almost_equal(
         math_ops._tf_solve_least_squares(examples_0, labels_0),
@@ -155,14 +154,14 @@ def test_np_solve_least_squares():
     """
 
     examples_0 = np.array(
-        [[1, 1, 0, 0], [0, 0, 1, 1], [0, 1, 1, 0], [0, 1, 0, 1]], np.float32
+        [[1, 1, 0, 0], [0, 0, 1, 1], [0, 1, 1, 0], [0, 1, 0, 1]], np.float64
     )
-    labels_0 = np.array([1, 1, 1, 2], np.float32)
-    expected_0 = np.array([0.0, 1.0, 0.0, 1.0], np.float32)
+    labels_0 = np.array([1, 1, 1, 2], np.float64)
+    expected_0 = np.array([0.0, 1.0, 0.0, 1.0], np.float64)
 
-    examples_1 = np.array([[3, 2], [4, 5], [0, 1], [1, 0]], np.float32)
-    labels_1 = np.array([9, 19, 3, 1], np.float32)
-    expected_1 = np.array([1.0, 3.0], np.float32)
+    examples_1 = np.array([[3, 2], [4, 5], [0, 1], [1, 0]], np.float64)
+    labels_1 = np.array([9, 19, 3, 1], np.float64)
+    expected_1 = np.array([1.0, 3.0], np.float64)
 
     np.testing.assert_array_almost_equal(
         math_ops._np_solve_least_squares(examples_0, labels_0),

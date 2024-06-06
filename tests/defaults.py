@@ -199,7 +199,7 @@ class RoundRobinActionsPolicy(core.PyPolicy):
         """
         del observation
         if self.emit_log_probability:
-            policy_info = {"log_probability": np.array(np.log(1.0), dtype=np.float32)}
+            policy_info = {"log_probability": np.array(np.log(1.0), dtype=np.float64)}
         else:
             policy_info = {}
 
@@ -237,10 +237,10 @@ def array(*args: Any):
     """
     Collects a sequence of values into an np.ndarray.
     """
-    # We use int32 and float32 for all examples/tests
+    # We use int64 and float64 for all examples/tests
     sample = next(iter(args))
     if isinstance(sample, float):
-        return np.array(args, dtype=np.float32)
+        return np.array(args, dtype=np.float64)
     if isinstance(sample, int):
-        return np.array(args, dtype=np.int32)
+        return np.array(args, dtype=np.int64)
     return np.array(args)
