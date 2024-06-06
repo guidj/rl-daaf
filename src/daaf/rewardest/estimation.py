@@ -161,7 +161,7 @@ def ols_em_reward_estimation(
     stop_check_interval: int = 100,
 ) -> Tuple[np.ndarray, int]:
     iteration = 1
-    yhat_rewards = np.random.rand(obs_matrix.shape[1], dtype=np.float64)
+    yhat_rewards = np.random.rand(obs_matrix.shape[1]).astype(np.float64)
     # multiply the cumulative reward by visits of each state action
     # dim: (num obs, num states x num actions)
     nomin = np.expand_dims(agg_rewards, axis=-1) * obs_matrix
