@@ -34,7 +34,11 @@ ENV_SPECS = [
     {"name": "TowerOfHanoi", "args": {"num_disks": 4}},
 ]
 
-AGG_REWARD_PERIODS = [2, 4, 6, 8]
+EST_PLAIN = "plain"
+EST_FACTOR_TS = "factor-ts"
+EST_PREFILL_BUFFER = "prefill-buffer"
+
+AGG_REWARD_PERIODS = [2, 3, 4, 5, 6, 7, 8]
 
 EST_ACCURACY = 1e-8
 
@@ -63,6 +67,7 @@ class EstimationTask:
     accuracy: float
     max_episodes: int
     log_episode_frequency: int
+    method: str
 
 
 def main(args: EstimationPipelineArgs):
@@ -124,17 +129,20 @@ def create_tasks(
     futures = []
     for env_spec in env_specs:
         for reward_period in agg_reward_periods:
-            for run_id in range(num_runs):
-                task = EstimationTask(
-                    uid=str(uuid.uuid4()),
-                    env_spec=env_spec,
-                    reward_period=reward_period,
-                    run_id=run_id,
-                    accuracy=accuracy,
-                    max_episodes=max_episodes,
-                    log_episode_frequency=log_episode_frequency,
-                )
-                tasks.append(task)
+            for method in (EST_PLAIN, EST_FACTOR_TS, EST_PREFILL_BUFFER):
+                uid = str(uuid.uuid4())
+                for run_id in range(num_runs):
+                    task = EstimationTask(
+                        uid=uid,
+                        env_spec=env_spec,
+                        reward_period=reward_period,
+                        run_id=run_id,
+                        accuracy=accuracy,
+                        max_episodes=max_episodes,
+                        log_episode_frequency=log_episode_frequency,
+                        method=method,
+                    )
+                    tasks.append(task)
     # shuffle to workload
     random.shuffle(tasks)
     for task in tasks:
@@ -154,12 +162,24 @@ def estimate(task: EstimationTask) -> Mapping[str, Any]:
         task.run_id,
         task.env_spec["args"],
     )
+    if task.method == EST_PLAIN:
+        factor_terminal_states = False
+        prefill_buffer = False
+    elif task.method == EST_FACTOR_TS:
+        factor_terminal_states = True
+        prefill_buffer = False
+    elif task.method == EST_PREFILL_BUFFER:
+        factor_terminal_states = False
+        prefill_buffer = True
+
     result = estimation.estimate_reward(
         spec=task.env_spec,
         reward_period=task.reward_period,
         accuracy=task.accuracy,
         max_episodes=task.max_episodes,
         logging_steps=task.log_episode_frequency,
+        factor_terminal_states=factor_terminal_states,
+        prefill_buffer=prefill_buffer,
     )
     logging.info(
         "Task %s for %s/%d (%s) finished",

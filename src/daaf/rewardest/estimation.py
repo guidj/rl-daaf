@@ -1,7 +1,7 @@
 import collections
 import itertools
 import logging
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
 
 import numpy as np
 from rlplg import core, envplay, envsuite
@@ -18,9 +18,16 @@ def estimate_reward(
     accuracy: float = 1e-8,
     max_episodes: int = 7500,
     logging_steps: int = 100,
+    factor_terminal_states: bool = False,
+    prefill_buffer: bool = False,
+    export_path: Optional[str] = None,
 ) -> Mapping[str, np.ndarray]:
     env_spec = envsuite.load(spec["name"], **spec["args"])
-    terminal_states = core.infer_env_terminal_states(env_spec.mdp.transition)
+    terminal_states = (
+        core.infer_env_terminal_states(env_spec.mdp.transition)
+        if factor_terminal_states
+        else frozenset()
+    )
     init_rtable = np.zeros(
         shape=(env_spec.mdp.env_desc.num_states, env_spec.mdp.env_desc.num_actions),
         dtype=np.float64,
@@ -36,6 +43,8 @@ def estimate_reward(
         * env_spec.mdp.env_desc.num_actions
         * BUFFER_MULT,
         terminal_states=terminal_states,
+        factor_terminal_states=factor_terminal_states,
+        prefill_buffer=prefill_buffer,
     )
     policy = policies.PyRandomPolicy(num_actions=env_spec.mdp.env_desc.num_actions)
     # collect data
@@ -88,6 +97,20 @@ def estimate_reward(
             obs_matrix=mapper._estimation_buffer.matrix,
             agg_rewards=mapper._estimation_buffer.rhs,
         )
+
+        if factor_terminal_states:
+            yhat_lstsq = expand_reward_with_terminal_action_values(
+                yhat_lstsq,
+                num_states=env_spec.mdp.env_desc.num_states,
+                num_actions=env_spec.mdp.env_desc.num_actions,
+                terminal_states=terminal_states,
+            )
+            yhat_ols_em = expand_reward_with_terminal_action_values(
+                yhat_ols_em,
+                num_states=env_spec.mdp.env_desc.num_states,
+                num_actions=env_spec.mdp.env_desc.num_actions,
+                terminal_states=terminal_states,
+            )
         meta["ols_iters"] = iters
     else:
         logging.info(
@@ -95,6 +118,19 @@ def estimate_reward(
             spec["name"],
             spec["args"],
         )
+
+    if export_path:
+        import os.path
+
+        for name, array in zip(
+            ["lhs", "rhs"],
+            [mapper._estimation_buffer.matrix, mapper._estimation_buffer.rhs],
+        ):
+            if not os.path.exists(export_path):
+                os.makedirs(export_path)
+            with open(os.path.join(export_path, name), "wb") as writable:
+                np.save(writable, array)
+
     return {
         "least": yhat_lstsq,
         "ols_em": yhat_ols_em,
@@ -125,7 +161,7 @@ def ols_em_reward_estimation(
     stop_check_interval: int = 100,
 ) -> Tuple[np.ndarray, int]:
     iteration = 1
-    yhat_rewards = np.random.rand(obs_matrix.shape[1])
+    yhat_rewards = np.random.rand(obs_matrix.shape[1], dtype=np.float64)
     # multiply the cumulative reward by visits of each state action
     # dim: (num obs, num states x num actions)
     nomin = np.expand_dims(agg_rewards, axis=-1) * obs_matrix
@@ -160,3 +196,35 @@ def ols_em_reward_estimation(
         yhat_rewards = new_yhat_rewards
         iteration += 1
     return yhat_rewards, iteration
+
+
+def expand_reward_with_terminal_action_values(
+    estimated_rewards: np.ndarray,
+    num_states: int,
+    num_actions: int,
+    terminal_states: Set[int],
+):
+    pos = 0
+    est_rewards_ext = np.zeros(
+        num_states * num_actions,
+        dtype=np.float64,
+    )
+    terminal_state_action_mask = np.zeros(
+        shape=(
+            num_states,
+            num_actions,
+        ),
+        dtype=np.float64,
+    )
+    # factor in terminal states
+    for state in terminal_states:
+        for action in range(num_actions):
+            terminal_state_action_mask[state, action] = 1
+    ignore_factors_mask = np.reshape(terminal_state_action_mask, newshape=[-1])
+    for idx in range(len(ignore_factors_mask)):
+        if ignore_factors_mask[idx] == 1:
+            est_rewards_ext[idx] = 0.0
+        else:
+            est_rewards_ext[idx] = estimated_rewards[pos]
+            pos += 1
+    return est_rewards_ext
