@@ -6,3 +6,4 @@ jupyter_nbextensions_configurator==0.6.3
 jupyter-resource-usage==0.7.2
 matplotlib
 seaborn
+statsmodels==0.14.2

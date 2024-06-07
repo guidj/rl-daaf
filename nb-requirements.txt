@@ -363,11 +363,13 @@ numpy==1.23.5
     #   matplotlib
     #   opt-einsum
     #   pandas
+    #   patsy
     #   pyarrow
     #   ray
     #   rlplg
     #   scipy
     #   seaborn
+    #   statsmodels
     #   tensorboard
     #   tensorflow
 nvidia-ml-py==11.495.46
@@ -402,16 +404,20 @@ packaging==23.2
     #   matplotlib
     #   nbconvert
     #   ray
+    #   statsmodels
     #   tensorflow
 pandas==2.0.3
     # via
     #   -r requirements.txt
     #   ray
     #   seaborn
+    #   statsmodels
 pandocfilters==1.5.0
     # via nbconvert
 parso==0.8.3
     # via jedi
+patsy==0.5.6
+    # via statsmodels
 pexpect==4.8.0
     # via ipython
 pickleshare==0.7.5
@@ -548,6 +554,7 @@ scipy==1.10.1
     # via
     #   -r requirements.txt
     #   rlplg
+    #   statsmodels
 seaborn==0.12.2
     # via -r nb-requirements.in
 send2trash==1.8.0
@@ -565,6 +572,7 @@ six==1.16.0
     #   google-auth
     #   google-pasta
     #   gpustat
+    #   patsy
     #   python-dateutil
     #   rfc3339-validator
     #   tensorflow
@@ -578,6 +586,8 @@ soupsieve==2.4
     # via beautifulsoup4
 stack-data==0.6.2
     # via ipython
+statsmodels==0.14.2
+    # via -r nb-requirements.in
 tensorboard==2.13.0
     # via
     #   -r requirements.txt
