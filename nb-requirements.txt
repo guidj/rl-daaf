@@ -586,7 +586,7 @@ soupsieve==2.4
     # via beautifulsoup4
 stack-data==0.6.2
     # via ipython
-statsmodels==0.14.2
+statsmodels==0.14.1
     # via -r nb-requirements.in
 tensorboard==2.13.0
     # via

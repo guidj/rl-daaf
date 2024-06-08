@@ -881,7 +881,7 @@ stack-data==0.6.2
     # via
     #   -r nb-requirements.txt
     #   ipython
-statsmodels==0.14.2
+statsmodels==0.14.1
     # via -r nb-requirements.txt
 tensorboard==2.13.0
     # via

@@ -4,6 +4,6 @@ jupyterlab==4.0.13
 jupyter-server<3,>=2.4.0
 jupyter_nbextensions_configurator==0.6.3
 jupyter-resource-usage==0.7.2
+statsmodels==0.14.1
 matplotlib
 seaborn
-statsmodels==0.14.2
