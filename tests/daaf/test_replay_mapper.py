@@ -130,6 +130,71 @@ def test_daaf_impute_missing_reward_mapper_apply():
         assert_trajectory(output=output, expected=expected)
 
 
+@hypothesis.given(reward_period=st.integers(min_value=2))
+def test_daaf_trajectory_mapper_init(
+    reward_period: int,
+):
+    mapper = replay_mapper.DaafTrajectoryMapper(reward_period=reward_period)
+    assert mapper.reward_period == reward_period
+
+
+@hypothesis.given(reward_period=st.integers(max_value=0))
+def test_daaf_trajectory_mapper_init_with_invalid_reward_period(reward_period: int):
+    with pytest.raises(ValueError):
+        replay_mapper.DaafTrajectoryMapper(reward_period=reward_period)
+
+
+def test_daaf_trajectory_mapper_apply():
+    mapper = replay_mapper.DaafTrajectoryMapper(reward_period=2)
+
+    inputs = [
+        traj_step(state=0, action=0, reward=-1.0, prob=0.3),
+        traj_step(state=1, action=1, reward=-7.0, prob=0.8),
+        traj_step(
+            state=0,
+            action=0,
+            reward=3.0,
+            prob=0.3,
+            info={"prior": "entry"},
+        ),
+        traj_step(state=1, action=1, reward=6.0, prob=0.8, truncated=True),
+        traj_step(state=1, action=1, reward=11.0, prob=0.9, terminated=True),
+    ]
+
+    expectactions = [
+        traj_step(state=0, action=0, reward=np.nan, prob=0.3, info={"imputed": True}),
+        traj_step(state=1, action=1, reward=-8.0, prob=0.8, info={"imputed": False}),
+        traj_step(
+            state=0,
+            action=0,
+            reward=np.nan,
+            prob=0.3,
+            info={"imputed": True, "prior": "entry"},
+        ),
+        traj_step(
+            state=1,
+            action=1,
+            reward=9.0,
+            prob=0.8,
+            truncated=True,
+            info={"imputed": False},
+        ),
+        traj_step(
+            state=1,
+            action=1,
+            reward=np.nan,
+            prob=0.9,
+            terminated=True,
+            info={"imputed": True},
+        ),
+    ]
+
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 5
+    for output, expected in zip(outputs, expectactions):
+        assert_trajectory(output=output, expected=expected)
+
+
 def test_daaf_lsq_reward_attribution_mapper_init():
     rtable = [[0, 1], [0, 1], [0, 1], [0, 1]]
     mapper = replay_mapper.DaafLsqRewardAttributionMapper(
@@ -557,6 +622,49 @@ def test_collect_returns_mapper_apply():
         assert_trajectory(output=output, expected=expected)
 
     assert mapper.traj_returns == [-17.0, -15.0]
+
+
+def test_abqueuebuffer_init():
+    buffer = replay_mapper.AbQueueBuffer(buffer_size=147, num_factors=37)
+    assert buffer.buffer_size == 147
+    assert buffer.num_factors == 37
+    assert buffer.is_empty is True
+    assert buffer.is_full_rank is False
+    assert len(buffer.matrix) == 0
+    assert len(buffer.rhs) == 0
+
+
+def test_abqueuebuffer():
+    buffer = replay_mapper.AbQueueBuffer(buffer_size=4, num_factors=3)
+
+    buffer.add(np.array([1, 0, 0]), 1)
+    assert getattr(buffer, "_factors_tracker") == set([4])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([1, 0, 0]))
+
+    buffer.add(np.array([1, 0, 1]), 2)
+    assert getattr(buffer, "_factors_tracker") == set([4, 5])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 0, 1]))
+
+    buffer.add(np.array([1, 1, 1]), 3)
+    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
+
+    # duplicate entry; no change
+    buffer.add(np.array([1, 0, 1]), 4)
+    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
+
+    np.testing.assert_allclose(
+        buffer.matrix, np.array([[1, 0, 0], [1, 0, 1], [1, 1, 1]])
+    )
+
+    buffer.add(np.array([1, 1, 0]), 5)
+    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7, 6])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([4, 2, 2]))
+
+    np.testing.assert_allclose(
+        buffer.matrix, np.array([[1, 0, 0], [1, 0, 1], [1, 1, 1], [1, 1, 0]])
+    )
 
 
 def test_counter_init():

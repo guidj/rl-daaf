@@ -9,10 +9,19 @@ import abc
 import copy
 import dataclasses
 import logging
-from typing import Any, Callable, Dict, Iterator, Optional, Sequence, Set, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Iterator,
+    Optional,
+    Sequence,
+    Set,
+)
 
 import numpy as np
-from rlplg import core
+from rlplg import combinatorics, core
 
 from daaf import math_ops
 
@@ -154,6 +163,9 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         init_rtable: np.ndarray,
         buffer_size: int = 2**9,
         impute_value: float = 0.0,
+        terminal_states: FrozenSet[int] = frozenset(),
+        factor_terminal_states: bool = False,
+        prefill_buffer: bool = False,
     ):
         """
         Args:
@@ -184,6 +196,11 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
             )
         super().__init__()
 
+        if factor_terminal_states and prefill_buffer:
+            raise ValueError(
+                "`factor_terminal_states` and `prefill_buffer` cannot both be true."
+            )
+
         num_factors = num_states * num_actions
         self.num_states = num_states
         self.num_actions = num_actions
@@ -191,12 +208,38 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         self.state_id_fn = state_id_fn
         self.action_id_fn = action_id_fn
         self.buffer_size = buffer_size
+        self.factor_terminal_states = factor_terminal_states
+        self.prefill_buffer = prefill_buffer
         self.num_updates = 0
-        self._estimation_buffer = AbQueueBuffer(
-            self.buffer_size, num_factors=num_factors
-        )
-        self.impute_value = impute_value
         self.rtable = copy.deepcopy(init_rtable)
+        self._terminal_state_action_mask = np.zeros(
+            shape=(self.num_states, self.num_actions), dtype=np.float64
+        )
+        if self.factor_terminal_states:
+            # factor in terminal states
+            for state in terminal_states:
+                for action in range(self.num_actions):
+                    self._terminal_state_action_mask[state, action] = 1
+
+        self._estimation_buffer = AbQueueBuffer(
+            self.buffer_size,
+            num_factors=num_factors,
+            ignore_factors_mask=np.reshape(
+                self._terminal_state_action_mask, newshape=[-1]
+            ),
+        )
+
+        if self.prefill_buffer:
+            for state in terminal_states:
+                for action in range(self.num_actions):
+                    state_action_mask = np.zeros(
+                        shape=(self.num_states, self.num_actions), dtype=np.float64
+                    )
+                    state_action_mask[state, action] = reward_period
+                    matrix_entry = np.reshape(state_action_mask, newshape=[-1])
+                    self._estimation_buffer.add(matrix_entry, rhs=0.0)
+
+        self.impute_value = impute_value
 
     def apply(
         self, trajectory: Iterator[core.TrajectoryStep]
@@ -206,7 +249,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
             trajectory: A iterator of trajectory steps.
         """
         state_action_mask = np.zeros(
-            shape=(self.num_states, self.num_actions), dtype=np.float32
+            shape=(self.num_states, self.num_actions), dtype=np.float64
         )
         reward_sum = 0.0
 
@@ -224,19 +267,38 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
                     self._estimation_buffer.add(matrix_entry, rhs=reward_sum)
                     # reset
                     state_action_mask = np.zeros(
-                        shape=(self.num_states, self.num_actions), dtype=np.float32
+                        shape=(self.num_states, self.num_actions), dtype=np.float64
                     )
                     reward_sum = 0.0
                     # Run estimation at the first possible moment,
                     if self._estimation_buffer.is_full_rank:
                         logging.debug("Estimating rewards with Least-Squares.")
                         try:
-                            new_rtable = math_ops.solve_least_squares(
+                            estimated_rewards = math_ops.solve_least_squares(
                                 matrix=self._estimation_buffer.matrix,
                                 rhs=self._estimation_buffer.rhs,
                             )
+                            # we only solved for non-terminal states
+                            if estimated_rewards.size < (
+                                self.num_states * self.num_actions
+                            ):
+                                pos = 0
+                                est_rewards_ext = np.zeros(
+                                    self.num_states * self.num_actions, dtype=np.float64
+                                )
+                                ignore_factors_mask = np.reshape(
+                                    self._terminal_state_action_mask, newshape=[-1]
+                                )
+                                for idx in range(len(ignore_factors_mask)):
+                                    if ignore_factors_mask[idx] == 1:
+                                        est_rewards_ext[idx] = 0.0
+                                    else:
+                                        est_rewards_ext[idx] = estimated_rewards[pos]
+                                        pos += 1
+                                estimated_rewards = est_rewards_ext
                             new_rtable = np.reshape(
-                                new_rtable, newshape=(self.num_states, self.num_actions)
+                                estimated_rewards,
+                                newshape=(self.num_states, self.num_actions),
                             )
                             # update the reward estimates by a fraction of the delta
                             # between the currente estimate and the latest.
@@ -431,7 +493,12 @@ class AbQueueBuffer:
     Note: this class pre-allocates the buffer.
     """
 
-    def __init__(self, buffer_size: int, num_factors: int):
+    def __init__(
+        self,
+        buffer_size: int,
+        num_factors: int,
+        ignore_factors_mask: Optional[np.ndarray] = None,
+    ):
         """
         Args:
             buffer_size: the size of the memory buffer for events.
@@ -442,16 +509,35 @@ class AbQueueBuffer:
                 f"""Buffer size is too small for Least Squares estimate.
                  Got {buffer_size}, should be >= {num_factors}"""
             )
+        if ignore_factors_mask is not None:
+            if len(ignore_factors_mask.shape) > 1:
+                raise ValueError(
+                    f"`rank_mask`must be 1D array. Got {ignore_factors_mask.shape}.",
+                )
+            if ignore_factors_mask.size != num_factors:
+                raise ValueError(
+                    f"""Number of elements in `rank_mask` must match `num_factors`: 
+                    {ignore_factors_mask.size} != {num_factors}""",
+                )
 
         self.buffer_size = buffer_size
         self.num_factors = num_factors
+        self.ignore_factors_mask = (
+            (ignore_factors_mask > 0).astype(np.int64)
+            if ignore_factors_mask is not None
+            else np.zeros(num_factors, dtype=np.int64)
+        )
+        self._keep_factors_mask = (self.ignore_factors_mask - 1) * -1
+        # `np.where` returns a tuple per dim;
+        # Keep the first dim
+        self._col_mask = np.where(self._keep_factors_mask == 1)[0]
         # pre-allocate arrays
-        self._rows = np.zeros(shape=(buffer_size, num_factors), dtype=np.float32)
-        self._b = np.zeros(shape=(buffer_size,), dtype=np.float32)
+        self._rows = np.zeros(shape=(buffer_size, num_factors), dtype=np.float64)
+        self._b = np.zeros(shape=(buffer_size,), dtype=np.float64)
         self._next_pos = 0
         self._additions = 0
-        self._factors_tracker: Set[Tuple] = set()
-        self._rank_flag = np.zeros(shape=self.num_factors, dtype=np.float32)
+        self._factors_tracker: Set[int] = set()
+        self._rank_flag = np.zeros(shape=self.num_factors, dtype=np.float64)
 
     def add(self, row: np.ndarray, rhs: np.ndarray) -> None:
         """
@@ -466,21 +552,29 @@ class AbQueueBuffer:
                 f"Expects row of dimension {self.num_factors}, received {len(row)}"
             )
 
-        mask = (row > 0).astype(np.int32)
-        row_key = tuple(mask.tolist())
-        if row_key not in self._factors_tracker:
-            current_row_key = tuple((self._rows[self._next_pos] > 0).astype(np.int64))
-            if current_row_key in self._factors_tracker:
-                self._factors_tracker.remove(current_row_key)
-                self._rank_flag -= self._rows[self._next_pos]
-            self._factors_tracker.add(row_key)
-            self._rank_flag += mask
+        # Add rows for factors of interest (`keep_factors_mask`).
+        if np.sum(row * self._keep_factors_mask) > 0:
+            mask = (row > 0).astype(np.int64)
+            row_key = combinatorics.sequence_to_integer(space_size=2, sequence=mask)
+            # Only add distict rows - based on their mask
+            if row_key not in self._factors_tracker:
+                current_row_key = combinatorics.sequence_to_integer(
+                    space_size=2,
+                    sequence=(self._rows[self._next_pos] > 0).astype(np.int64),
+                )
+                if current_row_key in self._factors_tracker:
+                    # Every row is unique, thus removing it
+                    # removes it's marker
+                    self._factors_tracker.remove(current_row_key)
+                    self._rank_flag -= self._rows[self._next_pos]
+                self._factors_tracker.add(row_key)
+                self._rank_flag += mask
 
-            self._rows[self._next_pos] = row
-            self._b[self._next_pos] = rhs
-            # cycle least recent
-            self._next_pos = (self._next_pos + 1) % self.buffer_size
-            self._additions += 1
+                self._rows[self._next_pos] = row
+                self._b[self._next_pos] = rhs
+                # cycle least recent
+                self._next_pos = (self._next_pos + 1) % self.buffer_size
+                self._additions += 1
 
     @property
     def matrix(self) -> np.ndarray:
@@ -490,8 +584,8 @@ class AbQueueBuffer:
             it returns the values available - which can be an empty array.
         """
         if self._additions >= self.buffer_size:
-            return self._rows
-        return self._rows[: self._next_pos]
+            return self._rows[:, self._col_mask]
+        return self._rows[: self._next_pos, self._col_mask]
 
     @property
     def rhs(self) -> np.ndarray:
@@ -514,10 +608,9 @@ class AbQueueBuffer:
 
     @property
     def is_full_rank(self) -> bool:
-        return (
-            self._additions >= self.num_factors
-            and np.sum(self._rank_flag > 0) == self.num_factors
-        )
+        return self._additions >= self.num_factors and np.sum(
+            (self._rank_flag * self._keep_factors_mask) > 0
+        ) == np.sum(self._keep_factors_mask)
 
 
 class Counter:

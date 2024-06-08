@@ -244,11 +244,14 @@ class DynaProgStateValueIndex:
         file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
         logging.info("Loading dynamic programming index from %s", file_path)
         state_values: Dict[Tuple[str, str, float], np.ndarray] = {}
-        with tf.io.gfile.GFile(file_path, "r") as readable:
-            for line in readable:
-                row = json.loads(line)
-                key = (row["env_name"], row["level"], float(row["gamma"]))
-                state_values[key] = np.array(row["state_values"], dtype=np.float64)
+        try:
+            with tf.io.gfile.GFile(file_path, "r") as readable:
+                for line in readable:
+                    row = json.loads(line)
+                    key = (row["env_name"], row["level"], float(row["gamma"]))
+                    state_values[key] = np.array(row["state_values"], dtype=np.float64)
+        except tf.errors.NotFoundError:
+            pass
         return state_values
 
     @staticmethod

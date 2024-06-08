@@ -4,7 +4,9 @@ Module contains job to run policy evaluation with replay mappers.
 
 import argparse
 import dataclasses
+import json
 import logging
+import random
 import uuid
 from typing import Any, Mapping, Optional, Sequence, Tuple
 
@@ -14,8 +16,8 @@ import ray.data
 from daaf.rewardest import estimation
 
 ENV_SPECS = [
-    {"name": "ABCSeq", "args": {"length": 7}},
-    {"name": "ABCSeq", "args": {"length": 10}},
+    {"name": "ABCSeq", "args": {"length": 7, "distance_penalty": False}},
+    {"name": "ABCSeq", "args": {"length": 10, "distance_penalty": False}},
     {"name": "FrozenLake-v1", "args": {"is_slippery": False, "map_name": "4x4"}},
     {
         "name": "GridWorld",
@@ -30,10 +32,13 @@ ENV_SPECS = [
     {"name": "IceWorld", "args": {"map_name": "4x4"}},
     {"name": "IceWorld", "args": {"map_name": "8x8"}},
     {"name": "TowerOfHanoi", "args": {"num_disks": 4}},
-    {"name": "TowerOfHanoi", "args": {"num_disks": 5}},
 ]
 
-AGG_REWARD_PERIODS = [2, 4, 6]
+EST_PLAIN = "plain"
+EST_FACTOR_TS = "factor-ts"
+EST_PREFILL_BUFFER = "prefill-buffer"
+
+AGG_REWARD_PERIODS = [2, 3, 4, 5, 6, 7, 8]
 
 EST_ACCURACY = 1e-8
 
@@ -56,12 +61,13 @@ class EstimationPipelineArgs:
 @dataclasses.dataclass(frozen=True)
 class EstimationTask:
     uid: str
-    spec: Mapping[str, Any]
+    env_spec: Mapping[str, Any]
     run_id: int
     reward_period: int
     accuracy: float
     max_episodes: int
     log_episode_frequency: int
+    method: str
 
 
 def main(args: EstimationPipelineArgs):
@@ -94,7 +100,9 @@ def main(args: EstimationPipelineArgs):
             for finished_task in finished_tasks:
                 task = task_ref_to_spec[finished_task]
                 result = {"result": ray.get(finished_task)}
-                entry = {**result, **dataclasses.asdict(task)}
+                task_dict = dataclasses.asdict(task)
+                task_dict["env_spec"] = json.dumps(task_dict["env_spec"])
+                entry = {**result, **task_dict}
                 results.append(entry)
 
                 logging.info(
@@ -106,7 +114,7 @@ def main(args: EstimationPipelineArgs):
             if len(unfinished_tasks) == 0:
                 break
 
-        ray.data.from_items(results).write_parquet(args.output_dir)
+        ray.data.from_items(results).write_json(args.output_dir)
 
 
 def create_tasks(
@@ -117,20 +125,28 @@ def create_tasks(
     log_episode_frequency: int,
     accuracy: float,
 ) -> Sequence[Tuple[EstimationTask, ray.ObjectRef]]:
+    tasks = []
     futures = []
-    for spec in env_specs:
+    for env_spec in env_specs:
         for reward_period in agg_reward_periods:
-            for run_id in range(num_runs):
-                task = EstimationTask(
-                    uid=str(uuid.uuid4()),
-                    spec=spec,
-                    reward_period=reward_period,
-                    run_id=run_id,
-                    accuracy=accuracy,
-                    max_episodes=max_episodes,
-                    log_episode_frequency=log_episode_frequency,
-                )
-                futures.append((task, estimate.remote(task)))
+            for method in (EST_PLAIN, EST_FACTOR_TS, EST_PREFILL_BUFFER):
+                uid = str(uuid.uuid4())
+                for run_id in range(num_runs):
+                    task = EstimationTask(
+                        uid=uid,
+                        env_spec=env_spec,
+                        reward_period=reward_period,
+                        run_id=run_id,
+                        accuracy=accuracy,
+                        max_episodes=max_episodes,
+                        log_episode_frequency=log_episode_frequency,
+                        method=method,
+                    )
+                    tasks.append(task)
+    # shuffle to workload
+    random.shuffle(tasks)
+    for task in tasks:
+        futures.append((task, estimate.remote(task)))
     return futures
 
 
@@ -142,23 +158,35 @@ def estimate(task: EstimationTask) -> Mapping[str, Any]:
     logging.info(
         "Task %s for %s/%d (%s) starting",
         task.uid,
-        task.spec["name"],
+        task.env_spec["name"],
         task.run_id,
-        task.spec["args"],
+        task.env_spec["args"],
     )
+    if task.method == EST_PLAIN:
+        factor_terminal_states = False
+        prefill_buffer = False
+    elif task.method == EST_FACTOR_TS:
+        factor_terminal_states = True
+        prefill_buffer = False
+    elif task.method == EST_PREFILL_BUFFER:
+        factor_terminal_states = False
+        prefill_buffer = True
+
     result = estimation.estimate_reward(
-        spec=task.spec,
+        spec=task.env_spec,
         reward_period=task.reward_period,
         accuracy=task.accuracy,
         max_episodes=task.max_episodes,
         logging_steps=task.log_episode_frequency,
+        factor_terminal_states=factor_terminal_states,
+        prefill_buffer=prefill_buffer,
     )
     logging.info(
         "Task %s for %s/%d (%s) finished",
         task.uid,
-        task.spec["name"],
+        task.env_spec["name"],
         task.run_id,
-        task.spec["args"],
+        task.env_spec["args"],
     )
     return result
 

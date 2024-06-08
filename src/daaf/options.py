@@ -88,7 +88,7 @@ class UniformlyRandomCompositeActionPolicy(
         if self.emit_log_probability:
             policy_info["log_probability"] = np.array(
                 np.log(self._action_prob),
-                np.float32,
+                np.float64,
             )
         return core.PolicyStep(
             action=action,
@@ -199,7 +199,7 @@ class OptionsQGreedyPolicy(policies.PyEpsilonGreedyPolicy):
         if self.emit_log_probability:
             policy_info["log_probability"] = np.array(
                 np.log(prob),
-                np.float32,
+                np.float64,
             )
         return core.PolicyStep(
             action=action,

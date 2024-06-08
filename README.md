@@ -1,14 +1,33 @@
 # RL with Delayed, Aggregated and Anonymous Feedback (DAAF)
 
-Code for experiments on RL policy evaluation with delayed, aggregated and anonymous feedback.
+Code for experiments on policy control and evaluation in Reinforcement Learning with delayed, aggregated and anonymous feedback.
 
+
+## Delayed, aggregate, anoynmous feedback
+
+In the standard reinforcement learning setting, for each action an agent takes, the environment provides a reward.
+This is encoded by the function $R(s,a)$, where $s$ is a state and $a$ in an action.
+
+In DAAF settings, the environment instead provides feedback at periodic time intervals (e.g. based on a Poisson distribution), and on aggregate, in the sense that the agent gets a combination of rewards for several actions.
+The fact that the agent cannot discern how much each action taken contributes to the observed reward makes the feedback anonymous.
+
+To constrast with fully sparse reward problems, where the reward is only observed at the end, after task completion or failure, DAAF problems have intermittent feedback.
+
+
+## Code
 
 Contains
-  - Algorithms implementation (ZI-M, LEAST...)
-  - Notebooks with analysis results
+  - Algorithms for policy control with DAAF
+  - Algorithms for policy evaluation with DAAF
+  - Notebooks with analysis results on reward rstimation or recovery
 
-Missing
-  - Pipeline that aggregates results from multiple results (output is used in notebooks)
+
+## Submissions
+
+For specific snapshots of code submitted to conferences:
+
+  1. [DS '22 - Policy Evaluation](docs/ds22.md)
+  2. [EMCL-PKDD '24 - Policy Control](docs/ecmlpkdd24.md)
 
 
 ## Dev Env
