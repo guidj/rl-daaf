@@ -9,7 +9,16 @@ import abc
 import copy
 import dataclasses
 import logging
-from typing import Any, Callable, Dict, Iterator, Optional, Sequence, Set, Tuple
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Iterator,
+    Optional,
+    Sequence,
+    Set,
+)
 
 import numpy as np
 from rlplg import combinatorics, core
@@ -154,7 +163,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         init_rtable: np.ndarray,
         buffer_size: int = 2**9,
         impute_value: float = 0.0,
-        terminal_states: Set[int] = frozenset(),
+        terminal_states: FrozenSet[int] = frozenset(),
         factor_terminal_states: bool = False,
         prefill_buffer: bool = False,
     ):

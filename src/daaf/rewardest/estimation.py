@@ -1,7 +1,7 @@
 import collections
 import itertools
 import logging
-from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
+from typing import Any, Dict, Mapping, Optional, Set, Tuple
 
 import numpy as np
 from rlplg import core, envplay, envsuite
@@ -53,7 +53,7 @@ def estimate_reward(
     steps = 0
     yhat_lstsq: Optional[np.ndarray] = None
     yhat_ols_em: Optional[np.ndarray] = None
-    meta: Mapping[str, Any] = {"max_episodes": max_episodes, "est_accuracy": accuracy}
+    meta: Dict[str, Any] = {"max_episodes": max_episodes, "est_accuracy": accuracy}
     visited_states: Dict[int, int] = collections.defaultdict(int)
 
     while True:
