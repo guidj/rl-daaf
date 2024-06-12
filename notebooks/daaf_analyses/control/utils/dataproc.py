@@ -1,6 +1,7 @@
 import collections
 import copy
 import importlib
+import json
 import os
 import pathlib
 import uuid
@@ -13,10 +14,11 @@ import ray
 import scipy
 import seaborn as sns
 import tensorflow as tf
-from daaf import estimator_metrics
 from matplotlib import pyplot as plt
 from scipy import stats
 from statsmodels.stats import proportion
+
+from daaf import estimator_metrics
 
 ENVS_MAPPING = {
     (
@@ -51,7 +53,7 @@ ENVS_MAPPING = {
         "GridWorld",
         "P3VJZBIJ7PNUOFG2SCF532NH5AQ6NOBZEZ6UZNZ7D3AU3GQZSLKURMS2SRPEUF6O65F3ETJXEFNTR3UYS73TUCIIU3YIONXHAR6WE5A=",
     ): {
-        "args": '{"grid": "oooooooooooo\\noooooooooooo\\noooooooooooo\\nsxxxxxxxxxxg"}',
+        "args": '{"grid": "oooooooooooo\noooooooooooo\noooooooooooo\nsxxxxxxxxxxg"}',
         "name": "4x12",
     },
 }
@@ -84,7 +86,16 @@ def process_data(df_raw, envs_mapping):
         new_meta["policy_type"] = POLICY_NAMES[new_meta["policy_type"]]
         return new_meta
 
+    # drop n-step SARSA experiments with different values for n-step
+    # and reward period;
+    def filter_experiment_configs(meta: Mapping[str, Any]):
+        algo_args = json.loads(meta["algorithm_args"])
+        if "nstep-sarsa" == meta["algorithm"] and meta["reward_period"] > 1:
+            return algo_args["nstep"] == meta["reward_period"]
+        return True
+
     df_proc = copy.deepcopy(df_raw)
+    df_proc = df_proc[df_proc["meta"].apply(filter_experiment_configs)]
     df_proc["meta"] = df_proc["meta"].apply(simplify_meta)
     df_proc["method"] = df_proc["meta"].apply(get_method)
     return df_proc
