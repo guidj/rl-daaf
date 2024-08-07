@@ -9,16 +9,7 @@ import abc
 import copy
 import dataclasses
 import logging
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    FrozenSet,
-    Iterator,
-    Optional,
-    Sequence,
-    Set,
-)
+from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Sequence, Set
 
 import numpy as np
 from rlplg import combinatorics, core
@@ -608,9 +599,17 @@ class AbQueueBuffer:
 
     @property
     def is_full_rank(self) -> bool:
-        return self._additions >= self.num_factors and np.sum(
-            (self._rank_flag * self._keep_factors_mask) > 0
-        ) == np.sum(self._keep_factors_mask)
+        required_factors = self.num_factors - (
+            0
+            if self.ignore_factors_mask is None
+            else np.sum(self.ignore_factors_mask).item()
+        )
+        square_or_tall = self._additions >= required_factors
+        factors_rank = (
+            np.sum((self._rank_flag * self._keep_factors_mask) > 0)
+            == np.sum(self._keep_factors_mask)
+        ).item()
+        return square_or_tall and factors_rank
 
 
 class Counter:
