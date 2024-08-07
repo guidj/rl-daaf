@@ -518,17 +518,22 @@ class AbQueueBuffer:
             if ignore_factors_mask is not None
             else np.zeros(num_factors, dtype=np.int64)
         )
+        self.nkeep_factors = self.num_factors - (
+            0
+            if self.ignore_factors_mask is None
+            else np.sum(self.ignore_factors_mask).item()
+        )
         self._keep_factors_mask = (self.ignore_factors_mask - 1) * -1
         # `np.where` returns a tuple per dim;
         # Keep the first dim
-        self._col_mask = np.where(self._keep_factors_mask == 1)[0]
+        self._cols_mask = np.where(self._keep_factors_mask == 1)[0]
         # pre-allocate arrays
-        self._rows = np.zeros(shape=(buffer_size, num_factors), dtype=np.float64)
+        self._rows = np.zeros(shape=(buffer_size, self.nkeep_factors), dtype=np.float64)
         self._b = np.zeros(shape=(buffer_size,), dtype=np.float64)
         self._next_pos = 0
         self._additions = 0
         self._factors_tracker: Set[int] = set()
-        self._rank_flag = np.zeros(shape=self.num_factors, dtype=np.float64)
+        self._rank_flag = np.zeros(shape=self.nkeep_factors, dtype=np.float64)
 
     def add(self, row: np.ndarray, rhs: np.ndarray) -> None:
         """
@@ -543,25 +548,31 @@ class AbQueueBuffer:
                 f"Expects row of dimension {self.num_factors}, received {len(row)}"
             )
 
+        # TODO: this currently allows duplicate entries when `ignore_factors_mask` is not None
         # Add rows for factors of interest (`keep_factors_mask`).
-        if np.sum(row * self._keep_factors_mask) > 0:
-            mask = (row > 0).astype(np.int64)
-            row_key = combinatorics.sequence_to_integer(space_size=2, sequence=mask)
+        candidate_row = row[self._cols_mask]
+        if np.sum(candidate_row) > 0:
+            # factors_row = row[self._keep_factors_mask]
+            mask = (candidate_row > 0).astype(np.int64)
+            row_factors_key = combinatorics.sequence_to_integer(
+                space_size=2, sequence=mask
+            )
             # Only add distict rows - based on their mask
-            if row_key not in self._factors_tracker:
+            if row_factors_key not in self._factors_tracker:
+                current_row_mask = (self._rows[self._next_pos] > 0).astype(np.int64)
                 current_row_key = combinatorics.sequence_to_integer(
                     space_size=2,
-                    sequence=(self._rows[self._next_pos] > 0).astype(np.int64),
+                    sequence=current_row_mask,
                 )
                 if current_row_key in self._factors_tracker:
                     # Every row is unique, thus removing it
                     # removes it's marker
                     self._factors_tracker.remove(current_row_key)
                     self._rank_flag -= self._rows[self._next_pos]
-                self._factors_tracker.add(row_key)
+                self._factors_tracker.add(row_factors_key)
                 self._rank_flag += mask
 
-                self._rows[self._next_pos] = row
+                self._rows[self._next_pos] = candidate_row
                 self._b[self._next_pos] = rhs
                 # cycle least recent
                 self._next_pos = (self._next_pos + 1) % self.buffer_size
@@ -575,8 +586,8 @@ class AbQueueBuffer:
             it returns the values available - which can be an empty array.
         """
         if self._additions >= self.buffer_size:
-            return self._rows[:, self._col_mask]
-        return self._rows[: self._next_pos, self._col_mask]
+            return self._rows
+        return self._rows[: self._next_pos, :]
 
     @property
     def rhs(self) -> np.ndarray:
@@ -599,15 +610,14 @@ class AbQueueBuffer:
 
     @property
     def is_full_rank(self) -> bool:
-        required_factors = self.num_factors - (
-            0
-            if self.ignore_factors_mask is None
-            else np.sum(self.ignore_factors_mask).item()
-        )
-        square_or_tall = self._additions >= required_factors
+        # required_factors = self.num_factors - (
+        #     0
+        #     if self.ignore_factors_mask is None
+        #     else np.sum(self.ignore_factors_mask).item()
+        # )
+        square_or_tall = self._additions >= self.nkeep_factors
         factors_rank = (
-            np.sum((self._rank_flag * self._keep_factors_mask) > 0)
-            == np.sum(self._keep_factors_mask)
+            np.sum((self._rank_flag > 0).astype(np.int64)) == self.nkeep_factors
         ).item()
         return square_or_tall and factors_rank
 

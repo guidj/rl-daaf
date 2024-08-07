@@ -4,10 +4,10 @@ import hypothesis
 import numpy as np
 import pytest
 import tensorflow as tf
+from daaf import replay_mapper
 from hypothesis import strategies as st
 from rlplg import core
 
-from daaf import replay_mapper
 from tests import defaults
 
 
@@ -637,25 +637,34 @@ def test_abqueuebuffer_init():
 def test_abqueuebuffer():
     buffer = replay_mapper.AbQueueBuffer(buffer_size=4, num_factors=3)
 
+    # First entry, added.
     buffer.add(np.array([1, 0, 0]), 1)
     assert getattr(buffer, "_factors_tracker") == set([4])
     np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([1, 0, 0]))
     assert buffer.is_empty is False
     assert buffer.is_full_rank is False
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0, 0]]))
 
+    # Second entry, independent, added.
     buffer.add(np.array([1, 0, 1]), 2)
     assert getattr(buffer, "_factors_tracker") == set([4, 5])
     np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 0, 1]))
     assert buffer.is_empty is False
     assert buffer.is_full_rank is False
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0, 0], [1, 0, 1]]))
 
+    # Third entry, independent, added.
+    # Matrix is now full rank.
     buffer.add(np.array([1, 1, 1]), 3)
     assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
     np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
     assert buffer.is_empty is False
     assert buffer.is_full_rank is True
+    np.testing.assert_allclose(
+        buffer.matrix, np.array([[1, 0, 0], [1, 0, 1], [1, 1, 1]])
+    )
 
-    # duplicate entry; no change
+    # Fourth entry, non-independent; no change
     buffer.add(np.array([1, 0, 1]), 4)
     assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
     np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
@@ -665,6 +674,7 @@ def test_abqueuebuffer():
         buffer.matrix, np.array([[1, 0, 0], [1, 0, 1], [1, 1, 1]])
     )
 
+    # Fifth entry, indenpedent, added.
     buffer.add(np.array([1, 1, 0]), 5)
     assert getattr(buffer, "_factors_tracker") == set([4, 5, 7, 6])
     np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([4, 2, 2]))
@@ -680,40 +690,45 @@ def test_abqueuebuffer_ignore_factors_mask():
         buffer_size=4, num_factors=3, ignore_factors_mask=np.array([0, 1, 0])
     )
 
+    # First entry, added.
     buffer.add(np.array([1, 0, 0]), 1)
-    assert getattr(buffer, "_factors_tracker") == set([4])
-    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([1, 0, 0]))
+    assert getattr(buffer, "_factors_tracker") == set([2])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([1, 0]))
     assert buffer.is_empty is False
     assert buffer.is_full_rank is False
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0]]))
 
+    # Second entry, added.
     buffer.add(np.array([1, 0, 1]), 2)
-    assert getattr(buffer, "_factors_tracker") == set([4, 5])
-    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 0, 1]))
+    assert getattr(buffer, "_factors_tracker") == set([2, 3])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 1]))
     assert buffer.is_empty is False
     assert buffer.is_full_rank is True
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0], [1, 1]]))
 
+    # Third entry, non-independent, ignored.
     buffer.add(np.array([1, 1, 1]), 3)
-    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
-    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
+    assert getattr(buffer, "_factors_tracker") == set([2, 3])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 1]))
     assert buffer.is_empty is False
     assert buffer.is_full_rank is True
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0], [1, 1]]))
 
-    # entry to be ignored
+    # Fourth entry, duplicate, ignored.
     buffer.add(np.array([0, 1, 0]), 4)
-    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
-    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
+    assert getattr(buffer, "_factors_tracker") == set([2, 3])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 1]))
     assert buffer.is_empty is False
     assert buffer.is_full_rank is True
-    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0], [1, 1], [1, 1]]))
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0], [1, 1]]))
 
-    buffer.add(np.array([1, 1, 0]), 5)
-    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7, 6])
-    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([4, 2, 2]))
+    # Fifth entry, independent, added.
+    buffer.add(np.array([0, 0, 1]), 5)
+    assert getattr(buffer, "_factors_tracker") == set([2, 3, 1])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 2]))
     assert buffer.is_empty is False
     assert buffer.is_full_rank is True
-    np.testing.assert_allclose(
-        buffer.matrix, np.array([[1, 0], [1, 1], [1, 1], [1, 0]])
-    )
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0], [1, 1], [0, 1]]))
 
 
 def test_counter_init():
