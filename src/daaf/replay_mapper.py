@@ -199,6 +199,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         self.state_id_fn = state_id_fn
         self.action_id_fn = action_id_fn
         self.buffer_size = buffer_size
+        self.terminal_states = terminal_states
         self.factor_terminal_states = factor_terminal_states
         self.prefill_buffer = prefill_buffer
         self.num_updates = 0
