@@ -48,7 +48,7 @@ def estimate_reward(
     )
     policy = policies.PyRandomPolicy(num_actions=env_spec.mdp.env_desc.num_actions)
     # collect data
-    logging.info("Collecting data for %s", spec["name"])
+    logging.info("Collecting data for %s/%s", spec["name"], spec["args"])
     episode = 1
     steps = 0
     yhat_lstsq: Optional[np.ndarray] = None
@@ -72,7 +72,12 @@ def estimate_reward(
             break
 
         if episode % logging_steps == 0:
-            logging.info("Data collection for %s at %d episodes", spec["name"], episode)
+            logging.info(
+                "Data collection for %s/%s at %d episodes",
+                spec["name"],
+                spec["args"],
+                episode,
+            )
         if episode >= max_episodes:
             break
         episode += 1
@@ -81,8 +86,9 @@ def estimate_reward(
     # estimate rewards
     if mapper._estimation_buffer.is_full_rank:
         logging.info(
-            "Estimating rewards for %s, after %d episodes (%d steps). Matrix shape: %s",
+            "Estimating rewards for %s/%s, after %d episodes (%d steps). Matrix shape: %s",
             spec["name"],
+            spec["args"],
             episode,
             steps,
             mapper._estimation_buffer.matrix.shape,
@@ -92,7 +98,9 @@ def estimate_reward(
             agg_rewards=mapper._estimation_buffer.rhs,
             accuracy=accuracy,
         )
-        logging.info("OLS ran in %d iterations for %s", iters, spec["name"])
+        logging.info(
+            "OLS ran in %d iterations for %s/%s", iters, spec["name"], spec["args"]
+        )
         yhat_lstsq = lstsq_reward_estimation(
             obs_matrix=mapper._estimation_buffer.matrix,
             agg_rewards=mapper._estimation_buffer.rhs,
