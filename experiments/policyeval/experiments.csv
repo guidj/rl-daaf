@@ -39,6 +39,8 @@
 "nstep-td","single-step","identity-mapper","1",false,0.99,0.1,0.0,"{""nstep"":4}"
 "nstep-td","single-step","identity-mapper","1",false,1.0,0.1,0.0,"{""nstep"":6}"
 "nstep-td","single-step","identity-mapper","1",false,0.99,0.1,0.0,"{""nstep"":6}"
+"nstep-td","single-step","identity-mapper","1",false,1.0,0.1,0.0,"{""nstep"":8}"
+"nstep-td","single-step","identity-mapper","1",false,0.99,0.1,0.0,"{""nstep"":8}"
 "nstep-td","single-step","daaf-nstep-td-update-mark-mapper","2",false,1.0,0.1,0.0,"{""nstep"":2}"
 "nstep-td","single-step","daaf-nstep-td-update-mark-mapper","2",false,0.99,0.1,0.0,"{""nstep"":2}"
 "nstep-td","single-step","daaf-nstep-td-update-mark-mapper","4",false,1.0,0.1,0.0,"{""nstep"":4}"
