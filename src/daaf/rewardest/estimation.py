@@ -54,7 +54,7 @@ def estimate_reward(
     yhat_lstsq: Optional[np.ndarray] = None
     yhat_ols_em: Optional[np.ndarray] = None
     meta: Dict[str, Any] = {"max_episodes": max_episodes, "est_accuracy": accuracy}
-    visited_states: Dict[int, int] = collections.defaultdict(int)
+    num_visited_states_dist: Dict[int, int] = collections.defaultdict(int)
 
     while True:
         traj = envplay.generate_episode(env_spec.environment, policy=policy)
@@ -63,7 +63,7 @@ def estimate_reward(
             episode_visited_states.add(
                 env_spec.discretizer.state(traj_step.observation)
             )
-        visited_states[len(episode_visited_states)] += 1
+        num_visited_states_dist[len(episode_visited_states)] += 1
 
         if (
             not mapper._estimation_buffer.is_empty
@@ -147,7 +147,7 @@ def estimate_reward(
         "full_rank": mapper._estimation_buffer.is_full_rank,
         "samples": mapper._estimation_buffer.matrix.shape[0],
         "buffer_size": mapper._estimation_buffer.buffer_size,
-        "episode_visited_states_count": dict(visited_states),
+        "episode_visited_states_count": dict(num_visited_states_dist),
         "meta": meta,
     }
 
