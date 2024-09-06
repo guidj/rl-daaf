@@ -20,7 +20,6 @@ def estimate_reward(
     logging_steps: int = 100,
     factor_terminal_states: bool = False,
     prefill_buffer: bool = False,
-    export_path: Optional[str] = None,
 ) -> Mapping[str, np.ndarray]:
     env_spec = envsuite.load(spec["name"], **spec["args"])
     terminal_states = (
@@ -126,19 +125,6 @@ def estimate_reward(
             spec["name"],
             spec["args"],
         )
-
-    if export_path:
-        import os.path
-
-        for name, array in zip(
-            ["lhs", "rhs"],
-            [mapper._estimation_buffer.matrix, mapper._estimation_buffer.rhs],
-        ):
-            if not os.path.exists(export_path):
-                os.makedirs(export_path)
-            with open(os.path.join(export_path, name), "wb") as writable:
-                np.save(writable, array)
-
     return {
         "least": yhat_lstsq,
         "ols_em": yhat_ols_em,
@@ -146,8 +132,15 @@ def estimate_reward(
         "steps": steps,
         "full_rank": mapper._estimation_buffer.is_full_rank,
         "samples": mapper._estimation_buffer.matrix.shape[0],
+        "data": {
+            "lhs": mapper._estimation_buffer.matrix,
+            "rhs": mapper._estimation_buffer.rhs,
+        },
         "buffer_size": mapper._estimation_buffer.buffer_size,
-        "episode_visited_states_count": dict(num_visited_states_dist),
+        # keys a string for serilization
+        "episode_visited_states_count": {
+            str(key): value for key, value in num_visited_states_dist.items()
+        },
         "meta": meta,
     }
 
