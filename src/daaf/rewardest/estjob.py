@@ -17,13 +17,20 @@ import ray.data
 from daaf.rewardest import estimation
 
 ENV_SPECS = [
+    {"name": "ABCSeq", "args": {"length": 2, "distance_penalty": False}},
+    {"name": "ABCSeq", "args": {"length": 3, "distance_penalty": False}},
     {"name": "ABCSeq", "args": {"length": 7, "distance_penalty": False}},
     {"name": "ABCSeq", "args": {"length": 10, "distance_penalty": False}},
     {"name": "FrozenLake-v1", "args": {"is_slippery": False, "map_name": "4x4"}},
     {
         "name": "GridWorld",
+        "args": {"grid": "ooooo\nooxoo\noxooo\nsxxxg"},
+    },
+    {
+        "name": "GridWorld",
         "args": {"grid": "oooooooooooo\noooooooooooo\noooooooooooo\nsxxxxxxxxxxg"},
     },
+    {"name": "RedGreenSeq", "args": {"cure": ["red", "green"]}},
     {
         "name": "RedGreenSeq",
         "args": {
@@ -39,7 +46,7 @@ EST_PLAIN = "plain"
 EST_FACTOR_TS = "factor-ts"
 EST_PREFILL_BUFFER = "prefill-buffer"
 
-AGG_REWARD_PERIODS = [2, 3, 4, 5, 6, 7, 8]
+AGG_REWARD_PERIODS = [2, 3, 4, 5, 6, 7, 8, 15]
 
 EST_ACCURACY = 1e-8
 
