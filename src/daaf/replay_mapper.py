@@ -172,6 +172,12 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
             buffer_size: The maximum number of trajectories to keep
                 in the buffer - each one should contain `reward_period` steps.
             impute_value: Value to use when rewards are missing.
+            terminal_states: A set of terminal states. When provided,
+                estimates for these states are ignored.
+            factor_terminal_states: Solves LEAST for non-terminal states
+                only when `True`.
+            prefill_buffer: Examples for terminal states are added
+                before data collection when `True`.
 
         Note: decay isn't used when summing up the rewards for K steps.
         """
@@ -264,32 +270,20 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
                     reward_sum = 0.0
                     # Run estimation at the first possible moment,
                     if self._estimation_buffer.is_full_rank:
-                        logging.debug("Estimating rewards with Least-Squares.")
                         try:
-                            estimated_rewards = math_ops.solve_least_squares(
+                            estimated_rewards = self.__estimate_rewards(
                                 matrix=self._estimation_buffer.matrix,
                                 rhs=self._estimation_buffer.rhs,
+                                num_states=self.num_states,
+                                num_actions=self.num_actions,
+                                terminal_state_action_mask=self._terminal_state_action_mask,
                             )
-                            # we only solved for non-terminal states
-                            if estimated_rewards.size < (
-                                self.num_states * self.num_actions
-                            ):
-                                pos = 0
-                                est_rewards_ext = np.zeros(
-                                    self.num_states * self.num_actions, dtype=np.float64
-                                )
-                                ignore_factors_mask = np.reshape(
-                                    self._terminal_state_action_mask, newshape=[-1]
-                                )
-                                for idx in range(len(ignore_factors_mask)):
-                                    if ignore_factors_mask[idx] == 1:
-                                        est_rewards_ext[idx] = 0.0
-                                    else:
-                                        est_rewards_ext[idx] = estimated_rewards[pos]
-                                        pos += 1
-                                estimated_rewards = est_rewards_ext
                             new_rtable = np.reshape(
-                                estimated_rewards,
+                                self.__zero_terminal_states(
+                                    estimated_rewards,
+                                    terminal_states=self.terminal_states,
+                                    num_actions=self.num_actions,
+                                ),
                                 newshape=(self.num_states, self.num_actions),
                             )
                             # update the reward estimates by a fraction of the delta
@@ -308,6 +302,52 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
                 reward = float(self.rtable[state_id, action_id])
 
             yield dataclasses.replace(traj_step, reward=reward)
+
+    @staticmethod
+    def __estimate_rewards(
+        matrix: np.ndarray,
+        rhs: np.ndarray,
+        num_states: int,
+        num_actions: int,
+        terminal_state_action_mask: np.ndarray,
+    ):
+        logging.debug("Estimating rewards with Least-Squares.")
+        estimated_rewards = math_ops.solve_least_squares(
+            matrix=matrix,
+            rhs=rhs,
+        )
+        # we only solved for non-terminal states
+        if estimated_rewards.size < (num_states * num_actions):
+            pos = 0
+            est_rewards_ext = np.zeros(num_states * num_actions, dtype=np.float64)
+            ignore_factors_mask = np.reshape(terminal_state_action_mask, newshape=[-1])
+            for idx in range(len(ignore_factors_mask)):
+                if ignore_factors_mask[idx] == 1:
+                    est_rewards_ext[idx] = 0.0
+                else:
+                    est_rewards_ext[idx] = estimated_rewards[pos]
+                    pos += 1
+            estimated_rewards = est_rewards_ext
+        new_rtable = np.reshape(
+            estimated_rewards,
+            newshape=(num_states, num_actions),
+        )
+        return new_rtable
+
+    @staticmethod
+    def __zero_terminal_states(
+        rtable: np.ndarray, terminal_states: FrozenSet[int], num_actions: int
+    ):
+        """
+        Assumes states are zero-indexed.
+        """
+        new_rtable = copy.deepcopy(rtable)
+        for tstate in terminal_states:
+            # nA = 2
+            # 0 -> 0*2, (0+1)*2-1 -> 0, 1
+            # 2 -> 2*2, (2+1)*2-1 -> 4, 5
+            new_rtable[tstate * num_actions : (tstate + 1) * num_actions - 1] = 0.0
+        return new_rtable
 
 
 class DaafMdpWithOptionsMapper(TrajMapper):
