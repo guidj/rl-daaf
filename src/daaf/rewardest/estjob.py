@@ -4,6 +4,7 @@ Module contains job to run policy evaluation with replay mappers.
 
 import argparse
 import dataclasses
+import itertools
 import json
 import logging
 import random
@@ -127,22 +128,27 @@ def create_tasks(
 ) -> Sequence[Tuple[EstimationTask, ray.ObjectRef]]:
     tasks = []
     futures = []
-    for env_spec in env_specs:
-        for reward_period in agg_reward_periods:
-            for method in (EST_PLAIN, EST_FACTOR_TS, EST_PREFILL_BUFFER):
-                uid = str(uuid.uuid4())
-                for run_id in range(num_runs):
-                    task = EstimationTask(
-                        uid=uid,
-                        env_spec=env_spec,
-                        reward_period=reward_period,
-                        run_id=run_id,
-                        accuracy=accuracy,
-                        max_episodes=max_episodes,
-                        log_episode_frequency=log_episode_frequency,
-                        method=method,
-                    )
-                    tasks.append(task)
+    methods = (EST_PLAIN, EST_FACTOR_TS, EST_PREFILL_BUFFER)
+    for env_spec, reward_period, method in itertools.product(
+        env_specs, agg_reward_periods, methods
+    ):
+        uid = str(uuid.uuid4())
+        tasks.extend(
+            [
+                EstimationTask(
+                    uid=uid,
+                    env_spec=env_spec,
+                    reward_period=reward_period,
+                    run_id=run_id,
+                    accuracy=accuracy,
+                    max_episodes=max_episodes,
+                    log_episode_frequency=log_episode_frequency,
+                    method=method,
+                )
+                for run_id in range(num_runs)
+            ]
+        )
+
     # shuffle to workload
     random.shuffle(tasks)
     for task in tasks:
