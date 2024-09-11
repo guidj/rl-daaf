@@ -84,7 +84,7 @@ def create_tasks(
     output_dir: str,
     task_prefix: str,
     log_episode_frequency: int,
-) -> Sequence[Tuple[ray.ObjectRef, expconfig.ExperimentTask]]:
+) -> Sequence[Tuple[ray.ObjectRef, expconfig.ExperimentRun]]:
     """
     Runs numerical experiments on policy evaluation.
     """
@@ -99,7 +99,7 @@ def create_tasks(
         )
     )
     experiments_and_context = add_experiment_context(experiments, assets_dir=assets_dir)
-    experiment_tasks = tuple(
+    experiment_runs = tuple(
         expconfig.generate_tasks_from_experiments_context_and_run_config(
             run_config=expconfig.RunConfig(
                 num_episodes=num_episodes,
@@ -112,10 +112,10 @@ def create_tasks(
         )
     )
     # shuffle tasks to balance workload
-    experiment_tasks = random.sample(experiment_tasks, len(experiment_tasks))  # type: ignore
+    experiment_runs = random.sample(experiment_runs, len(experiment_runs))  # type: ignore
     # bundle tasks
     experiment_batches = utils.bundle(
-        experiment_tasks, bundle_size=constants.DEFAULT_BATCH_SIZE
+        experiment_runs, bundle_size=constants.DEFAULT_BATCH_SIZE
     )
     logging.info(
         "Parsed %d DAAF configs and %d environments into %d tasks",
@@ -171,20 +171,20 @@ def add_experiment_context(
 
 @ray.remote
 def run_experiments(
-    experiments_batch: Sequence[expconfig.ExperimentTask],
+    experiments_batch: Sequence[expconfig.ExperimentRun],
 ) -> Sequence[str]:
     """
     Runs experiments.
     """
     ids: List[str] = []
-    for experiment_task in experiments_batch:
-        task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
+    for experiment_run in experiments_batch:
+        task_id = f"{experiment_run.exp_id}/{experiment_run.run_id}"
         logging.debug(
             "Experiment %s starting: %s",
             task_id,
-            experiment_task,
+            experiment_run,
         )
-        evaluation.run_fn(experiment_task)
+        evaluation.run_fn(experiment_run)
         ids.append(task_id)
         logging.debug("Experiment %s finished", task_id)
     return ids
