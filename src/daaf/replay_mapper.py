@@ -342,11 +342,19 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         Assumes states are zero-indexed.
         """
         new_rtable = copy.deepcopy(rtable)
+        ndim = np.ndim(new_rtable)
+        if ndim > 2:
+            raise ValueError(f"`rtable` must be 1D or 2D tensor. Got: {ndim}.")
+
         for tstate in terminal_states:
-            # nA = 2
-            # 0 -> 0*2, (0+1)*2-1 -> 0, 1
-            # 2 -> 2*2, (2+1)*2-1 -> 4, 5
-            new_rtable[tstate * num_actions : (tstate + 1) * num_actions - 1] = 0.0
+            if ndim == 1:
+                # Examples
+                # nA = 2
+                # 0 -> 0*2, (0+1)*2-1 -> 0, 1
+                # 2 -> 2*2, (2+1)*2-1 -> 4, 5
+                new_rtable[tstate * num_actions : (tstate + 1) * num_actions - 1] = 0.0
+            elif ndim == 2:
+                new_rtable[tstate, :] = 0.0
         return new_rtable
 
 
@@ -589,11 +597,9 @@ class AbQueueBuffer:
                 f"Expects row of dimension {self.num_factors}, received {len(row)}"
             )
 
-        # TODO: this currently allows duplicate entries when `ignore_factors_mask` is not None
         # Add rows for factors of interest (`keep_factors_mask`).
         candidate_row = row[self._cols_mask]
         if np.sum(candidate_row) > 0:
-            # factors_row = row[self._keep_factors_mask]
             mask = (candidate_row > 0).astype(np.int64)
             row_factors_key = combinatorics.sequence_to_integer(
                 space_size=2, sequence=mask
@@ -651,11 +657,6 @@ class AbQueueBuffer:
 
     @property
     def is_full_rank(self) -> bool:
-        # required_factors = self.num_factors - (
-        #     0
-        #     if self.ignore_factors_mask is None
-        #     else np.sum(self.ignore_factors_mask).item()
-        # )
         square_or_tall = self._additions >= self.nkeep_factors
         factors_rank = (
             np.sum((self._rank_flag > 0).astype(np.int64)) == self.nkeep_factors

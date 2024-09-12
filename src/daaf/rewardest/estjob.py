@@ -5,7 +5,6 @@ Module contains job to run policy evaluation with replay mappers.
 import argparse
 import dataclasses
 import itertools
-import json
 import logging
 import random
 import uuid

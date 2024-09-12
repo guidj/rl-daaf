@@ -7,10 +7,9 @@ from typing import Any, Mapping, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
-from rlplg import envplay, envsuite
-from rlplg.learning.tabular import policies
-
 from daaf import math_ops, replay_mapper
+from rlplg import core, envplay, envsuite
+from rlplg.learning.tabular import policies
 
 ENV_SPECS = [
     {"name": "ABCSeq", "args": {"length": 7}},
@@ -107,6 +106,7 @@ def estimate_reward(
         buffer_size=env_spec.mdp.env_desc.num_states
         * env_spec.mdp.env_desc.num_actions
         * BUFFER_MULT,
+        terminal_states=core.infer_env_terminal_states(env_spec.mdp.transition),
     )
     policy = policies.PyRandomPolicy(num_actions=env_spec.mdp.env_desc.num_actions)
     # collect data
@@ -188,5 +188,8 @@ if __name__ == "__main__":
     now = int(time.time())
     df_results = estimation_experiment(env_specs=ENV_SPECS)
     df_results.to_json(
-        os.path.join(str(pathlib.Path.home()), f"fs/daaf/exp/reward-recovery/{now}-report.json"), orient="records"
+        os.path.join(
+            str(pathlib.Path.home()), f"fs/daaf/exp/reward-recovery/{now}-report.json"
+        ),
+        orient="records",
     )

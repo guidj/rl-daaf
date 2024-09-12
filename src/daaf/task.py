@@ -86,6 +86,7 @@ def create_trajectory_mappers(
                     num_states=env_spec.mdp.env_desc.num_states,
                     num_actions=env_spec.mdp.env_desc.num_actions,
                 ),
+                terminal_states=core.infer_env_terminal_states(env_spec.mdp.transition),
             )
         )
     elif traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
