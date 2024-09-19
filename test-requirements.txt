@@ -43,6 +43,10 @@ charset-normalizer==3.1.0
     #   -r requirements.txt
     #   aiohttp
     #   requests
+clarabel==0.9.0
+    # via
+    #   -r requirements.txt
+    #   cvxpy
 click==8.0.4
     # via
     #   -r requirements.txt
@@ -57,10 +61,16 @@ coverage==7.3.2
     # via
     #   -r test-requirements.in
     #   pytest-cov
+cvxpy==1.5.3
+    # via -r requirements.txt
 distlib==0.3.6
     # via
     #   -r requirements.txt
     #   virtualenv
+ecos==2.0.14
+    # via
+    #   -r requirements.txt
+    #   cvxpy
 exceptiongroup==1.2.0
     # via
     #   hypothesis
@@ -200,14 +210,20 @@ multidict==6.0.4
 numpy==1.23.5
     # via
     #   -r requirements.txt
+    #   clarabel
+    #   cvxpy
+    #   ecos
     #   gymnasium
     #   h5py
     #   jax-jumpy
     #   opt-einsum
+    #   osqp
     #   pandas
     #   pyarrow
+    #   qdldl
     #   rlplg
     #   scipy
+    #   scs
     #   tensorboard
     #   tensorflow
 oauthlib==3.2.2
@@ -224,6 +240,10 @@ opt-einsum==3.3.0
     # via
     #   -r requirements.txt
     #   tensorflow
+osqp==0.6.7.post1
+    # via
+    #   -r requirements.txt
+    #   cvxpy
 packaging==23.2
     # via
     #   -r requirements.txt
@@ -293,6 +313,10 @@ pyyaml==6.0
     # via
     #   -r requirements.txt
     #   ray
+qdldl==0.1.7.post4
+    # via
+    #   -r requirements.txt
+    #   osqp
 ray==2.23.0
     # via -r requirements.txt
 requests==2.28.2
@@ -320,7 +344,17 @@ rsa==4.9
 scipy==1.10.1
     # via
     #   -r requirements.txt
+    #   clarabel
+    #   cvxpy
+    #   ecos
+    #   osqp
+    #   qdldl
     #   rlplg
+    #   scs
+scs==3.2.7
+    # via
+    #   -r requirements.txt
+    #   cvxpy
 setuptools==74.1.2
     # via
     #   -r requirements.txt
