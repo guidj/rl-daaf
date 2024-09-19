@@ -3,13 +3,18 @@ Module contains job to run policy evaluation with replay mappers.
 """
 
 import argparse
+import copy
 import dataclasses
 import itertools
+import json
 import logging
+import pathlib
 import random
+import time
 import uuid
 from typing import Any, Mapping, Optional, Sequence, Tuple
 
+import numpy as np
 import ray
 import ray.data
 
@@ -18,37 +23,34 @@ from daaf.rewardest import estimation
 
 ENV_SPECS = [
     {"name": "ABCSeq", "args": {"length": 2, "distance_penalty": False}},
-    # {"name": "ABCSeq", "args": {"length": 3, "distance_penalty": False}},
-    # {"name": "ABCSeq", "args": {"length": 7, "distance_penalty": False}},
-    # {"name": "ABCSeq", "args": {"length": 10, "distance_penalty": False}},
-    # {"name": "FrozenLake-v1", "args": {"is_slippery": False, "map_name": "4x4"}},
-    # {
-    #     "name": "GridWorld",
-    #     "args": {"grid": "ooooo\nooxoo\noxooo\nsxxxg"},
-    # },
-    # {
-    #     "name": "GridWorld",
-    #     "args": {"grid": "oooooooooooo\noooooooooooo\noooooooooooo\nsxxxxxxxxxxg"},
-    # },
-    # {"name": "RedGreenSeq", "args": {"cure": ["red", "green"]}},
-    # {
-    #     "name": "RedGreenSeq",
-    #     "args": {
-    #         "cure": ["red", "green", "wait", "green", "red", "red", "green", "wait"]
-    #     },
-    # },
-    # {"name": "IceWorld", "args": {"map_name": "4x4"}},
-    # {"name": "IceWorld", "args": {"map_name": "8x8"}},
+    {"name": "ABCSeq", "args": {"length": 3, "distance_penalty": False}},
+    {"name": "ABCSeq", "args": {"length": 7, "distance_penalty": False}},
+    {"name": "ABCSeq", "args": {"length": 10, "distance_penalty": False}},
+    {"name": "FrozenLake-v1", "args": {"is_slippery": False, "map_name": "4x4"}},
+    {
+        "name": "GridWorld",
+        "args": {"grid": "ooooo\nooxoo\noxooo\nsxxxg"},
+    },
+    {
+        "name": "GridWorld",
+        "args": {"grid": "oooooooooooo\noooooooooooo\noooooooooooo\nsxxxxxxxxxxg"},
+    },
+    {"name": "RedGreenSeq", "args": {"cure": ["red", "green"]}},
+    {
+        "name": "RedGreenSeq",
+        "args": {
+            "cure": ["red", "green", "wait", "green", "red", "red", "green", "wait"]
+        },
+    },
+    {"name": "IceWorld", "args": {"map_name": "4x4"}},
+    {"name": "IceWorld", "args": {"map_name": "8x8"}},
     {"name": "TowerOfHanoi", "args": {"num_disks": 4}},
 ]
 
 EST_PLAIN = "plain"
 EST_FACTOR_TS = "factor-ts"
 EST_PREFILL_BUFFER = "prefill-buffer"
-
-AGG_REWARD_PERIODS = [
-    2,
-]  # 3, 4, 5, 6, 7, 8, 15]
+AGG_REWARD_PERIODS = [2, 3, 4, 5, 6, 7, 8, 15]
 
 EST_ACCURACY = 1e-8
 
@@ -127,7 +129,8 @@ def main(args: EstimationPipelineArgs):
                 ds_result: ray.data.Dataset = ds_head.union(*ds_tail)
             else:
                 ds_result: ray.data.Dataset = datasets[0]
-            ds_result.write_json(args.output_dir)
+            ds_output = ds_result.map(serialize)
+            ds_output.write_parquet(args.output_dir)
 
 
 def create_tasks(
@@ -177,7 +180,6 @@ def run_fn(estimation_runs: Sequence[EstimationRun]) -> ray.data.Dataset:
     results = []
     for experiment_run in estimation_runs:
         estimation_run_dict = dataclasses.asdict(experiment_run)
-        # estimation_run_dict["env_spec"] = json.dumps(estimation_run_dict["env_spec"])
         result = estimate(experiment_run)
         result = {"result": result}
         entry = {**result, **estimation_run_dict}
@@ -225,15 +227,39 @@ def estimate(task: EstimationRun) -> Mapping[str, Any]:
     return result
 
 
+def serialize(example: Mapping[str, Any]) -> Mapping[str, Any]:
+    def go(key: str, element: Any):
+        if key == "args" and isinstance(element, Mapping):
+            return json.dumps(element)
+        elif isinstance(element, Mapping):
+            return {skey: go(skey, svalue) for skey, svalue in element.items()}
+        elif isinstance(element, np.ndarray):
+            return element.flatten()
+        return copy.deepcopy(element)
+
+    return {key: go(key, value) for key, value in example.items()}
+
+
 def parse_args() -> EstimationPipelineArgs:
     """
     Parses program arguments.
     """
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("--num-runs", type=int, required=True)
-    arg_parser.add_argument("--max-episodes", type=int, required=True)
-    arg_parser.add_argument("--output-dir", type=str, required=True)
-    arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
+    arg_parser.add_argument("--num-runs", type=int, default=3)
+    arg_parser.add_argument("--max-episodes", type=int, default=2500)
+    arg_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=pathlib.Path.home()
+        / "fs/daaf/exp/reward-estjob/logs"
+        / str(int(time.time())),
+    )
+    arg_parser.add_argument("--log-episode-frequency", type=int, default=1)
+
+    # arg_parser.add_argument("--num-runs", type=int, required=True)
+    # arg_parser.add_argument("--max-episodes", type=int, required=True)
+    # arg_parser.add_argument("--output-dir", type=str, required=True)
+    # arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
     known_args, unknown_args = arg_parser.parse_known_args()
     logging.info("Unknown args: %s", unknown_args)

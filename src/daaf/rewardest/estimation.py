@@ -133,9 +133,9 @@ def estimate_reward(
             "rhs": mapper._estimation_buffer.rhs,
         },
         "buffer_size": mapper._estimation_buffer.buffer_size,
-        # keys a string for serilization
         "episode_visited_states_count": {
-            str(key): value for key, value in num_visited_states_dist.items()
+            "num_unique_states": list(num_visited_states_dist.keys()),
+            "num_episodes": list(num_visited_states_dist.values()),
         },
         "meta": meta,
     }
