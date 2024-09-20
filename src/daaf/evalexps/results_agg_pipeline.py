@@ -141,11 +141,7 @@ def parse_experiment_logs(paths: Sequence[str]) -> ray.data.Dataset:
     """
     logs_files = [os.path.join(path, "experiment-logs.jsonl") for path in paths]
     ds_logs = ray.data.read_json(
-        logs_files,
-        include_paths=True,
-        partition_filter=ray.data.datasource.FileExtensionFilter(
-            file_extensions=["jsonl"]
-        ),
+        logs_files, include_paths=True, file_extensions=["jsonl"]
     )
     return ds_logs
 
