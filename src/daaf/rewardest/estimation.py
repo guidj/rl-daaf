@@ -51,7 +51,7 @@ def estimate_reward(
     meta: Dict[str, Any] = {
         "max_episodes": max_episodes,
         "est_accuracy": accuracy,
-        "ols_iters": np.nan,
+        "ols_iters": None,
     }
     num_visited_states_dist: Dict[int, int] = collections.defaultdict(int)
 
