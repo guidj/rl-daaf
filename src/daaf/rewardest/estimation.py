@@ -48,7 +48,11 @@ def estimate_reward(
     steps = 0
     yhat_lstsq: Optional[np.ndarray] = None
     yhat_ols_em: Optional[np.ndarray] = None
-    meta: Dict[str, Any] = {"max_episodes": max_episodes, "est_accuracy": accuracy}
+    meta: Dict[str, Any] = {
+        "max_episodes": max_episodes,
+        "est_accuracy": accuracy,
+        "ols_iters": np.nan,
+    }
     num_visited_states_dist: Dict[int, int] = collections.defaultdict(int)
 
     while True:
