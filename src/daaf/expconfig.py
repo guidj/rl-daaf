@@ -72,7 +72,7 @@ class Experiment:
 
 
 @dataclasses.dataclass(frozen=True)
-class ExperimentTask:
+class ExperimentRun:
     """
     A single experiment task.
     """
@@ -156,7 +156,7 @@ def generate_tasks_from_experiments_context_and_run_config(
     experiments_and_context: Sequence[Tuple[Experiment, Mapping[str, Any]]],
     num_runs: int,
     task_prefix: str,
-) -> Iterator[ExperimentTask]:
+) -> Iterator[ExperimentRun]:
     """
     Given a sequence of experiments, expands them
     to tasks.
@@ -179,7 +179,7 @@ def generate_tasks_from_experiments_context_and_run_config(
             ]
         )
         for idx in range(num_runs):
-            yield ExperimentTask(
+            yield ExperimentRun(
                 exp_id=exp_id,
                 run_id=idx,
                 experiment=experiment,

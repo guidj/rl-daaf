@@ -141,11 +141,7 @@ def parse_experiment_logs(paths: Sequence[str]) -> ray.data.Dataset:
     """
     logs_files = [os.path.join(path, "experiment-logs.jsonl") for path in paths]
     ds_logs = ray.data.read_json(
-        logs_files,
-        include_paths=True,
-        partition_filter=ray.data.datasource.FileExtensionFilter(
-            file_extensions=["jsonl"]
-        ),
+        logs_files, include_paths=True, file_extensions=["jsonl"]
     )
     return ds_logs
 
@@ -240,7 +236,7 @@ def calculate_metrics(ds: ray.data.Dataset) -> ray.data.Dataset:
         }
 
     def apply(row):
-        y_preds = row["state_values"]
+        y_preds = np.array(row["state_values"])
         y_true = np.tile(row["meta"]["dyna_prog_state_values"], reps=(len(y_preds), 1))
         over_runs_then_states = calc_state_metrics(
             y_preds=y_preds, y_true=y_true, axis=0

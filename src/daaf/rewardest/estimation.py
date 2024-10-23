@@ -20,14 +20,9 @@ def estimate_reward(
     logging_steps: int = 100,
     factor_terminal_states: bool = False,
     prefill_buffer: bool = False,
-    export_path: Optional[str] = None,
 ) -> Mapping[str, np.ndarray]:
     env_spec = envsuite.load(spec["name"], **spec["args"])
-    terminal_states = (
-        core.infer_env_terminal_states(env_spec.mdp.transition)
-        if factor_terminal_states
-        else frozenset()
-    )
+    terminal_states = core.infer_env_terminal_states(env_spec.mdp.transition)
     init_rtable = np.zeros(
         shape=(env_spec.mdp.env_desc.num_states, env_spec.mdp.env_desc.num_actions),
         dtype=np.float64,
@@ -48,13 +43,17 @@ def estimate_reward(
     )
     policy = policies.PyRandomPolicy(num_actions=env_spec.mdp.env_desc.num_actions)
     # collect data
-    logging.info("Collecting data for %s", spec["name"])
+    logging.info("Collecting data for %s/%s", spec["name"], spec["args"])
     episode = 1
     steps = 0
     yhat_lstsq: Optional[np.ndarray] = None
     yhat_ols_em: Optional[np.ndarray] = None
-    meta: Dict[str, Any] = {"max_episodes": max_episodes, "est_accuracy": accuracy}
-    visited_states: Dict[int, int] = collections.defaultdict(int)
+    meta: Dict[str, Any] = {
+        "max_episodes": max_episodes,
+        "est_accuracy": accuracy,
+        "ols_iters": None,
+    }
+    num_visited_states_dist: Dict[int, int] = collections.defaultdict(int)
 
     while True:
         traj = envplay.generate_episode(env_spec.environment, policy=policy)
@@ -63,7 +62,7 @@ def estimate_reward(
             episode_visited_states.add(
                 env_spec.discretizer.state(traj_step.observation)
             )
-        visited_states[len(episode_visited_states)] += 1
+        num_visited_states_dist[len(episode_visited_states)] += 1
 
         if (
             not mapper._estimation_buffer.is_empty
@@ -72,7 +71,12 @@ def estimate_reward(
             break
 
         if episode % logging_steps == 0:
-            logging.info("Data collection for %s at %d episodes", spec["name"], episode)
+            logging.info(
+                "Data collection for %s/%s at %d episodes",
+                spec["name"],
+                spec["args"],
+                episode,
+            )
         if episode >= max_episodes:
             break
         episode += 1
@@ -81,8 +85,9 @@ def estimate_reward(
     # estimate rewards
     if mapper._estimation_buffer.is_full_rank:
         logging.info(
-            "Estimating rewards for %s, after %d episodes (%d steps). Matrix shape: %s",
+            "Estimating rewards for %s/%s, after %d episodes (%d steps). Matrix shape: %s",
             spec["name"],
+            spec["args"],
             episode,
             steps,
             mapper._estimation_buffer.matrix.shape,
@@ -92,7 +97,9 @@ def estimate_reward(
             agg_rewards=mapper._estimation_buffer.rhs,
             accuracy=accuracy,
         )
-        logging.info("OLS ran in %d iterations for %s", iters, spec["name"])
+        logging.info(
+            "OLS ran in %d iterations for %s/%s", iters, spec["name"], spec["args"]
+        )
         yhat_lstsq = lstsq_reward_estimation(
             obs_matrix=mapper._estimation_buffer.matrix,
             agg_rewards=mapper._estimation_buffer.rhs,
@@ -118,19 +125,6 @@ def estimate_reward(
             spec["name"],
             spec["args"],
         )
-
-    if export_path:
-        import os.path
-
-        for name, array in zip(
-            ["lhs", "rhs"],
-            [mapper._estimation_buffer.matrix, mapper._estimation_buffer.rhs],
-        ):
-            if not os.path.exists(export_path):
-                os.makedirs(export_path)
-            with open(os.path.join(export_path, name), "wb") as writable:
-                np.save(writable, array)
-
     return {
         "least": yhat_lstsq,
         "ols_em": yhat_ols_em,
@@ -138,8 +132,15 @@ def estimate_reward(
         "steps": steps,
         "full_rank": mapper._estimation_buffer.is_full_rank,
         "samples": mapper._estimation_buffer.matrix.shape[0],
+        "data": {
+            "lhs": mapper._estimation_buffer.matrix,
+            "rhs": mapper._estimation_buffer.rhs,
+        },
         "buffer_size": mapper._estimation_buffer.buffer_size,
-        "episode_visited_states_count": dict(visited_states),
+        "episode_visited_states_count": {
+            "num_unique_states": list(num_visited_states_dist.keys()),
+            "num_episodes": list(num_visited_states_dist.values()),
+        },
         "meta": meta,
     }
 

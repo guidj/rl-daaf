@@ -20,7 +20,7 @@ from daaf import constants, expconfig, options, task, utils
 from daaf.controlexps import methods
 
 
-def run_fn(experiment_task: expconfig.ExperimentTask):
+def run_fn(experiment_run: expconfig.ExperimentRun):
     """
     Entry point running on-policy evaluation for DAAF.
 
@@ -29,15 +29,15 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
     """
     # init env and agent
     env_spec = task.create_env_spec(
-        problem=experiment_task.experiment.env_config.name,
-        env_args=experiment_task.experiment.env_config.args,
+        problem=experiment_run.experiment.env_config.name,
+        env_args=experiment_run.experiment.env_config.args,
     )
     traj_mappers = task.create_trajectory_mappers(
         env_spec=env_spec,
-        reward_period=experiment_task.experiment.daaf_config.reward_period,
-        traj_mapping_method=experiment_task.experiment.daaf_config.traj_mapping_method,
+        reward_period=experiment_run.experiment.daaf_config.reward_period,
+        traj_mapping_method=experiment_run.experiment.daaf_config.traj_mapping_method,
         buffer_size_or_multiplier=(None, None),
-        drop_truncated_feedback_episodes=experiment_task.experiment.daaf_config.drop_truncated_feedback_episodes,
+        drop_truncated_feedback_episodes=experiment_run.experiment.daaf_config.drop_truncated_feedback_episodes,
     )
     # Collect returns on underlying MDP
     # before other mappers change it.
@@ -46,30 +46,30 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
     logging.debug("Starting DAAF Control Experiments")
     results = policy_control(
         env_spec=env_spec,
-        daaf_config=experiment_task.experiment.daaf_config,
-        num_episodes=experiment_task.run_config.num_episodes,
-        learnign_args=experiment_task.experiment.learning_args,
+        daaf_config=experiment_run.experiment.daaf_config,
+        num_episodes=experiment_run.run_config.num_episodes,
+        learnign_args=experiment_run.experiment.learning_args,
         generate_steps_fn=task.create_generate_episode_fn(mappers=traj_mappers),
     )
     env_info: Mapping[str, Any] = {
         "env": {
             "name": env_spec.name,
             "level": env_spec.level,
-            "args": json.dumps(experiment_task.experiment.env_config.args),
+            "args": json.dumps(experiment_run.experiment.env_config.args),
         },
     }
     with utils.ExperimentLogger(
-        log_dir=experiment_task.run_config.output_dir,
-        exp_id=experiment_task.exp_id,
-        run_id=experiment_task.run_id,
+        log_dir=experiment_run.run_config.output_dir,
+        exp_id=experiment_run.exp_id,
+        run_id=experiment_run.run_id,
         params={
             **env_info,
             **utils.json_from_dict(
-                dataclasses.asdict(experiment_task.experiment.daaf_config),
+                dataclasses.asdict(experiment_run.experiment.daaf_config),
                 dict_encode_level=0,
             ),
-            **dataclasses.asdict(experiment_task.experiment.learning_args),
-            **experiment_task.context,
+            **dataclasses.asdict(experiment_run.experiment.learning_args),
+            **experiment_run.context,
         },
     ) as exp_logger:
         state_values: Optional[np.ndarray] = None
@@ -78,7 +78,7 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
             for episode, snapshot in enumerate(results):
                 state_values = np.max(snapshot.action_values, axis=1)
                 state_actions = np.argmax(snapshot.action_values, axis=1)
-                if episode % experiment_task.run_config.log_episode_frequency == 0:
+                if episode % experiment_run.run_config.log_episode_frequency == 0:
                     mean_returns = np.mean(returns_collector.traj_returns)
                     exp_logger.log(
                         episode=episode,
@@ -95,13 +95,13 @@ def run_fn(experiment_task: expconfig.ExperimentTask):
 
             logging.debug(
                 "\nEstimated values run %d of %s:\n%s",
-                experiment_task.run_id,
-                experiment_task.exp_id,
+                experiment_run.run_id,
+                experiment_run.exp_id,
                 state_values,
             )
         except Exception as err:
             raise RuntimeError(
-                f"Task {experiment_task.exp_id}, run {experiment_task.run_id} failed"
+                f"Task {experiment_run.exp_id}, run {experiment_run.run_id} failed"
             ) from err
     env_spec.environment.close()
 

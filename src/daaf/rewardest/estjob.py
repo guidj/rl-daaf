@@ -3,26 +3,39 @@ Module contains job to run policy evaluation with replay mappers.
 """
 
 import argparse
+import copy
 import dataclasses
+import itertools
 import json
 import logging
+import pathlib
 import random
+import time
 import uuid
 from typing import Any, Mapping, Optional, Sequence, Tuple
 
+import numpy as np
 import ray
 import ray.data
 
+from daaf import constants, utils
 from daaf.rewardest import estimation
 
 ENV_SPECS = [
+    {"name": "ABCSeq", "args": {"length": 2, "distance_penalty": False}},
+    {"name": "ABCSeq", "args": {"length": 3, "distance_penalty": False}},
     {"name": "ABCSeq", "args": {"length": 7, "distance_penalty": False}},
     {"name": "ABCSeq", "args": {"length": 10, "distance_penalty": False}},
     {"name": "FrozenLake-v1", "args": {"is_slippery": False, "map_name": "4x4"}},
     {
         "name": "GridWorld",
+        "args": {"grid": "ooooo\nooxoo\noxooo\nsxxxg"},
+    },
+    {
+        "name": "GridWorld",
         "args": {"grid": "oooooooooooo\noooooooooooo\noooooooooooo\nsxxxxxxxxxxg"},
     },
+    {"name": "RedGreenSeq", "args": {"cure": ["red", "green"]}},
     {
         "name": "RedGreenSeq",
         "args": {
@@ -37,8 +50,7 @@ ENV_SPECS = [
 EST_PLAIN = "plain"
 EST_FACTOR_TS = "factor-ts"
 EST_PREFILL_BUFFER = "prefill-buffer"
-
-AGG_REWARD_PERIODS = [2, 3, 4, 5, 6, 7, 8]
+AGG_REWARD_PERIODS = [2, 3, 4, 5, 6, 7, 8, 15]
 
 EST_ACCURACY = 1e-8
 
@@ -59,7 +71,7 @@ class EstimationPipelineArgs:
 
 
 @dataclasses.dataclass(frozen=True)
-class EstimationTask:
+class EstimationRun:
     uid: str
     env_spec: Mapping[str, Any]
     run_id: int
@@ -81,7 +93,7 @@ def main(args: EstimationPipelineArgs):
         logging.info("Ray Context: %s", context)
         logging.info("Ray Nodes: %s", ray.nodes())
 
-        tasks_futures = create_tasks(
+        tasks_and_result_refs = create_tasks(
             env_specs=ENV_SPECS,
             agg_reward_periods=AGG_REWARD_PERIODS,
             num_runs=args.num_runs,
@@ -92,29 +104,33 @@ def main(args: EstimationPipelineArgs):
 
         # since ray tracks objectref items
         # we swap the key:value
-        task_ref_to_spec = {future: task for task, future in tasks_futures}
-        results = []
-        unfinished_tasks = list(task_ref_to_spec.keys())
+        task_ref_to_tasks = {
+            result_ref: tasks for tasks, result_ref in tasks_and_result_refs
+        }
+        datasets = []
+        unfinished_task_ref = list(task_ref_to_tasks.keys())
         while True:
-            finished_tasks, unfinished_tasks = ray.wait(unfinished_tasks)
-            for finished_task in finished_tasks:
-                task = task_ref_to_spec[finished_task]
-                result = {"result": ray.get(finished_task)}
-                task_dict = dataclasses.asdict(task)
-                task_dict["env_spec"] = json.dumps(task_dict["env_spec"])
-                entry = {**result, **task_dict}
-                results.append(entry)
+            finished_task_ref, unfinished_task_ref = ray.wait(unfinished_task_ref)
+            for finished_task_ref in finished_task_ref:
+                datasets.append(ray.get(finished_task_ref))
 
                 logging.info(
                     "Tasks left: %d out of %d.",
-                    len(unfinished_tasks),
-                    len(task_ref_to_spec),
+                    len(unfinished_task_ref),
+                    len(task_ref_to_tasks),
                 )
 
-            if len(unfinished_tasks) == 0:
+            if len(unfinished_task_ref) == 0:
                 break
 
-        ray.data.from_items(results).write_json(args.output_dir)
+        if len(datasets) > 0:
+            if len(datasets) > 1:
+                ds_head, ds_tail = datasets[0], datasets[1:]
+                ds_result: ray.data.Dataset = ds_head.union(*ds_tail)
+            else:
+                ds_result: ray.data.Dataset = datasets[0]
+            ds_output = ds_result.map(serialize)
+            ds_output.write_parquet(args.output_dir)
 
 
 def create_tasks(
@@ -124,36 +140,56 @@ def create_tasks(
     max_episodes: int,
     log_episode_frequency: int,
     accuracy: float,
-) -> Sequence[Tuple[EstimationTask, ray.ObjectRef]]:
-    tasks = []
+) -> Sequence[Tuple[ray.ObjectRef]]:
+    estimation_runs = []
     futures = []
-    for env_spec in env_specs:
-        for reward_period in agg_reward_periods:
-            for method in (EST_PLAIN, EST_FACTOR_TS, EST_PREFILL_BUFFER):
-                uid = str(uuid.uuid4())
-                for run_id in range(num_runs):
-                    task = EstimationTask(
-                        uid=uid,
-                        env_spec=env_spec,
-                        reward_period=reward_period,
-                        run_id=run_id,
-                        accuracy=accuracy,
-                        max_episodes=max_episodes,
-                        log_episode_frequency=log_episode_frequency,
-                        method=method,
-                    )
-                    tasks.append(task)
+    methods = (EST_PLAIN, EST_FACTOR_TS, EST_PREFILL_BUFFER)
+    for env_spec, reward_period, method in itertools.product(
+        env_specs, agg_reward_periods, methods
+    ):
+        uid = str(uuid.uuid4())
+        estimation_runs.extend(
+            [
+                EstimationRun(
+                    uid=uid,
+                    env_spec=env_spec,
+                    reward_period=reward_period,
+                    run_id=run_id,
+                    accuracy=accuracy,
+                    max_episodes=max_episodes,
+                    log_episode_frequency=log_episode_frequency,
+                    method=method,
+                )
+                for run_id in range(num_runs)
+            ]
+        )
+
     # shuffle to workload
-    random.shuffle(tasks)
-    for task in tasks:
-        futures.append((task, estimate.remote(task)))
+    random.shuffle(estimation_runs)
+    # batch tasks
+    estimation_run_batches = utils.bundle(
+        estimation_runs, bundle_size=constants.DEFAULT_BATCH_SIZE
+    )
+    for batch in estimation_run_batches:
+        futures.append((batch, run_fn.remote(batch)))
     return futures
 
 
 @ray.remote
-def estimate(task: EstimationTask) -> Mapping[str, Any]:
+def run_fn(estimation_runs: Sequence[EstimationRun]) -> ray.data.Dataset:
+    results = []
+    for experiment_run in estimation_runs:
+        estimation_run_dict = dataclasses.asdict(experiment_run)
+        result = estimate(experiment_run)
+        result = {"result": result}
+        entry = {**result, **estimation_run_dict}
+        results.append(entry)
+    return ray.data.from_items(results)
+
+
+def estimate(task: EstimationRun) -> Mapping[str, Any]:
     """
-    Runs evaluation.
+    Reward estimation.
     """
     logging.info(
         "Task %s for %s/%d (%s) starting",
@@ -191,15 +227,39 @@ def estimate(task: EstimationTask) -> Mapping[str, Any]:
     return result
 
 
+def serialize(example: Mapping[str, Any]) -> Mapping[str, Any]:
+    def go(key: str, element: Any):
+        if key == "args" and isinstance(element, Mapping):
+            return json.dumps(element)
+        elif isinstance(element, Mapping):
+            return {skey: go(skey, svalue) for skey, svalue in element.items()}
+        elif isinstance(element, np.ndarray):
+            return element.flatten()
+        return copy.deepcopy(element)
+
+    return {key: go(key, value) for key, value in example.items()}
+
+
 def parse_args() -> EstimationPipelineArgs:
     """
     Parses program arguments.
     """
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("--num-runs", type=int, required=True)
-    arg_parser.add_argument("--max-episodes", type=int, required=True)
-    arg_parser.add_argument("--output-dir", type=str, required=True)
-    arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
+    arg_parser.add_argument("--num-runs", type=int, default=3)
+    arg_parser.add_argument("--max-episodes", type=int, default=2500)
+    arg_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=pathlib.Path.home()
+        / "fs/daaf/exp/reward-estjob/logs"
+        / str(int(time.time())),
+    )
+    arg_parser.add_argument("--log-episode-frequency", type=int, default=1)
+
+    # arg_parser.add_argument("--num-runs", type=int, required=True)
+    # arg_parser.add_argument("--max-episodes", type=int, required=True)
+    # arg_parser.add_argument("--output-dir", type=str, required=True)
+    # arg_parser.add_argument("--log-episode-frequency", type=int, required=True)
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
     known_args, unknown_args = arg_parser.parse_known_args()
     logging.info("Unknown args: %s", unknown_args)

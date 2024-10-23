@@ -244,7 +244,6 @@ def test_daaf_lsq_reward_attribution_mapper_apply():
     """
     Initial events will have reward values from rtable.
     Once there are enough samples, Least Square Estimates are used instead.
-    The estimates are updated at `update_steps` intervals.
 
     Problem: Two states (A, B), two actions (left, right)
     Table:
@@ -325,6 +324,119 @@ def test_daaf_lsq_reward_attribution_mapper_apply():
 
     outputs = tuple(mapper.apply(inputs))
     assert len(outputs) == 16
+    for output, expected in zip(outputs, expectactions):
+        # reward can only be approximately equal
+        np.testing.assert_array_equal(output.observation, expected.observation)
+        np.testing.assert_array_equal(output.action, expected.action)
+        np.testing.assert_array_equal(output.policy_info, expected.policy_info)
+        np.testing.assert_array_almost_equal(output.reward, expected.reward)
+        np.testing.assert_array_equal(output.terminated, expected.terminated)
+        np.testing.assert_array_equal(output.truncated, expected.truncated)
+
+
+def test_daaf_lsq_reward_attribution_mapper_apply_with_terminal_states():
+    """
+    Initial events will have reward values from rtable.
+    Once there are enough samples, Least Square Estimates are used instead.
+
+    Problem: Three states (A, B, C), two actions (left, right)
+    Table:
+            Actions
+    States  Left    Right
+        A   0       1
+        B   0       1
+        C   0       0
+
+    events: (A, left, A, right) -> (0, 0), (0, 1) -> 0 + 1 = 1
+            (B, left, B, right) -> (1, 0), (1, 1) -> 0 + 1 = 1
+            (A, right, B, left) -> (0, 1), (1, 0) -> 1 + 0 = 1
+            (A, right, B, right) -> (0, 1), (1, 1) -> 1 + 1 = 2
+            (C, left, C, right) -> (2, 0), (2, 1) -> 0 + 0 = 0
+
+    matrix: (A, left), (A, right), (B, left), (B, right)  (C,left)  (C, right)
+            1           1           0           0           0       0
+            0           0           1           1           0       0
+            0           1           1           0           0       0
+            0           1           0           1           0       0
+            0           0           0           0           1       1
+    rhs: 1, 1, 1, 2, 0
+    """
+
+    mapper = replay_mapper.DaafLsqRewardAttributionMapper(
+        num_states=3,
+        num_actions=2,
+        reward_period=2,
+        state_id_fn=item,
+        action_id_fn=item,
+        buffer_size=8,
+        init_rtable=defaults.array([-1.0, -1.0], [-1.0, -1.0], [-1.0, -1.0]),
+        impute_value=88,
+        terminal_states={
+            2,
+        },
+    )
+
+    # We are simulating cumulative rewards.
+    # So we supply the actual rewards to the simulator to aggregate (sum).
+    inputs = [
+        traj_step(state=0, action=0, reward=0.0, prob=0.0),
+        traj_step(state=0, action=1, reward=1.0, prob=1.0),
+        traj_step(state=1, action=0, reward=0.0, prob=0.0),
+        traj_step(state=1, action=1, reward=1.0, prob=1.0),
+        traj_step(state=2, action=0, reward=-1.0, prob=0.0),
+        traj_step(state=2, action=1, reward=-1.0, prob=1.0),
+        # after the event above, all factors are present, but we still lack rows
+        # to satisfy the condition m >= n
+        traj_step(state=0, action=1, reward=1.0, prob=1.0),
+        traj_step(state=1, action=0, reward=0.0, prob=0.0),
+        traj_step(state=0, action=1, reward=1.0, prob=1.0),
+        traj_step(state=1, action=1, reward=1.0, prob=1.0),
+        traj_step(state=1, action=0, reward=0.0, prob=0.0),
+        traj_step(state=2, action=1, reward=-1.0, prob=1.0),
+        # after the event above, m >= n
+        # the events will below will be emitted with estimated rewards
+        traj_step(state=0, action=0, reward=-7.0, prob=0.0),
+        traj_step(state=0, action=1, reward=-7.0, prob=1.0),
+        traj_step(state=1, action=0, reward=-7.0, prob=0.0),
+        traj_step(state=1, action=1, reward=-7.0, prob=1.0),
+        traj_step(state=0, action=1, reward=-7.0, prob=1.0),
+        traj_step(state=1, action=0, reward=-7.0, prob=0.0),
+        traj_step(state=0, action=1, reward=-7.0, prob=1.0),
+        traj_step(state=1, action=1, reward=-7.0, prob=1.0),
+        traj_step(state=2, action=0, reward=0.0, prob=0.0),
+        traj_step(state=2, action=1, reward=0.0, prob=1.0),
+    ]
+    expectactions = [
+        # the events below are emitted with the impute value
+        # or the aggregate feedback
+        traj_step(state=0, action=0, reward=88, prob=0.0),
+        traj_step(state=0, action=1, reward=1.0, prob=1.0),
+        traj_step(state=1, action=0, reward=88, prob=0.0),
+        traj_step(state=1, action=1, reward=1.0, prob=1.0),
+        traj_step(state=2, action=0, reward=88, prob=0.0),
+        traj_step(state=2, action=1, reward=-2.0, prob=1.0),
+        traj_step(state=0, action=1, reward=88, prob=1.0),
+        traj_step(state=1, action=0, reward=1.0, prob=0.0),
+        traj_step(state=0, action=1, reward=88, prob=1.0),
+        traj_step(state=1, action=1, reward=2.0, prob=1.0),
+        traj_step(state=1, action=0, reward=88, prob=0.0),
+        traj_step(state=2, action=1, reward=-1.0, prob=1.0),
+        # the events below are emitted with estimated rewards
+        traj_step(state=0, action=0, reward=0.0, prob=0.0),
+        traj_step(state=0, action=1, reward=1.0, prob=1.0),
+        traj_step(state=1, action=0, reward=0.0, prob=0.0),
+        traj_step(state=1, action=1, reward=1.0, prob=1.0),
+        traj_step(state=0, action=1, reward=1.0, prob=1.0),
+        traj_step(state=1, action=0, reward=0.0, prob=0.0),
+        traj_step(state=0, action=1, reward=1.0, prob=1.0),
+        traj_step(state=1, action=1, reward=1.0, prob=1.0),
+        # zero'd out because 2 is passed as a terminal state
+        traj_step(state=2, action=0, reward=0.0, prob=0.0),
+        traj_step(state=2, action=1, reward=0.0, prob=1.0),
+    ]
+
+    outputs = tuple(mapper.apply(inputs))
+    assert len(outputs) == 22
     for output, expected in zip(outputs, expectactions):
         # reward can only be approximately equal
         np.testing.assert_array_equal(output.observation, expected.observation)
@@ -637,34 +749,98 @@ def test_abqueuebuffer_init():
 def test_abqueuebuffer():
     buffer = replay_mapper.AbQueueBuffer(buffer_size=4, num_factors=3)
 
+    # First entry, added.
     buffer.add(np.array([1, 0, 0]), 1)
     assert getattr(buffer, "_factors_tracker") == set([4])
     np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([1, 0, 0]))
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is False
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0, 0]]))
 
+    # Second entry, independent, added.
     buffer.add(np.array([1, 0, 1]), 2)
     assert getattr(buffer, "_factors_tracker") == set([4, 5])
     np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 0, 1]))
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is False
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0, 0], [1, 0, 1]]))
 
+    # Third entry, independent, added.
+    # Matrix is now full rank.
     buffer.add(np.array([1, 1, 1]), 3)
     assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
     np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
-
-    # duplicate entry; no change
-    buffer.add(np.array([1, 0, 1]), 4)
-    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
-    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
-
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is True
     np.testing.assert_allclose(
         buffer.matrix, np.array([[1, 0, 0], [1, 0, 1], [1, 1, 1]])
     )
 
+    # Fourth entry, non-independent; no change
+    buffer.add(np.array([1, 0, 1]), 4)
+    assert getattr(buffer, "_factors_tracker") == set([4, 5, 7])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([3, 1, 2]))
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is True
+    np.testing.assert_allclose(
+        buffer.matrix, np.array([[1, 0, 0], [1, 0, 1], [1, 1, 1]])
+    )
+
+    # Fifth entry, indenpedent, added.
     buffer.add(np.array([1, 1, 0]), 5)
     assert getattr(buffer, "_factors_tracker") == set([4, 5, 7, 6])
     np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([4, 2, 2]))
-
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is True
     np.testing.assert_allclose(
         buffer.matrix, np.array([[1, 0, 0], [1, 0, 1], [1, 1, 1], [1, 1, 0]])
     )
+
+
+def test_abqueuebuffer_ignore_factors_mask():
+    buffer = replay_mapper.AbQueueBuffer(
+        buffer_size=4, num_factors=3, ignore_factors_mask=np.array([0, 1, 0])
+    )
+
+    # First entry, added.
+    buffer.add(np.array([1, 0, 0]), 1)
+    assert getattr(buffer, "_factors_tracker") == set([2])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([1, 0]))
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is False
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0]]))
+
+    # Second entry, added.
+    buffer.add(np.array([1, 0, 1]), 2)
+    assert getattr(buffer, "_factors_tracker") == set([2, 3])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 1]))
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is True
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0], [1, 1]]))
+
+    # Third entry, non-independent, ignored.
+    buffer.add(np.array([1, 1, 1]), 3)
+    assert getattr(buffer, "_factors_tracker") == set([2, 3])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 1]))
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is True
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0], [1, 1]]))
+
+    # Fourth entry, duplicate, ignored.
+    buffer.add(np.array([0, 1, 0]), 4)
+    assert getattr(buffer, "_factors_tracker") == set([2, 3])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 1]))
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is True
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0], [1, 1]]))
+
+    # Fifth entry, independent, added.
+    buffer.add(np.array([0, 0, 1]), 5)
+    assert getattr(buffer, "_factors_tracker") == set([2, 3, 1])
+    np.testing.assert_allclose(getattr(buffer, "_rank_flag"), np.array([2, 2]))
+    assert buffer.is_empty is False
+    assert buffer.is_full_rank is True
+    np.testing.assert_allclose(buffer.matrix, np.array([[1, 0], [1, 1], [0, 1]]))
 
 
 def test_counter_init():

@@ -32,8 +32,8 @@ For specific snapshots of code submitted to conferences:
 
 ## Dev Env
 First, make sure the following python development tools are installed:
-  - pip
-  - pip-tools(==7.3.0)
+  - [uv](https://docs.astral.sh/uv/getting-started/installation/)
+  - [ruff](https://docs.astral.sh/ruff/installation/)
 
 Then, in a virtual environment, run pip-compile and install:
 
@@ -43,6 +43,12 @@ $ make pip-install
 ```
 
 These should install all the requirements dependencies for development.
+
+For building, install tox and tox-uv
+
+```
+$ pip install tox tox-uv
+```
 
 ## Dependencies
 
@@ -54,4 +60,4 @@ The dependecy files map to a purpose as follows:
   - [rendering-requirements.in](rendering-requirements.in): for environments can be rendered in a graphical interface, with OpenGL.
   - [ray-env-requirements.in](ray-env-requirements.in): for ray in a cluster environment. During compilation with `pip-compile`, it's best to exclude the version of ray (see [Makefile](Makefile)).
 
-All requirements files are compiled using `pip-compile`.
+All requirements files are compiled using `uv`.
