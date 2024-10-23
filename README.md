@@ -44,6 +44,12 @@ $ make pip-install
 
 These should install all the requirements dependencies for development.
 
+For building, install tox and tox-uv
+
+```
+$ pip install tox tox-uv
+```
+
 ## Dependencies
 
 The dependecy files map to a purpose as follows:
