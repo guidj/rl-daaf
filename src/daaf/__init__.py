@@ -1,8 +1,9 @@
 __author__ = "guilherme"
-__version__ = "0.15.5"
+__version__ = "0.15.05"
 __email__ = "guilherme@dsv.su.se"
-__description__ = "RL DAAF experiments"
-__uri__ = "https://github.com/dsv-data-science/rl-daaf"
+__description__ = "RL with delayed, aggregate, feedback"
+__uri__ = "https://github.com/guidj/rl-daaf"
+
 
 import logging.config
 import os
