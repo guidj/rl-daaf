@@ -86,7 +86,7 @@ class UniformlyRandomCompositeActionPolicy(
         }
 
         if self.emit_log_probability:
-            policy_info["log_probability"] = np.array( # type: ignore
+            policy_info["log_probability"] = np.array(  # type: ignore
                 np.log(self._action_prob),
                 np.float64,
             )

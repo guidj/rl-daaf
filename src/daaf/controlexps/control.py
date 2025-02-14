@@ -89,8 +89,8 @@ def run_fn(experiment_run: expconfig.ExperimentRun):
                         # especially for options policies
                         # so we log state values and best actions
                         info={
-                            "state_values": state_values.tolist(), # type: ignore
-                            "action_argmax": state_actions.tolist(), # type: ignore
+                            "state_values": state_values.tolist(),  # type: ignore
+                            "action_argmax": state_actions.tolist(),  # type: ignore
                         },
                     )
 
