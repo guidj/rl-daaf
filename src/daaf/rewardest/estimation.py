@@ -222,10 +222,10 @@ def expand_reward_with_terminal_action_values(
         for action in range(num_actions):
             terminal_state_action_mask[state, action] = 1
     ignore_factors_mask = np.reshape(terminal_state_action_mask, newshape=[-1])
-    for idx in range(len(ignore_factors_mask)):
-        if ignore_factors_mask[idx] == 1:
-            est_rewards_ext[idx] = 0.0
+    for pos, ignore_factor in enumerate(ignore_factors_mask):
+        if ignore_factor == 1:
+            est_rewards_ext[pos] = 0.0
         else:
-            est_rewards_ext[idx] = estimated_rewards[pos]
+            est_rewards_ext[pos] = estimated_rewards[pos]
             pos += 1
     return est_rewards_ext
