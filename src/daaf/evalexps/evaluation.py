@@ -9,6 +9,7 @@ import logging
 from typing import Any, Iterator, Mapping, Optional, Set
 
 import numpy as np
+from numpy.typing import DTypeLike
 from rlplg import core
 from rlplg.learning.opt import schedules
 from rlplg.learning.tabular import policies, policyeval
@@ -82,9 +83,9 @@ def run_fn(experiment_run: expconfig.ExperimentRun):
                     exp_logger.log(
                         episode=episode,
                         steps=snapshot.steps,
-                        returns=mean_returns,
+                        returns=mean_returns.item(),
                         info={
-                            "state_values": state_values.tolist(),
+                            "state_values": state_values.tolist(),  # type: ignore
                         },
                     )
 
@@ -211,7 +212,7 @@ def evaluate_policy(
 
 def create_initial_values(
     num_states: int,
-    dtype: np.dtype = np.float64,
+    dtype: DTypeLike = np.float64,
     random: bool = False,
     terminal_states: Optional[Set[int]] = None,
 ) -> np.ndarray:

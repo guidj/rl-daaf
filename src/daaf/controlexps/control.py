@@ -7,10 +7,11 @@ for tabular problems.
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Set
+from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Set, Tuple
 
 import gymnasium as gym
 import numpy as np
+from numpy.typing import DTypeLike
 from rlplg import core
 from rlplg.learning import utils as rlplg_utils
 from rlplg.learning.opt import schedules
@@ -83,13 +84,13 @@ def run_fn(experiment_run: expconfig.ExperimentRun):
                     exp_logger.log(
                         episode=episode,
                         steps=snapshot.steps,
-                        returns=mean_returns,
+                        returns=mean_returns.item(),
                         # Action values can be large tables
                         # especially for options policies
                         # so we log state values and best actions
                         info={
-                            "state_values": state_values.tolist(),
-                            "action_argmax": state_actions.tolist(),
+                            "state_values": state_values.tolist(), # type: ignore
+                            "action_argmax": state_actions.tolist(), # type: ignore
                         },
                     )
 
@@ -193,10 +194,10 @@ def policy_control(
 def create_qtable_and_egreedy_policy(
     env_spec: core.EnvSpec,
     daaf_config: expconfig.DaafConfig,
-    dtype: np.dtype = np.float64,
+    dtype: DTypeLike = np.float64,
     random: bool = False,
     terminal_states: Optional[Set[int]] = None,
-) -> np.ndarray:
+) -> Tuple[np.ndarray, core.PyPolicy]:
     if daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
         qtable = _create_initial_values(
             num_states=env_spec.mdp.env_desc.num_states,
@@ -227,7 +228,7 @@ def create_qtable_and_egreedy_policy(
 def _create_initial_values(
     num_states: int,
     num_actions: int,
-    dtype: np.dtype = np.float64,
+    dtype: DTypeLike = np.float64,
     random: bool = False,
     terminal_states: Optional[Set[int]] = None,
 ) -> np.ndarray:

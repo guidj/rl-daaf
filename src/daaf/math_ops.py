@@ -106,7 +106,7 @@ def _np_solve_least_squares(matrix: np.ndarray, rhs: np.ndarray) -> np.ndarray:
     """
     try:
         solution, _, _, _ = linalg.lstsq(a=matrix, b=rhs, lapack_driver="gelsy")
-        return solution
+        return solution # type: ignore
     except linalg.LinAlgError as err:
         # the computation failed, likely due to the matix being unsuitable (no solution).
         raise ValueError("Failed to solve linear system") from err
@@ -127,7 +127,7 @@ def _tf_solve_least_squares(matrix: np.ndarray, rhs: np.ndarray) -> np.ndarray:
     matrix = tf.expand_dims(matrix, axis=0)
     rhs = tf.expand_dims(rhs, axis=-1)
     try:
-        return tf.squeeze(tf.linalg.lstsq(matrix=matrix, rhs=rhs)).numpy()
+        return tf.squeeze(tf.linalg.lstsq(matrix=matrix, rhs=rhs)).numpy() # type: ignore
     except tf.errors.InvalidArgumentError as err:
         # the computation failed, likely due to the matix being unsuitable (no solution).
         raise ValueError("Failed to solve linear system") from err
