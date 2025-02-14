@@ -584,7 +584,7 @@ class AbQueueBuffer:
         self._factors_tracker: Set[int] = set()
         self._rank_flag = np.zeros(shape=self.nkeep_factors, dtype=np.float64)
 
-    def add(self, row: np.ndarray, rhs: np.ndarray) -> None:
+    def add(self, row: np.ndarray, rhs: np.ndarray | float) -> None:
         """
         Note: Only adds rows if they are independent.
 

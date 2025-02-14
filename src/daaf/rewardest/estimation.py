@@ -20,7 +20,7 @@ def estimate_reward(
     logging_steps: int = 100,
     factor_terminal_states: bool = False,
     prefill_buffer: bool = False,
-) -> Mapping[str, np.ndarray]:
+) -> Mapping[str, Any]:
     env_spec = envsuite.load(spec["name"], **spec["args"])
     terminal_states = core.infer_env_terminal_states(env_spec.mdp.transition)
     init_rtable = np.zeros(
@@ -186,7 +186,7 @@ def ols_em_reward_estimation(
                 new_yhat_rewards,
             )
             break
-        if np.alltrue(delta < accuracy) or iteration >= max_iters:
+        if np.all(delta < accuracy) or iteration >= max_iters:
             logging.info(
                 "Stopping at iteration %d/%d. Max error: %f",
                 iteration,

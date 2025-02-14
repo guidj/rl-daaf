@@ -128,7 +128,7 @@ def main(args: EstimationPipelineArgs):
                 ds_head, ds_tail = datasets[0], datasets[1:]
                 ds_result: ray.data.Dataset = ds_head.union(*ds_tail)
             else:
-                ds_result: ray.data.Dataset = datasets[0]
+                ds_result: ray.data.Dataset = datasets[0]  # type: ignore
             ds_output = ds_result.map(serialize)
             ds_output.write_parquet(args.output_dir)
 
@@ -140,7 +140,7 @@ def create_tasks(
     max_episodes: int,
     log_episode_frequency: int,
     accuracy: float,
-) -> Sequence[Tuple[ray.ObjectRef]]:
+) -> Sequence[Tuple[Sequence[EstimationRun], ray.ObjectRef]]:
     estimation_runs = []
     futures = []
     methods = (EST_PLAIN, EST_FACTOR_TS, EST_PREFILL_BUFFER)
