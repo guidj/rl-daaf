@@ -25,8 +25,8 @@ import numpy as np
 from gymnasium import spaces
 from PIL import Image as image
 
-from rlplg import core
-from rlplg.core import InitState, MutableEnvTransition, RenderType, TimeStep
+from daaf import core
+from daaf.core import InitState, MutableEnvTransition, RenderType, TimeStep
 
 ENV_NAME = "IceWorld"
 LAKE_PENALTY_MULT = -2.0

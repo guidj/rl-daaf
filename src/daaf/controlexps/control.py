@@ -13,7 +13,7 @@ import gymnasium as gym
 import numpy as np
 from numpy.typing import DTypeLike
 from daaf import core
-from daaf.learning import utils as rlplg_utils
+from daaf.learning import utils as learning_utils
 from daaf.learning.opt import schedules
 from daaf.learning.tabular import policies, policycontrol
 
@@ -207,7 +207,7 @@ def create_qtable_and_egreedy_policy(
             terminal_states=terminal_states,
         )
 
-        return qtable, rlplg_utils.create_egreedy_policy
+        return qtable, learning_utils.create_egreedy_policy
     elif daaf_config.policy_type == constants.OPTIONS_POLICY:
         num_options = env_spec.mdp.env_desc.num_actions**daaf_config.reward_period
         qtable = _create_initial_values(

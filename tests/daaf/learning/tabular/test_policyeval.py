@@ -15,7 +15,7 @@ import pytest
 from daaf import core
 from daaf.learning.opt import schedules
 from daaf.learning.tabular import policies, policyeval
-from tests import defaults
+from tests.daaf import defaults
 
 
 def test_onpolicy_first_visit_monte_carlo_action_values_with_one_episode(

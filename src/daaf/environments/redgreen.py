@@ -23,8 +23,8 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from rlplg import core
-from rlplg.core import InitState, MutableEnvTransition, RenderType, TimeStep
+from daaf import core
+from daaf.core import InitState, MutableEnvTransition, RenderType, TimeStep
 
 ENV_NAME = "RedGreenSeq"
 RED_PILL = 0

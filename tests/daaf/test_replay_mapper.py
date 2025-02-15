@@ -8,7 +8,7 @@ from hypothesis import strategies as st
 from daaf import core
 
 from daaf import replay_mapper
-from tests import defaults
+from tests.daaf import defaults
 
 
 def test_identity_mapper_apply():

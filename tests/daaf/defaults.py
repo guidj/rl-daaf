@@ -5,7 +5,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 from daaf import core
-from daaf.core import InitState, ObsType, RenderType, TimeStep
+from daaf.core import InitState, ObsType, RenderType, TimeStep, MutableEnvTransition
 
 
 GRID_WIDTH = 5
@@ -17,7 +17,6 @@ CLIFF_COLOR = (25, 50, 75)
 PATH_COLOR = (50, 75, 25)
 ACTOR_COLOR = (75, 25, 50)
 EXIT_COLOR = (255, 204, 0)
-
 
 class CountEnv(gym.Env[np.ndarray, int]):
     """
@@ -38,32 +37,103 @@ class CountEnv(gym.Env[np.ndarray, int]):
     """
 
     MAX_VALUE = 3
+    ACTION_NOTHING = 0
+    ACTION_NEXT = 1
     WRONG_MOVE_REWARD = -10.0
     RIGHT_MOVE_REWARD = -1.0
 
     def __init__(self):
-        self.action_space = spaces.Box(low=0, high=1, dtype=np.int64)
-        self.observation_space = spaces.Box(low=0, dtype=np.int64)
-
+        super().__init__()
         # env specific
         self._observation: np.ndarray = np.empty(shape=(0,))
-        self._seed: Optional[int] = None
+        self._seed = None
+        self.action_space = spaces.Discrete(2)
+        self.observation_space = spaces.Discrete(self.MAX_VALUE + 1)
+        self.transition: MutableEnvTransition = {}
+
+        for state in range(self.MAX_VALUE + 1):
+            self.transition[state] = {}
+            for action in range(2):
+                self.transition[state][action] = []
+                if state == CountEnv.MAX_VALUE:
+                    reward = 0.0
+                elif action == CountEnv.ACTION_NOTHING:
+                    reward = CountEnv.WRONG_MOVE_REWARD
+                else:
+                    reward = CountEnv.RIGHT_MOVE_REWARD
+
+                for next_state in range(self.MAX_VALUE + 1):
+                    terminated = (
+                        state == CountEnv.MAX_VALUE - 1
+                        and next_state == CountEnv.MAX_VALUE
+                    )
+                    prob = (
+                        1.0
+                        if (
+                            (
+                                state == CountEnv.MAX_VALUE
+                                and np.array_equal(next_state, state)
+                            )
+                            or (
+                                action == CountEnv.ACTION_NEXT
+                                and np.array_equal(next_state, state + 1)
+                            )
+                            or (
+                                action == CountEnv.ACTION_NOTHING
+                                and np.array_equal(next_state, state)
+                            )
+                        )
+                        else 0.0
+                    )
+                    self.transition[state][action].append(
+                        (prob, next_state, reward, terminated)
+                    )
+
+    def reward(self, state: int, action: int, next_state: int) -> float:
+        """
+        Given a state s, action a, and next state s' returns the expected reward.
+
+        Args:
+            state: starting state
+            action: agent's action
+            next_state: state transition into after taking the action.
+        Returns
+            A transition probability.
+        """
+        del next_state
+        if state == CountEnv.MAX_VALUE:
+            return 0.0
+        elif action == CountEnv.ACTION_NOTHING:
+            return CountEnv.WRONG_MOVE_REWARD
+        return CountEnv.RIGHT_MOVE_REWARD
+
+    @property
+    def env_desc(self) -> core.EnvDesc:
+        """
+        Returns:
+            An instance of EnvDesc with properties of the environment.
+        """
+        return core.EnvDesc(num_states=self.MAX_VALUE + 1, num_actions=2)
 
     def step(self, action: int) -> TimeStep:
-        """Updates the environment according to action and returns a `TimeStep`.
+        """
+        Updates the environment according to action and returns a `TimeStep`.
 
         See `step(self, action)` docstring for more details.
 
         Args:
-        action: A NumPy array, or a nested dict, list or tuple of arrays
-            corresponding to `action_spec()`.
+            action: A policy's chosen action.
         """
-        assert self._observation is not None
 
-        if action == 0:
+        if np.size(self._observation) == 0:
+            raise RuntimeError(
+                f"{type(self).__name__} environment needs to be reset. Call the `reset` method."
+            )
+
+        if action == self.ACTION_NOTHING:
             new_obs = copy.deepcopy(self._observation)
             reward = self.WRONG_MOVE_REWARD
-        elif action == 1:
+        elif action == self.ACTION_NEXT:
             new_obs = np.array(
                 np.min([self._observation + 1, self.MAX_VALUE]), np.int64
             )
@@ -82,48 +152,32 @@ class CountEnv(gym.Env[np.ndarray, int]):
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Mapping[str, Any]] = None
     ) -> InitState:
-        """Starts a new sequence, returns the first `TimeStep` of this sequence.
+        """Starts a new sequence, returns the `InitState` for this environment.
 
         See `reset(self)` docstring for more details
         """
+        del seed
         del options
-        self.seed(seed)
         self._observation = np.array(0, np.int64)
         return copy.deepcopy(self._observation), {}
 
     def render(self) -> RenderType:
-        """
-        Renders a view of the environment's current
-        state.
-        """
-        if self.render_mode == "rgb_array":
-            return copy.deepcopy(self._observation)
+        """Render env"""
         return super().render()
 
-    def seed(self, seed: Optional[int] = None) -> Any:
-        """
-        Sets a seed, if defined.
-        """
-        if seed is not None:
-            self._seed = seed
-            np.random.seed(seed)
-        return self._seed
-
-
-class SingleStateEnv(gym.Env[Mapping[str, Any], int]):
+class SingleStateEnv(gym.Env[np.ndarray, int]):
     """
     An environment that remains in a perpetual state.
     """
 
     def __init__(self, num_actions: int):
         assert num_actions > 0, "`num_actios` must be positive."
+        super().__init__()
         self.num_actions = num_actions
-        self.action_space = spaces.Box(low=0, high=num_actions, dtype=np.int64)
-        self.observation_space = spaces.Box(low=0, high=0, dtype=np.int64)
 
         # env specific
-        self._observation: Optional[np.ndarray] = None
-        self._seed: Optional[int] = None
+        self._observation: np.ndarray = np.empty(shape=(0,))
+        self._seed = None
 
     def step(self, action: int) -> TimeStep:
         """Updates the environment according to action and returns a `TimeStep`.
@@ -131,44 +185,28 @@ class SingleStateEnv(gym.Env[Mapping[str, Any], int]):
         See `step(self, action)` docstring for more details.
 
         Args:
-        action: A NumPy array, or a nested dict, list or tuple of arrays
-            corresponding to `action_spec()`.
+            action: A policy's chosen action.
         """
 
         # none
-        if not (0 <= action < self.num_actions):
+        if not 0 <= action < self.num_actions:
             raise ValueError(f"Unknown action {action}")
         return copy.deepcopy(self._observation), 0.0, False, False, {}
 
     def reset(
         self, *, seed: Optional[int] = None, options: Optional[Mapping[str, Any]] = None
     ) -> InitState:
-        """Starts a new sequence, returns the first `TimeStep` of this sequence.
+        """Starts a new sequence, returns the `InitState` for this environment.
 
         See `reset(self)` docstring for more details
         """
-        del options
-        self.seed(seed)
+        del seed, options
         self._observation = np.array(0, np.int64)
         return copy.deepcopy(self._observation), {}
 
     def render(self) -> RenderType:
-        """
-        Renders a view of the environment's current
-        state.
-        """
-        if self.render_mode == "rgb_array":
-            return copy.deepcopy(self._observation)
+        """Render env"""
         return super().render()
-
-    def seed(self, seed: Optional[int] = None) -> Any:
-        """
-        Sets a seed, if defined.
-        """
-        if seed is not None:
-            self._seed = seed
-            np.random.seed(seed)
-        return self._seed
 
 
 class RoundRobinActionsPolicy(core.PyPolicy):
@@ -180,10 +218,10 @@ class RoundRobinActionsPolicy(core.PyPolicy):
         self,
         actions: Sequence[Any],
     ):
+        super().__init__(emit_log_probability=True)
         self._counter = 0
         self._actions = actions
         self._iterator = iter(actions)
-        self.emit_log_probability = True
 
     def get_initial_state(self, batch_size: Optional[int] = None) -> Any:
         del batch_size
@@ -196,25 +234,17 @@ class RoundRobinActionsPolicy(core.PyPolicy):
         seed: Optional[int] = None,
     ) -> core.PolicyStep:
         """
-        Takes the current time step.
+        Takes the current time step (which includes the environment feedback)
         """
-        del observation
-        if self.emit_log_probability:
-            policy_info = {"log_probability": np.array(np.log(1.0), dtype=np.float64)}
-        else:
-            policy_info = {}
+        del observation, policy_state, seed
+        state, info = (), {"log_probability": np.log(0.5)}
 
         try:
             action = next(self._iterator)
         except StopIteration:
             self._iterator = iter(self._actions)
             action = next(self._iterator)
-        return core.PolicyStep(
-            action=action,
-            state=policy_state,
-            info=policy_info,
-        )
-
+        return core.PolicyStep(np.array(action, dtype=np.int64), state, info)
 
 def identity(value: Any) -> Any:
     """
@@ -229,9 +259,8 @@ def item(value: np.ndarray) -> Any:
     """
     try:
         return value.item()
-    except ValueError:
-        pass
-    return value
+    except AttributeError:
+        return value
 
 
 def array(*args: Any):

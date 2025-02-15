@@ -6,7 +6,7 @@ from hypothesis import strategies as st
 from scipy.spatial import distance
 
 from daaf.learning.tabular import policies
-from tests import defaults
+from tests.daaf import defaults
 
 
 def test_random_policy_init():

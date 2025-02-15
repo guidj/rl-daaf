@@ -2,12 +2,12 @@ import numpy as np
 
 from daaf import core
 from daaf.learning.tabular import dynamicprog, policies
-from tests import defaults
+from tests.daaf import defaults
 
 
 def test_dynamic_iterative_policy_evaluation():
     environment = defaults.CountEnv()
-    mdp = core.EnvMdp(env_desc=environment.env_desc, transition=environment.transition)
+    mdp = core.EnvMdp(env_desc=core.EnvDesc(4, 2), transition=environment.transition)
     policy = create_observable_random_policy(num_actions=mdp.env_desc.num_actions)
     delta = 1e-8
 

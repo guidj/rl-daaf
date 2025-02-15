@@ -163,7 +163,7 @@ def __parse_gym_env_transition(environment: gym.Env) -> EnvTransition:
     """
     Parses transition data from a `gym.Env`.
     """
-    transition: EnvTransition = getattr(environment, "P")
+    transition: EnvTransition = getattr(environment.unwrapped, "P")
     return transition
 
 

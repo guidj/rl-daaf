@@ -33,8 +33,8 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from rlplg import combinatorics, core
-from rlplg.core import InitState, MutableEnvTransition, RenderType, TimeStep
+from daaf import combinatorics, core
+from daaf.core import InitState, MutableEnvTransition, RenderType, TimeStep
 
 ENV_NAME = "TowerOfHanoi"
 ACTIONS = [(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]

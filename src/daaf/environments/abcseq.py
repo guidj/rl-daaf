@@ -47,8 +47,8 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from rlplg import core, npsci
-from rlplg.core import InitState, MutableEnvTransition, RenderType, TimeStep
+from daaf import core, npsci
+from daaf.core import InitState, MutableEnvTransition, RenderType, TimeStep
 
 ENV_NAME = "ABCSeq"
 MIN_SEQ_LENGTH = 1
