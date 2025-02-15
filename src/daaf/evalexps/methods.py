@@ -9,10 +9,10 @@ from typing import DefaultDict, Dict, Generator, List
 
 import gymnasium as gym
 import numpy as np
-from rlplg import core, envplay
-from rlplg.core import MapsToIntId
-from rlplg.learning.opt import schedules
-from rlplg.learning.tabular import policyeval
+from daaf import core, envplay
+from daaf.core import MapsToIntId
+from daaf.learning.opt import schedules
+from daaf.learning.tabular import policyeval
 
 
 def onpolicy_one_step_td_state_values_only_aggregate_updates(

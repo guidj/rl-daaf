@@ -7,9 +7,9 @@ from typing import Any, Callable, Dict, Generator
 
 import gymnasium as gym
 import numpy as np
-from rlplg import core, envplay
-from rlplg.learning.opt import schedules
-from rlplg.learning.tabular import policies, policycontrol
+from daaf import core, envplay
+from daaf.learning.opt import schedules
+from daaf.learning.tabular import policies, policycontrol
 
 
 def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(

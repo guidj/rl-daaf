@@ -10,9 +10,9 @@ from typing import Any, Iterator, Mapping, Optional, Set
 
 import numpy as np
 from numpy.typing import DTypeLike
-from rlplg import core
-from rlplg.learning.opt import schedules
-from rlplg.learning.tabular import policies, policyeval
+from daaf import core
+from daaf.learning.opt import schedules
+from daaf.learning.tabular import policies, policyeval
 
 from daaf import constants, expconfig, options, task, utils
 from daaf.evalexps import methods

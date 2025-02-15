@@ -6,8 +6,8 @@ Generators are for Py classes (agents, environment, etc).
 from typing import Any, Generator, List, Mapping, Optional, Sequence, Tuple
 
 import gymnasium as gym
-from rlplg import core, envplay, envsuite
-from rlplg.learning import utils
+from daaf import core, envplay, envsuite
+from daaf.learning import utils
 
 from daaf import constants, replay_mapper
 

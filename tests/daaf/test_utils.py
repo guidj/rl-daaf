@@ -3,7 +3,7 @@ import os.path
 import tempfile
 
 import pytest
-from rlplg import core
+from daaf import core
 
 from daaf import utils
 

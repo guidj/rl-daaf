@@ -1,7 +1,7 @@
 import hypothesis
 from daaf import options
 from hypothesis import strategies as st
-from rlplg import core
+from daaf import core
 
 
 @hypothesis.given(

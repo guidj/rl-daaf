@@ -4,8 +4,8 @@ import logging
 from typing import Any, Dict, Mapping, Optional, Set, Tuple
 
 import numpy as np
-from rlplg import core, envplay, envsuite
-from rlplg.learning.tabular import policies
+from daaf import core, envplay, envsuite
+from daaf.learning.tabular import policies
 
 from daaf import math_ops, replay_mapper
 

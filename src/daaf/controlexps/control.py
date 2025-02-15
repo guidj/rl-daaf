@@ -12,10 +12,10 @@ from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Set, T
 import gymnasium as gym
 import numpy as np
 from numpy.typing import DTypeLike
-from rlplg import core
-from rlplg.learning import utils as rlplg_utils
-from rlplg.learning.opt import schedules
-from rlplg.learning.tabular import policies, policycontrol
+from daaf import core
+from daaf.learning import utils as rlplg_utils
+from daaf.learning.opt import schedules
+from daaf.learning.tabular import policies, policycontrol
 
 from daaf import constants, expconfig, options, task, utils
 from daaf.controlexps import methods

@@ -8,9 +8,9 @@ import random
 from typing import Any, Iterable, Optional
 
 import numpy as np
-from rlplg import combinatorics, core
-from rlplg.core import ObsType
-from rlplg.learning.tabular import policies
+from daaf import combinatorics, core
+from daaf.core import ObsType
+from daaf.learning.tabular import policies
 
 
 class UniformlyRandomCompositeActionPolicy(

@@ -28,8 +28,8 @@ from typing import (
 
 import numpy as np
 import tensorflow as tf
-from rlplg import core
-from rlplg.learning.tabular import dynamicprog, policies
+from daaf import core
+from daaf.learning.tabular import dynamicprog, policies
 
 STATE_VALUE_FN_FILENAME = "state_action_value_index.json"
 

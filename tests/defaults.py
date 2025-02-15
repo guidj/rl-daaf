@@ -4,8 +4,9 @@ from typing import Any, Mapping, Optional, Sequence
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
-from rlplg import core
-from rlplg.core import InitState, ObsType, RenderType, TimeStep
+from daaf import core
+from daaf.core import InitState, ObsType, RenderType, TimeStep
+
 
 GRID_WIDTH = 5
 GRID_HEIGHT = 5
@@ -244,3 +245,23 @@ def array(*args: Any):
     if isinstance(sample, int):
         return np.array(args, dtype=np.int64)
     return np.array(args)
+
+
+def batch(*args: Any):
+    """
+    Collects a sequence of values into an np.ndarray.
+    """
+    # We use int32 and float32 for all examples/tests
+    sample = next(iter(args))
+    if isinstance(sample, float):
+        return np.array(args, dtype=np.float32)
+    if isinstance(sample, int):
+        return np.array(args, dtype=np.int64)
+    return np.array(args)
+
+
+def policy_info(log_probability: float):
+    """
+    Creates a policy_step.PolicyInfo instance from a given log_probability.
+    """
+    return {"log_probability": log_probability}

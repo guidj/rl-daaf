@@ -6,8 +6,8 @@ from typing import Tuple
 
 import numpy as np
 import ray
-from rlplg import core, envsuite
-from rlplg.learning.tabular import dynamicprog, policies
+from daaf import core, envsuite
+from daaf.learning.tabular import dynamicprog, policies
 
 from daaf import utils
 
