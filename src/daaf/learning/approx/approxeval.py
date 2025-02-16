@@ -3,7 +3,7 @@ Policy evaluation methods with approximation.
 """
 
 import copy
-from typing import Generator, Iterator, Tuple
+from typing import Iterator, Tuple
 
 import gymnasium as gym
 import numpy as np
