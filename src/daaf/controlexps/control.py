@@ -12,12 +12,11 @@ from typing import Any, Callable, Iterator, Mapping, Optional, Set, Tuple
 import numpy as np
 from numpy.typing import DTypeLike
 
-from daaf import core
+from daaf import constants, core, expconfig, task, utils
 from daaf.core import GeneratesEpisode
-from daaf.learning import utils as learning_utils
 from daaf.learning import opt
+from daaf.learning import utils as learning_utils
 from daaf.learning.tabular import policies, policycontrol
-from daaf import constants, expconfig, task, utils
 
 
 def run_fn(experiment_run: expconfig.ExperimentRun):

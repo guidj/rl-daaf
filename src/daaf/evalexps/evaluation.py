@@ -10,12 +10,11 @@ from typing import Any, Iterator, Mapping, Optional, Set
 
 import numpy as np
 from numpy.typing import DTypeLike
-from daaf import core
+
+from daaf import constants, core, expconfig, task, utils
 from daaf.core import GeneratesEpisode
 from daaf.learning import opt
 from daaf.learning.tabular import policies, policyeval
-
-from daaf import constants, expconfig, task, utils
 
 
 def run_fn(experiment_run: expconfig.ExperimentRun):

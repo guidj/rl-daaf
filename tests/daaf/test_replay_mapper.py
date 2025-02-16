@@ -5,9 +5,8 @@ import numpy as np
 import pytest
 import tensorflow as tf
 from hypothesis import strategies as st
-from daaf import core
 
-from daaf import replay_mapper
+from daaf import core, replay_mapper
 from tests.daaf import defaults
 
 

@@ -4,9 +4,9 @@ from typing import Any, Mapping, Optional, Sequence
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
-from daaf import core
-from daaf.core import InitState, ObsType, RenderType, TimeStep, MutableEnvTransition
 
+from daaf import core
+from daaf.core import InitState, MutableEnvTransition, ObsType, RenderType, TimeStep
 
 GRID_WIDTH = 5
 GRID_HEIGHT = 5

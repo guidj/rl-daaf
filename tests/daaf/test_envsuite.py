@@ -1,16 +1,12 @@
 import math
 import uuid
-from typing import Any, Mapping, Sequence
-from typing import SupportsFloat
+from typing import Any, Mapping, Sequence, SupportsFloat
+
 import numpy as np
 import pytest
 
-from daaf import core
-from daaf.core import EnvTransition
-
-
-from daaf import envsuite
-from daaf.core import TimeStep
+from daaf import core, envsuite
+from daaf.core import EnvTransition, TimeStep
 
 
 @pytest.mark.parametrize(

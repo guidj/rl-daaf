@@ -6,10 +6,9 @@ from typing import Tuple
 
 import numpy as np
 import ray
-from daaf import core, envsuite
-from daaf.learning.tabular import dynamicprog, policies
 
-from daaf import utils
+from daaf import core, envsuite, utils
+from daaf.learning.tabular import dynamicprog, policies
 
 ENV_SPECS = [
     {"name": "ABCSeq", "args": {"length": 7}},

@@ -4,6 +4,7 @@ This module contains optimisation utilities.
 
 import dataclasses
 from typing import Callable
+
 import numpy as np
 import tensorflow as tf
 from scipy import linalg

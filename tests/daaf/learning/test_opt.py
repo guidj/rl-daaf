@@ -1,6 +1,6 @@
 import hypothesis
-from hypothesis import strategies as st
 import numpy as np
+from hypothesis import strategies as st
 
 from daaf.learning import opt
 

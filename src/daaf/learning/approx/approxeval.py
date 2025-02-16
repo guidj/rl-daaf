@@ -10,9 +10,8 @@ import numpy as np
 
 from daaf import core, envplay
 from daaf.core import GeneratesEpisode
-from daaf.learning import utils
+from daaf.learning import opt, utils
 from daaf.learning.approx import modelspec
-from daaf.learning import opt
 
 
 def gradient_monte_carlo_state_values(

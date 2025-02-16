@@ -4,11 +4,10 @@ import logging
 from typing import Any, Dict, Mapping, Optional, Set, Tuple
 
 import numpy as np
-from daaf import core, envplay, envsuite
-from daaf.learning.tabular import policies
 
-from daaf import replay_mapper
+from daaf import core, envplay, envsuite, replay_mapper
 from daaf.learning import opt
+from daaf.learning.tabular import policies
 
 BUFFER_MULT = 2**10
 

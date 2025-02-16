@@ -28,6 +28,7 @@ from typing import (
 
 import numpy as np
 import tensorflow as tf
+
 from daaf import core
 from daaf.learning.tabular import dynamicprog, policies
 

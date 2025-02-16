@@ -10,12 +10,9 @@ from typing import Any, Callable, Dict, Iterator
 import gymnasium as gym
 import numpy as np
 
-from daaf import envplay
-from daaf.core import GeneratesEpisode
-from daaf import core
-from daaf.core import MapsToIntId
-from daaf.learning import utils
-from daaf.learning import opt
+from daaf import core, envplay
+from daaf.core import GeneratesEpisode, MapsToIntId
+from daaf.learning import opt, utils
 from daaf.learning.tabular import policies
 
 

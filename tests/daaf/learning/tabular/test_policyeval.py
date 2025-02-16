@@ -13,8 +13,8 @@ import numpy as np
 import pytest
 
 from daaf import core
-from daaf.learning.tabular import policies, policyeval
 from daaf.learning import opt
+from daaf.learning.tabular import policies, policyeval
 from tests.daaf import defaults
 
 

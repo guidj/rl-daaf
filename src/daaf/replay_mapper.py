@@ -12,8 +12,8 @@ import logging
 from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Sequence, Set
 
 import numpy as np
-from daaf import combinatorics, core
 
+from daaf import combinatorics, core
 from daaf.learning import opt
 
 

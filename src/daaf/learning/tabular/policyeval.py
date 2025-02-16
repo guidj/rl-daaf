@@ -7,7 +7,7 @@ import gymnasium as gym
 import numpy as np
 
 from daaf import core, envplay
-from daaf.core import MapsToIntId, GeneratesEpisode
+from daaf.core import GeneratesEpisode, MapsToIntId
 from daaf.learning import opt
 
 MCUpdate = collections.namedtuple("MCUpdate", ["returns", "cu_sum", "value", "weight"])

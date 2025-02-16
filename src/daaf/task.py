@@ -6,10 +6,10 @@ Generators are for Py classes (agents, environment, etc).
 from typing import Any, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 import gymnasium as gym
-from daaf import core, envplay, envsuite
-from daaf.learning import utils
+
+from daaf import constants, core, envplay, envsuite, replay_mapper
 from daaf.core import GeneratesEpisode
-from daaf import constants, replay_mapper
+from daaf.learning import utils
 
 
 def create_env_spec(

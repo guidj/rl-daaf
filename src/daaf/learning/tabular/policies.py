@@ -1,21 +1,17 @@
 """
-This module contains implemenation for certain discrete arm policies.
+This module contains implemenation for certain discrete arm
 """
 
 import copy
 import dataclasses
+import functools
 import random
-from typing import Any, Callable, Optional, Protocol
+from typing import Any, Callable, Iterable, Optional, Protocol
 
 import numpy as np
 
-from daaf import core
+from daaf import combinatorics, core
 from daaf.core import ObsType
-import functools
-from typing import Iterable
-
-from daaf import combinatorics
-from daaf.learning.tabular import policies
 
 
 class SupportsStateActionProbability(Protocol):
@@ -222,7 +218,7 @@ class PyEpsilonGreedyPolicy(core.PyPolicy):
 
 
 class UniformlyRandomCompositeActionPolicy(
-    core.PyPolicy, policies.SupportsStateActionProbability
+    core.PyPolicy, SupportsStateActionProbability
 ):
     """
     A stateful composition action options policy.
@@ -337,10 +333,10 @@ class UniformlyRandomCompositeActionPolicy(
         )
 
 
-class OptionsQGreedyPolicy(policies.PyEpsilonGreedyPolicy):
+class OptionsQGreedyPolicy(PyEpsilonGreedyPolicy):
     def __init__(
         self,
-        policy: policies.PyQGreedyPolicy,
+        policy: PyQGreedyPolicy,
         primitive_actions: Iterable[Any],
         options_duration: int,
         epsilon: float,
