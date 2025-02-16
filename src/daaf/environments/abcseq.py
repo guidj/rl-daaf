@@ -47,7 +47,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from daaf import core, npsci
+from daaf import core
 from daaf.core import InitState, MutableEnvTransition, RenderType, TimeStep
 
 ENV_NAME = "ABCSeq"
@@ -312,5 +312,5 @@ def state_representation(observation: Mapping[str, Any]) -> np.ndarray:
     output = [1, 1, 1, 0, 0]
     """
     array = np.zeros(shape=(observation[OBS_KEY_LENGTH] + 1,), dtype=np.int64)
-    array[0 : npsci.item(observation[OBS_KEY_POS]) + 1] = 1
+    array[0 : int(observation[OBS_KEY_POS]) + 1] = 1
     return array
