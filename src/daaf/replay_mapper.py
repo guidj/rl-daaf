@@ -14,7 +14,7 @@ from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Sequence,
 import numpy as np
 from daaf import combinatorics, core
 
-from daaf import math_ops
+from daaf.learning import opt
 
 
 class TrajMapper(abc.ABC):
@@ -312,7 +312,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         terminal_state_action_mask: np.ndarray,
     ):
         logging.debug("Estimating rewards with Least-Squares.")
-        estimated_rewards = math_ops.solve_least_squares(
+        estimated_rewards = opt.solve_least_squares(
             matrix=matrix,
             rhs=rhs,
         )

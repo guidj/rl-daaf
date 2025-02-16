@@ -13,8 +13,8 @@ import numpy as np
 import pytest
 
 from daaf import core
-from daaf.learning.opt import schedules
 from daaf.learning.tabular import policies, policyeval
+from daaf.learning import opt
 from tests.daaf import defaults
 
 
@@ -113,7 +113,7 @@ def test_onpolicy_sarsa_action_values_with_one_episode(
         policy=policy,
         environment=environment,
         num_episodes=1,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=0.95,
@@ -153,7 +153,7 @@ def test_onpolicy_sarsa_action_values_with_one_episode_convering_every_action(
         policy=stochastic_policy,
         environment=environment,
         num_episodes=1,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=0.95,
@@ -248,7 +248,7 @@ def test_onpolicy_one_step_td_state_values_with_one_episode(
         policy=policy,
         environment=environment,
         num_episodes=1,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=1.0,
@@ -303,7 +303,7 @@ def test_onpolicy_one_step_td_state_values_with_two_episodes(
         policy=policy,
         environment=environment,
         num_episodes=2,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=1.0,
@@ -338,7 +338,7 @@ def test_onpolicy_nstep_td_state_values_with_one_nstep_and_one_episode(
         policy=policy,
         environment=environment,
         num_episodes=1,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=1.0,
@@ -394,7 +394,7 @@ def test_onpolicy_nstep_td_state_values_with_one_nstep_and_two_episodes(
         policy=policy,
         environment=environment,
         num_episodes=2,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=1.0,
@@ -430,7 +430,7 @@ def test_onpolicy_nstep_td_state_values_with_two_nstep_and_one_episode(
         policy=policy,
         environment=environment,
         num_episodes=1,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=1.0,
@@ -495,7 +495,7 @@ def test_onpolicy_nstep_td_state_values_with_two_nstep_and_two_episodes(
         policy=policy,
         environment=environment,
         num_episodes=2,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=1.0,
@@ -650,7 +650,7 @@ def test_offpolicy_nstep_sarsa_action_values_with_one_nstep_and_one_episode(
         collect_policy=policy,
         environment=environment,
         num_episodes=1,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=0.95,
@@ -683,7 +683,7 @@ def test_offpolicy_nstep_sarsa_action_values_with_two_nsteps_and_two_episodes(
         collect_policy=policy,
         environment=environment,
         num_episodes=2,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=0.95,
@@ -730,7 +730,7 @@ def test_offpolicy_nstep_sarsa_action_values_with_one_nstep_and_one_episode_cove
         collect_policy=collect_policy,
         environment=environment,
         num_episodes=1,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=0.95,
@@ -768,7 +768,7 @@ def test_offpolicy_nstep_sarsa_action_values_with_two_nsteps_and_one_episode_cov
         collect_policy=collect_policy,
         environment=environment,
         num_episodes=1,
-        lrs=schedules.LearningRateSchedule(
+        lrs=opt.LearningRateSchedule(
             initial_learning_rate=0.1, schedule=constant_learning_rate
         ),
         gamma=0.95,

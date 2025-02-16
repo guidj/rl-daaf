@@ -11,12 +11,12 @@ from typing import Any, Callable, Iterator, Mapping, Optional, Set, Tuple
 
 import numpy as np
 from numpy.typing import DTypeLike
+
 from daaf import core
 from daaf.core import GeneratesEpisode
 from daaf.learning import utils as learning_utils
-from daaf.learning.opt import schedules
+from daaf.learning import opt
 from daaf.learning.tabular import policies, policycontrol
-
 from daaf import constants, expconfig, task, utils
 
 
@@ -116,7 +116,7 @@ def policy_control(
     """
     Runs policy control with given algorithm, env, and policy spec.
     """
-    lrs = schedules.LearningRateSchedule(
+    lrs = opt.LearningRateSchedule(
         initial_learning_rate=learnign_args.learning_rate,
         schedule=task.constant_learning_rate,
     )

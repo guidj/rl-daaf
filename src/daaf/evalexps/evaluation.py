@@ -12,7 +12,7 @@ import numpy as np
 from numpy.typing import DTypeLike
 from daaf import core
 from daaf.core import GeneratesEpisode
-from daaf.learning.opt import schedules
+from daaf.learning import opt
 from daaf.learning.tabular import policies, policyeval
 
 from daaf import constants, expconfig, task, utils
@@ -123,7 +123,7 @@ def evaluate_policy(
                     policy=policy,
                     environment=env_spec.environment,
                     num_episodes=num_episodes,
-                    lrs=schedules.LearningRateSchedule(
+                    lrs=opt.LearningRateSchedule(
                         initial_learning_rate=learnign_args.learning_rate,
                         schedule=task.constant_learning_rate,
                     ),
@@ -138,7 +138,7 @@ def evaluate_policy(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
-                lrs=schedules.LearningRateSchedule(
+                lrs=opt.LearningRateSchedule(
                     initial_learning_rate=learnign_args.learning_rate,
                     schedule=task.constant_learning_rate,
                 ),
@@ -159,7 +159,7 @@ def evaluate_policy(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
-                lrs=schedules.LearningRateSchedule(
+                lrs=opt.LearningRateSchedule(
                     initial_learning_rate=learnign_args.learning_rate,
                     schedule=task.constant_learning_rate,
                 ),
@@ -174,7 +174,7 @@ def evaluate_policy(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
-                lrs=schedules.LearningRateSchedule(
+                lrs=opt.LearningRateSchedule(
                     initial_learning_rate=learnign_args.learning_rate,
                     schedule=task.constant_learning_rate,
                 ),

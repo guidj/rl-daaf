@@ -15,7 +15,7 @@ from daaf.core import GeneratesEpisode
 from daaf import core
 from daaf.core import MapsToIntId
 from daaf.learning import utils
-from daaf.learning.opt import schedules
+from daaf.learning import opt
 from daaf.learning.tabular import policies
 
 
@@ -38,7 +38,7 @@ class CreatesEGreedyPolicy(typing.Protocol):
 def onpolicy_sarsa_control(
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     epsilon: float,
     state_id_fn: MapsToIntId,
@@ -130,7 +130,7 @@ def onpolicy_sarsa_control(
 def onpolicy_qlearning_control(
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     epsilon: float,
     state_id_fn: MapsToIntId,
@@ -216,7 +216,7 @@ def onpolicy_qlearning_control(
 def onpolicy_nstep_sarsa_control(
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     epsilon: float,
     nstep: int,
@@ -324,7 +324,7 @@ def onpolicy_nstep_sarsa_control(
 def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     epsilon: float,
     nstep: int,
@@ -435,7 +435,7 @@ def onpolicy_nstep_sarsa_on_aggregate_start_steps_control(
 def onpolicy_sarsa_control_only_aggregate_updates(
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     epsilon: float,
     state_id_fn: Callable[[Any], int],
@@ -531,7 +531,7 @@ def onpolicy_sarsa_control_only_aggregate_updates(
 def onpolicy_qlearning_control_only_aggregate_updates(
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     epsilon: float,
     state_id_fn: Callable[[Any], int],

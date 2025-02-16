@@ -12,14 +12,14 @@ from daaf import core, envplay
 from daaf.core import GeneratesEpisode
 from daaf.learning import utils
 from daaf.learning.approx import modelspec
-from daaf.learning.opt import schedules
+from daaf.learning import opt
 
 
 def gradient_monte_carlo_state_values(
     policy: core.PyPolicy,
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     estimator: modelspec.ApproxFn,
     generate_episode: GeneratesEpisode = envplay.generate_episode,
 ) -> Generator[Tuple[int, modelspec.ApproxFn], None, None]:

@@ -8,7 +8,7 @@ import numpy as np
 
 from daaf import core, envplay
 from daaf.core import MapsToIntId, GeneratesEpisode
-from daaf.learning.opt import schedules
+from daaf.learning import opt
 
 MCUpdate = collections.namedtuple("MCUpdate", ["returns", "cu_sum", "value", "weight"])
 
@@ -112,7 +112,7 @@ def onpolicy_sarsa_action_values(
     policy: core.PyPolicy,
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     state_id_fn: MapsToIntId,
     action_id_fn: MapsToIntId,
@@ -274,7 +274,7 @@ def onpolicy_one_step_td_state_values(
     policy: core.PyPolicy,
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     state_id_fn: MapsToIntId,
     initial_values: np.ndarray,
@@ -349,7 +349,7 @@ def onpolicy_nstep_td_state_values(
     policy: core.PyPolicy,
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     nstep: int,
     state_id_fn: MapsToIntId,
@@ -568,7 +568,7 @@ def offpolicy_nstep_sarsa_action_values(
     collect_policy: core.PyPolicy,
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     nstep: int,
     policy_probability_fn: Callable[
@@ -698,7 +698,7 @@ def onpolicy_one_step_td_state_values_only_aggregate_updates(
     policy: core.PyPolicy,
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     state_id_fn: MapsToIntId,
     initial_values: np.ndarray,
@@ -856,7 +856,7 @@ def nstep_td_state_values_on_aggregate_start_steps(
     policy: core.PyPolicy,
     environment: gym.Env,
     num_episodes: int,
-    lrs: schedules.LearningRateSchedule,
+    lrs: opt.LearningRateSchedule,
     gamma: float,
     nstep: int,
     state_id_fn: MapsToIntId,

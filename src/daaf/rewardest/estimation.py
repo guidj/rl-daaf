@@ -7,7 +7,8 @@ import numpy as np
 from daaf import core, envplay, envsuite
 from daaf.learning.tabular import policies
 
-from daaf import math_ops, replay_mapper
+from daaf import replay_mapper
+from daaf.learning import opt
 
 BUFFER_MULT = 2**10
 
@@ -148,7 +149,7 @@ def estimate_reward(
 def lstsq_reward_estimation(
     obs_matrix: np.ndarray, agg_rewards: np.ndarray
 ) -> np.ndarray:
-    return math_ops.solve_least_squares(
+    return opt.solve_least_squares(
         matrix=obs_matrix,
         rhs=agg_rewards,
     )

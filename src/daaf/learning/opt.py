@@ -1,13 +1,31 @@
 """
-Math ops support module.
+This module contains optimisation utilities.
 """
 
+import dataclasses
+from typing import Callable
 import numpy as np
 import tensorflow as tf
 from scipy import linalg
 
 _SOLVER_ROW_SWITCH = 650
 _SOLVER_COL_SWITCH = 320
+
+
+@dataclasses.dataclass(frozen=True)
+class LearningRateSchedule:
+    """
+    This class updates the learning rate based on the episode,
+    step or both - using a given `schedule` function.
+    """
+
+    initial_learning_rate: float
+    # fn(initial learning rate, episode, step) -> learning rate
+    schedule: Callable[[float, int, int], float]
+    verbose: bool = False
+
+    def __call__(self, episode: int, step: int):
+        return self.schedule(self.initial_learning_rate, episode, step)
 
 
 def meets_least_squares_sufficient_conditions(matrix: np.ndarray):
