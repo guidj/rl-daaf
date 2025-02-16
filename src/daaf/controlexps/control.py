@@ -17,7 +17,7 @@ from daaf.learning import utils as learning_utils
 from daaf.learning.opt import schedules
 from daaf.learning.tabular import policies, policycontrol
 
-from daaf import constants, expconfig, options, task, utils
+from daaf import constants, expconfig, task, utils
 
 
 def run_fn(experiment_run: expconfig.ExperimentRun):
@@ -252,7 +252,7 @@ def create_options_egreedy_policy_fn(env_desc: core.EnvDesc, options_duration: i
         greedy_policy = policies.PyQGreedyPolicy(
             state_id_fn=state_id_fn, action_values=initial_qtable
         )
-        return options.OptionsQGreedyPolicy(
+        return policies.OptionsQGreedyPolicy(
             policy=greedy_policy,
             options_duration=options_duration,
             primitive_actions=range(env_desc.num_actions),

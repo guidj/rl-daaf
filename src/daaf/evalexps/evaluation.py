@@ -15,7 +15,7 @@ from daaf.core import GeneratesEpisode
 from daaf.learning.opt import schedules
 from daaf.learning.tabular import policies, policyeval
 
-from daaf import constants, expconfig, options, task, utils
+from daaf import constants, expconfig, task, utils
 
 
 def run_fn(experiment_run: expconfig.ExperimentRun):
@@ -240,7 +240,7 @@ def create_eval_policy(
     Creates a policy to be evaluated.
     """
     if daaf_config.policy_type == constants.OPTIONS_POLICY:
-        return options.UniformlyRandomCompositeActionPolicy(
+        return policies.UniformlyRandomCompositeActionPolicy(
             primitive_actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
             options_duration=daaf_config.reward_period,
         )
