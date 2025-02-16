@@ -3,12 +3,13 @@ Policy evaluation methods with approximation.
 """
 
 import copy
-from typing import Callable, Generator, Tuple
+from typing import Generator, Tuple
 
 import gymnasium as gym
 import numpy as np
 
 from daaf import core, envplay
+from daaf.core import GeneratesEpisode
 from daaf.learning import utils
 from daaf.learning.approx import modelspec
 from daaf.learning.opt import schedules
@@ -20,13 +21,7 @@ def gradient_monte_carlo_state_values(
     num_episodes: int,
     lrs: schedules.LearningRateSchedule,
     estimator: modelspec.ApproxFn,
-    generate_episode: Callable[
-        [
-            gym.Env,
-            core.PyPolicy,
-        ],
-        Generator[core.TrajectoryStep, None, None],
-    ] = envplay.generate_episode,
+    generate_episode: GeneratesEpisode = envplay.generate_episode,
 ) -> Generator[Tuple[int, modelspec.ApproxFn], None, None]:
     """
     Gradient monte-carlo based uses returns to

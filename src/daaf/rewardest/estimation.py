@@ -37,7 +37,7 @@ def estimate_reward(
         buffer_size=env_spec.mdp.env_desc.num_states
         * env_spec.mdp.env_desc.num_actions
         * BUFFER_MULT,
-        terminal_states=terminal_states,
+        terminal_states=frozenset(terminal_states),
         factor_terminal_states=factor_terminal_states,
         prefill_buffer=prefill_buffer,
     )

@@ -897,10 +897,19 @@ def traj_step(
 def assert_trajectory(
     output: core.TrajectoryStep, expected: core.TrajectoryStep
 ) -> None:
-    np.testing.assert_array_equal(output.observation, expected.observation)
-    np.testing.assert_array_equal(output.action, expected.action)
-    np.testing.assert_array_equal(output.policy_info, expected.policy_info)
-    np.testing.assert_array_equal(output.reward, expected.reward)
-    np.testing.assert_array_equal(output.terminated, expected.terminated)
-    np.testing.assert_array_equal(output.truncated, expected.truncated)
-    np.testing.assert_array_equal(output.info, expected.info)
+    assert_complex_type(output.observation, expected.observation)
+    assert_complex_type(output.action, expected.action)
+    assert_complex_type(output.policy_info, expected.policy_info)
+    assert_complex_type(output.reward, expected.reward)
+    assert_complex_type(output.terminated, expected.terminated)
+    assert_complex_type(output.truncated, expected.truncated)
+    assert_complex_type(output.info, expected.info)
+
+
+def assert_complex_type(output: Any, expected: Any):
+    if isinstance(expected, Mapping):
+        assert len(output) == len(expected)
+        for key in expected:
+            np.testing.assert_array_equal(output[key], expected[key])
+    else:
+        np.testing.assert_array_equal(output, expected)

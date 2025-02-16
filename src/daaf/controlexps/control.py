@@ -7,18 +7,17 @@ for tabular problems.
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Set, Tuple
+from typing import Any, Callable, Iterator, Mapping, Optional, Set, Tuple
 
-import gymnasium as gym
 import numpy as np
 from numpy.typing import DTypeLike
 from daaf import core
+from daaf.core import GeneratesEpisode
 from daaf.learning import utils as learning_utils
 from daaf.learning.opt import schedules
 from daaf.learning.tabular import policies, policycontrol
 
 from daaf import constants, expconfig, options, task, utils
-from daaf.controlexps import methods
 
 
 def run_fn(experiment_run: expconfig.ExperimentRun):
@@ -112,10 +111,7 @@ def policy_control(
     daaf_config: expconfig.DaafConfig,
     num_episodes: int,
     learnign_args: expconfig.LearningArgs,
-    generate_steps_fn: Callable[
-        [gym.Env, core.PyPolicy],
-        Generator[core.TrajectoryStep, None, None],
-    ],
+    generate_steps_fn: GeneratesEpisode,
 ) -> Iterator[policycontrol.PolicyControlSnapshot]:
     """
     Runs policy control with given algorithm, env, and policy spec.
@@ -129,7 +125,7 @@ def policy_control(
     )
     if daaf_config.algorithm == constants.SARSA:
         if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
-            sarsa_fn = methods.onpolicy_sarsa_control_only_aggregate_updates
+            sarsa_fn = policycontrol.onpolicy_sarsa_control_only_aggregate_updates
         else:
             sarsa_fn = policycontrol.onpolicy_sarsa_control
         return sarsa_fn(
@@ -152,7 +148,9 @@ def policy_control(
             daaf_config.traj_mapping_method
             == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER
         ):
-            nstep_fn = methods.onpolicy_nstep_sarsa_on_aggregate_start_steps_control
+            nstep_fn = (
+                policycontrol.onpolicy_nstep_sarsa_on_aggregate_start_steps_control
+            )
         else:
             nstep_fn = policycontrol.onpolicy_nstep_sarsa_control
 
@@ -172,7 +170,7 @@ def policy_control(
 
     elif daaf_config.algorithm == constants.Q_LEARNING:
         if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
-            qlearn_fn = methods.onpolicy_qlearning_control_only_aggregate_updates
+            qlearn_fn = policycontrol.onpolicy_qlearning_control_only_aggregate_updates
         else:
             qlearn_fn = policycontrol.onpolicy_qlearning_control
         return qlearn_fn(
@@ -197,7 +195,7 @@ def create_qtable_and_egreedy_policy(
     dtype: DTypeLike = np.float64,
     random: bool = False,
     terminal_states: Optional[Set[int]] = None,
-) -> Tuple[np.ndarray, core.PyPolicy]:
+) -> Tuple[np.ndarray, policycontrol.CreatesEGreedyPolicy]:
     if daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
         qtable = _create_initial_values(
             num_states=env_spec.mdp.env_desc.num_states,

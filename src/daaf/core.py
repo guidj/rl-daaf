@@ -11,7 +11,7 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Generator,
+    Iterator,
     List,
     Mapping,
     Optional,
@@ -25,7 +25,6 @@ from typing import (
 import gymnasium as gym
 import numpy as np
 from gymnasium.core import ActType, ObsType, RenderFrame, SupportsFloat
-from numpy.typing import ArrayLike
 
 NestedArray = Union[Mapping, np.ndarray]
 TimeStep = Tuple[ObsType, SupportsFloat, bool, bool, Mapping[str, Any]]
@@ -46,7 +45,7 @@ class PolicyStep:
     Encapsulates the chosen action and policy state.
     """
 
-    action: ArrayLike
+    action: ActType
     state: Any
     info: Mapping[str, Any]
 
@@ -259,7 +258,7 @@ class EnvMdp(Mdp):
 class GeneratesEpisode(typing.Protocol):
     def __call__(
         self, environment: gym.Env, policy: PyPolicy, max_steps: Optional[int] = None
-    ) -> Generator[TrajectoryStep, None, None]: ...
+    ) -> Iterator[TrajectoryStep]: ...
 
 
 def infer_env_terminal_states(transition: EnvTransition) -> Set[int]:

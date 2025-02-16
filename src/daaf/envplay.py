@@ -4,7 +4,7 @@ trajectory data.
 """
 
 import math
-from typing import Generator, Optional
+from typing import Iterator, Optional
 
 import gymnasium as gym
 from gymnasium import wrappers as gym_wrappers
@@ -18,7 +18,7 @@ def generate_episodes(
     policy: core.PyPolicy,
     num_episodes: int,
     max_episode_steps: Optional[int] = None,
-) -> Generator[core.TrajectoryStep, None, None]:
+) -> Iterator[core.TrajectoryStep]:
     """
     Generates `num_episodes` episodes using the environment
     and policy provided for rollout.
@@ -46,7 +46,7 @@ def generate_episode(
     environment: gym.Env,
     policy: core.PyPolicy,
     max_steps: Optional[int] = None,
-) -> Generator[core.TrajectoryStep, None, None]:
+) -> Iterator[core.TrajectoryStep]:
     """
     Generates an episode using the environment
     and policy provided for rollout.
@@ -83,7 +83,7 @@ def generate_episode(
 
 def identity_replay(
     event: core.TrajectoryStep,
-) -> Generator[core.TrajectoryStep, None, None]:
+) -> Iterator[core.TrajectoryStep]:
     """
     Yields:
         The given trajectory step, as is.

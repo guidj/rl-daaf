@@ -54,7 +54,7 @@ def main(args: Args):
     futures = []
     for spec in ENV_SPECS:
         for discount in DISCOUNTS:
-            env_spec = envsuite.load(spec["name"], **spec["args"])
+            env_spec = envsuite.load(getattr(spec, "name"), **getattr(spec, "args"))
             future = run_dynaprog.remote(
                 Task(
                     env_spec=env_spec,

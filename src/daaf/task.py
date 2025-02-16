@@ -3,12 +3,12 @@ Functions relying on ReplayBuffer are for TF classes (agents, environment, etc).
 Generators are for Py classes (agents, environment, etc).
 """
 
-from typing import Any, Generator, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 import gymnasium as gym
 from daaf import core, envplay, envsuite
 from daaf.learning import utils
-
+from daaf.core import GeneratesEpisode
 from daaf import constants, replay_mapper
 
 
@@ -86,7 +86,9 @@ def create_trajectory_mappers(
                     num_states=env_spec.mdp.env_desc.num_states,
                     num_actions=env_spec.mdp.env_desc.num_actions,
                 ),
-                terminal_states=core.infer_env_terminal_states(env_spec.mdp.transition),
+                terminal_states=frozenset(
+                    core.infer_env_terminal_states(env_spec.mdp.transition)
+                ),
             )
         )
     elif traj_mapping_method == constants.MDP_WITH_OPTIONS_MAPPER:
@@ -113,7 +115,7 @@ def returns_collection_mapper() -> replay_mapper.CollectReturnsMapper:
 
 def create_generate_episode_fn(
     mappers: Sequence[replay_mapper.TrajMapper],
-) -> core.GeneratesEpisode:
+) -> GeneratesEpisode:
     """
     Creates a function that transform trajectory events a provided
     `mapper`.
@@ -126,7 +128,7 @@ def create_generate_episode_fn(
         environment: gym.Env,
         policy: core.PyPolicy,
         max_steps: Optional[int] = None,
-    ) -> Generator[core.TrajectoryStep, None, None]:
+    ) -> Iterator[core.TrajectoryStep]:
         """
         Generates events for `num_episodes` given an environment and policy.
         """

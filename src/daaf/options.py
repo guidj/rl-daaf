@@ -132,7 +132,7 @@ class UniformlyRandomCompositeActionPolicy(
 class OptionsQGreedyPolicy(policies.PyEpsilonGreedyPolicy):
     def __init__(
         self,
-        policy: core.PyPolicy,
+        policy: policies.PyQGreedyPolicy,
         primitive_actions: Iterable[Any],
         options_duration: int,
         epsilon: float,
@@ -151,6 +151,7 @@ class OptionsQGreedyPolicy(policies.PyEpsilonGreedyPolicy):
             seed=seed,
         )
         self.options_duration = self.options_duration
+        self._option_prob = -1.0
 
     def get_initial_state(self, batch_size: Optional[int] = None) -> Any:
         """Returns an initial state usable by the policy.
@@ -172,16 +173,19 @@ class OptionsQGreedyPolicy(policies.PyEpsilonGreedyPolicy):
     ) -> core.PolicyStep:
         if seed is not None:
             raise NotImplementedError(f"Seed is not supported; but got seed: {seed}")
-        if policy_state and (
+        new_option = policy_state and (
             policy_state["option_step"] + 1 == self.options_duration
             or policy_state["option_id"] is None
-        ):
+        )
+        if new_option:
             # Random policy chooses a new option
             explore = self._rng.random() <= self.epsilon
             policy_: core.PyPolicy = (
                 self.explore_policy if explore else self.exploit_policy
             )
-            prob = self._probs["explore"] if explore else self._probs["exploit"]
+            self._option_prob = (
+                self._probs["explore"] if explore else self._probs["exploit"]
+            )
             policy_step_ = policy_.action(observation, policy_state)
 
             option_id = policy_step_.action
@@ -198,7 +202,7 @@ class OptionsQGreedyPolicy(policies.PyEpsilonGreedyPolicy):
         }
         if self.emit_log_probability:
             policy_info["log_probability"] = np.array(
-                np.log(prob),
+                np.log(self._option_prob),
                 np.float64,
             )
         return core.PolicyStep(

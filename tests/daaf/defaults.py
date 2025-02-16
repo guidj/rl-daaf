@@ -18,6 +18,7 @@ PATH_COLOR = (50, 75, 25)
 ACTOR_COLOR = (75, 25, 50)
 EXIT_COLOR = (255, 204, 0)
 
+
 class CountEnv(gym.Env[np.ndarray, int]):
     """
     Choose between moving forward or stopping, until we reach 3, starting from zero.
@@ -165,6 +166,7 @@ class CountEnv(gym.Env[np.ndarray, int]):
         """Render env"""
         return super().render()
 
+
 class SingleStateEnv(gym.Env[np.ndarray, int]):
     """
     An environment that remains in a perpetual state.
@@ -245,6 +247,7 @@ class RoundRobinActionsPolicy(core.PyPolicy):
             self._iterator = iter(self._actions)
             action = next(self._iterator)
         return core.PolicyStep(np.array(action, dtype=np.int64), state, info)
+
 
 def identity(value: Any) -> Any:
     """
