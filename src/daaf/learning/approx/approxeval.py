@@ -3,7 +3,7 @@ Policy evaluation methods with approximation.
 """
 
 import copy
-from typing import Generator, Tuple
+from typing import Generator, Iterator, Tuple
 
 import gymnasium as gym
 import numpy as np
@@ -21,7 +21,7 @@ def gradient_monte_carlo_state_values(
     lrs: opt.LearningRateSchedule,
     estimator: modelspec.ApproxFn,
     generate_episode: GeneratesEpisode = envplay.generate_episode,
-) -> Generator[Tuple[int, modelspec.ApproxFn], None, None]:
+) -> Iterator[Tuple[int, modelspec.ApproxFn]]:
     """
     Gradient monte-carlo based uses returns to
     approximate the value function of a policy.

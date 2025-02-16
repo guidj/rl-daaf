@@ -8,6 +8,6 @@ DATA_DIR=$1
 INPUT_DIR=$HOME/fs/daaf/exp/evaljob/logs/${DATA_DIR}
 OUTPUT_DIR=$HOME/fs/daaf/exp/evaljob/agg/${DATA_DIR}/`date +%s`
 rm -rf ${OUTPUT_DIR}
-python $PARENT_DIR/src/daaf/evalexps/results_agg_pipeline.py \
+python $PARENT_DIR/src/daaf/experiments/results_agg_pipeline.py \
     --input-dir=$INPUT_DIR \
     --output-dir=$OUTPUT_DIR
