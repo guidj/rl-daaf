@@ -10,12 +10,11 @@ from typing import Any, Iterator, Mapping, Optional, Set
 
 import numpy as np
 from numpy.typing import DTypeLike
-from rlplg import core
-from rlplg.learning.opt import schedules
-from rlplg.learning.tabular import policies, policyeval
 
-from daaf import constants, expconfig, options, task, utils
-from daaf.evalexps import methods
+from daaf import constants, core, expconfig, task, utils
+from daaf.core import GeneratesEpisode
+from daaf.learning import opt
+from daaf.learning.tabular import policies, policyeval
 
 
 def run_fn(experiment_run: expconfig.ExperimentRun):
@@ -109,34 +108,36 @@ def evaluate_policy(
     num_episodes: int,
     algorithm: str,
     learnign_args: expconfig.LearningArgs,
-    generate_steps_fn: core.GeneratesEpisode,
+    generate_steps_fn: GeneratesEpisode,
 ) -> Iterator[policyeval.PolicyEvalSnapshot]:
     """
     Runs policy evaluation with given algorithm, env, and policy spec.
     """
-    initial_state_values = create_initial_values(env_spec.mdp.env_desc.num_states)
+    initial_state_values = create_initial_values(env_spec.mdp.env_space.num_states)
     eval_fn: Optional[Iterator[policyeval.PolicyEvalSnapshot]] = None
     if algorithm == constants.ONE_STEP_TD:
         if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
-            eval_fn = methods.onpolicy_one_step_td_state_values_only_aggregate_updates(
-                policy=policy,
-                environment=env_spec.environment,
-                num_episodes=num_episodes,
-                lrs=schedules.LearningRateSchedule(
-                    initial_learning_rate=learnign_args.learning_rate,
-                    schedule=task.constant_learning_rate,
-                ),
-                gamma=learnign_args.discount_factor,
-                state_id_fn=env_spec.discretizer.state,
-                initial_values=initial_state_values,
-                generate_episode=generate_steps_fn,
+            eval_fn = (
+                policyeval.onpolicy_one_step_td_state_values_only_aggregate_updates(
+                    policy=policy,
+                    environment=env_spec.environment,
+                    num_episodes=num_episodes,
+                    lrs=opt.LearningRateSchedule(
+                        initial_learning_rate=learnign_args.learning_rate,
+                        schedule=task.constant_learning_rate,
+                    ),
+                    gamma=learnign_args.discount_factor,
+                    state_id_fn=env_spec.discretizer.state,
+                    initial_values=initial_state_values,
+                    generate_episode=generate_steps_fn,
+                )
             )
         else:
             eval_fn = policyeval.onpolicy_one_step_td_state_values(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
-                lrs=schedules.LearningRateSchedule(
+                lrs=opt.LearningRateSchedule(
                     initial_learning_rate=learnign_args.learning_rate,
                     schedule=task.constant_learning_rate,
                 ),
@@ -153,11 +154,11 @@ def evaluate_policy(
             daaf_config.traj_mapping_method
             == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER
         ):
-            eval_fn = methods.nstep_td_state_values_on_aggregate_start_steps(
+            eval_fn = policyeval.nstep_td_state_values_on_aggregate_start_steps(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
-                lrs=schedules.LearningRateSchedule(
+                lrs=opt.LearningRateSchedule(
                     initial_learning_rate=learnign_args.learning_rate,
                     schedule=task.constant_learning_rate,
                 ),
@@ -172,7 +173,7 @@ def evaluate_policy(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
-                lrs=schedules.LearningRateSchedule(
+                lrs=opt.LearningRateSchedule(
                     initial_learning_rate=learnign_args.learning_rate,
                     schedule=task.constant_learning_rate,
                 ),
@@ -185,7 +186,7 @@ def evaluate_policy(
 
     elif algorithm == constants.FIRST_VISIT_MONTE_CARLO:
         if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
-            eval_fn = methods.onpolicy_first_visit_monte_carlo_state_values_only_aggregate_updates(
+            eval_fn = policyeval.onpolicy_first_visit_monte_carlo_state_values_only_aggregate_updates(
                 policy=policy,
                 environment=env_spec.environment,
                 num_episodes=num_episodes,
@@ -238,13 +239,13 @@ def create_eval_policy(
     Creates a policy to be evaluated.
     """
     if daaf_config.policy_type == constants.OPTIONS_POLICY:
-        return options.UniformlyRandomCompositeActionPolicy(
-            primitive_actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
+        return policies.UniformlyRandomCompositeActionPolicy(
+            primitive_actions=tuple(range(env_spec.mdp.env_space.num_actions)),
             options_duration=daaf_config.reward_period,
         )
     elif daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
         return policies.PyRandomPolicy(
-            num_actions=env_spec.mdp.env_desc.num_actions,
+            num_actions=env_spec.mdp.env_space.num_actions,
             emit_log_probability=True,
         )
     raise ValueError(f"Unknown policy {daaf_config.policy_type}")

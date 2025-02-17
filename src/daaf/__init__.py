@@ -1,5 +1,5 @@
 __author__ = "guilherme"
-__version__ = "0.16.1"
+__version__ = "0.16.2"
 __email__ = "guilherme@dsv.su.se"
 __description__ = "RL with delayed, aggregate, feedback"
 __uri__ = "https://github.com/guidj/rl-daaf"

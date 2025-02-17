@@ -4,10 +4,10 @@ import logging
 from typing import Any, Dict, Mapping, Optional, Set, Tuple
 
 import numpy as np
-from rlplg import core, envplay, envsuite
-from rlplg.learning.tabular import policies
 
-from daaf import math_ops, replay_mapper
+from daaf import core, envplay, envsuite, replay_mapper
+from daaf.learning import opt
+from daaf.learning.tabular import policies
 
 BUFFER_MULT = 2**10
 
@@ -24,24 +24,24 @@ def estimate_reward(
     env_spec = envsuite.load(spec["name"], **spec["args"])
     terminal_states = core.infer_env_terminal_states(env_spec.mdp.transition)
     init_rtable = np.zeros(
-        shape=(env_spec.mdp.env_desc.num_states, env_spec.mdp.env_desc.num_actions),
+        shape=(env_spec.mdp.env_space.num_states, env_spec.mdp.env_space.num_actions),
         dtype=np.float64,
     )
     mapper = replay_mapper.DaafLsqRewardAttributionMapper(
-        num_states=env_spec.mdp.env_desc.num_states,
-        num_actions=env_spec.mdp.env_desc.num_actions,
+        num_states=env_spec.mdp.env_space.num_states,
+        num_actions=env_spec.mdp.env_space.num_actions,
         reward_period=reward_period,
         state_id_fn=env_spec.discretizer.state,
         action_id_fn=env_spec.discretizer.action,
         init_rtable=init_rtable,
-        buffer_size=env_spec.mdp.env_desc.num_states
-        * env_spec.mdp.env_desc.num_actions
+        buffer_size=env_spec.mdp.env_space.num_states
+        * env_spec.mdp.env_space.num_actions
         * BUFFER_MULT,
-        terminal_states=terminal_states,
+        terminal_states=frozenset(terminal_states),
         factor_terminal_states=factor_terminal_states,
         prefill_buffer=prefill_buffer,
     )
-    policy = policies.PyRandomPolicy(num_actions=env_spec.mdp.env_desc.num_actions)
+    policy = policies.PyRandomPolicy(num_actions=env_spec.mdp.env_space.num_actions)
     # collect data
     logging.info("Collecting data for %s/%s", spec["name"], spec["args"])
     episode = 1
@@ -108,14 +108,14 @@ def estimate_reward(
         if factor_terminal_states:
             yhat_lstsq = expand_reward_with_terminal_action_values(
                 yhat_lstsq,
-                num_states=env_spec.mdp.env_desc.num_states,
-                num_actions=env_spec.mdp.env_desc.num_actions,
+                num_states=env_spec.mdp.env_space.num_states,
+                num_actions=env_spec.mdp.env_space.num_actions,
                 terminal_states=terminal_states,
             )
             yhat_ols_em = expand_reward_with_terminal_action_values(
                 yhat_ols_em,
-                num_states=env_spec.mdp.env_desc.num_states,
-                num_actions=env_spec.mdp.env_desc.num_actions,
+                num_states=env_spec.mdp.env_space.num_states,
+                num_actions=env_spec.mdp.env_space.num_actions,
                 terminal_states=terminal_states,
             )
         meta["ols_iters"] = iters
@@ -148,7 +148,7 @@ def estimate_reward(
 def lstsq_reward_estimation(
     obs_matrix: np.ndarray, agg_rewards: np.ndarray
 ) -> np.ndarray:
-    return math_ops.solve_least_squares(
+    return opt.solve_least_squares(
         matrix=obs_matrix,
         rhs=agg_rewards,
     )
@@ -222,10 +222,10 @@ def expand_reward_with_terminal_action_values(
         for action in range(num_actions):
             terminal_state_action_mask[state, action] = 1
     ignore_factors_mask = np.reshape(terminal_state_action_mask, newshape=[-1])
-    for idx in range(len(ignore_factors_mask)):
-        if ignore_factors_mask[idx] == 1:
-            est_rewards_ext[idx] = 0.0
+    for pos, ignore_factor in enumerate(ignore_factors_mask):
+        if ignore_factor == 1:
+            est_rewards_ext[pos] = 0.0
         else:
-            est_rewards_ext[idx] = estimated_rewards[pos]
+            est_rewards_ext[pos] = estimated_rewards[pos]
             pos += 1
     return est_rewards_ext

@@ -28,8 +28,9 @@ from typing import (
 
 import numpy as np
 import tensorflow as tf
-from rlplg import core
-from rlplg.learning.tabular import dynamicprog, policies
+
+from daaf import core
+from daaf.learning.tabular import dynamicprog, policies
 
 STATE_VALUE_FN_FILENAME = "state_action_value_index.json"
 
@@ -291,7 +292,7 @@ def dynamic_prog_estimation(
         A tuple of state-value and action-value estimates.
     """
     observable_random_policy = policies.PyRandomPolicy(
-        num_actions=mdp.env_desc.num_actions,
+        num_actions=mdp.env_space.num_actions,
     )
     state_values = dynamicprog.iterative_policy_evaluation(
         mdp=mdp,

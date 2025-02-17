@@ -2,8 +2,11 @@
 Eval metrics for aggregation pipeline.
 """
 
+from typing import Optional, Tuple
+
 import numpy as np
 from scipy.spatial import distance
+from scipy.stats import mstats
 
 
 def rmse(v_pred: np.ndarray, v_true: np.ndarray, axis: int):
@@ -89,3 +92,39 @@ def dotproduct(v_pred: np.ndarray, v_true: np.ndarray):
     for row in range(np.shape(v_pred)[0]):
         dps.append(np.dot(v_pred[row], v_true[row]))
     return np.array(dps, dtype=v_true.dtype)
+
+
+def pearson_correlation(
+    pred: np.ndarray, actual: np.ndarray, mask: Optional[np.ndarray] = None
+) -> Tuple[float, float]:
+    """
+    Mean error.
+    sum(y_pred - y_actual) / 2
+    """
+    if mask is None:
+        mask = np.ones_like(pred)
+    mask = mask.astype(bool)
+    y_pred = pred[mask].astype(np.float32)
+    y_actual = actual[mask].astype(np.float32)
+    result: Tuple[float, float] = mstats.pearsonr(
+        x=y_pred.flatten(), y=y_actual.flatten()
+    )
+    return result
+
+
+def spearman_correlation(
+    pred: np.ndarray, actual: np.ndarray, mask: Optional[np.ndarray] = None
+) -> Tuple[float, float]:
+    """
+    Mean error.
+    sum(y_pred - y_actual) / 2
+    """
+    if mask is None:
+        mask = np.ones_like(pred)
+    mask = mask.astype(bool)
+    y_pred = pred[mask].astype(np.float32)
+    y_actual = actual[mask].astype(np.float32)
+    result: Tuple[float, float] = mstats.spearmanr(
+        x=y_pred.flatten(), y=y_actual.flatten()
+    )
+    return result

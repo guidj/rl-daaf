@@ -6,10 +6,9 @@ from typing import Tuple
 
 import numpy as np
 import ray
-from rlplg import core, envsuite
-from rlplg.learning.tabular import dynamicprog, policies
 
-from daaf import utils
+from daaf import core, envsuite, utils
+from daaf.learning.tabular import dynamicprog, policies
 
 ENV_SPECS = [
     {"name": "ABCSeq", "args": {"length": 7}},
@@ -54,7 +53,7 @@ def main(args: Args):
     futures = []
     for spec in ENV_SPECS:
         for discount in DISCOUNTS:
-            env_spec = envsuite.load(spec["name"], **spec["args"])
+            env_spec = envsuite.load(getattr(spec, "name"), **getattr(spec, "args"))
             future = run_dynaprog.remote(
                 Task(
                     env_spec=env_spec,
@@ -96,7 +95,9 @@ def run_dynaprog(task: Task) -> Tuple[Task, np.ndarray]:
         task.discount,
     )
     start = time.time()
-    policy = policies.PyRandomPolicy(num_actions=task.env_spec.mdp.env_desc.num_actions)
+    policy = policies.PyRandomPolicy(
+        num_actions=task.env_spec.mdp.env_space.num_actions
+    )
     state_values = dynamicprog.iterative_policy_evaluation(
         mdp=task.env_spec.mdp, policy=policy, gamma=task.discount, accuracy=EST_ACCURACY
     )

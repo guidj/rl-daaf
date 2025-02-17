@@ -5,7 +5,7 @@ DIR=$(dirname $0)
 PARENT_DIR=$DIR/../..
 
 TIMESTAMP=`date +%s`
-python $PARENT_DIR/src/daaf/controlexps/controljob.py \
+python $PARENT_DIR/src/daaf/experiments/controlexps/controljob.py \
     --config-path=$PARENT_DIR/experiments/policycontrol/experiments-sample.csv \
     --envs-path=$PARENT_DIR/experiments/policycontrol/envs-sample.json \
     --num-runs=3 \

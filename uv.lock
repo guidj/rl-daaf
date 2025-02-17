@@ -2,10 +2,10 @@ version = 1
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
-    "python_full_version >= '3.13' and sys_platform != 'win32'",
     "python_full_version == '3.12.*' and sys_platform == 'win32'",
-    "python_full_version == '3.12.*' and sys_platform != 'win32'",
     "python_full_version < '3.12' and sys_platform == 'win32'",
+    "python_full_version >= '3.13' and sys_platform != 'win32'",
+    "python_full_version == '3.12.*' and sys_platform != 'win32'",
     "python_full_version < '3.12' and sys_platform != 'win32'",
 ]
 
@@ -1063,8 +1063,8 @@ version = "8.32.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
-    "python_full_version >= '3.13' and sys_platform != 'win32'",
     "python_full_version == '3.12.*' and sys_platform == 'win32'",
+    "python_full_version >= '3.13' and sys_platform != 'win32'",
     "python_full_version == '3.12.*' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -2862,7 +2862,7 @@ wheels = [
 
 [[package]]
 name = "rl-daaf"
-version = "0.16.0"
+version = "0.16.2"
 source = { editable = "." }
 dependencies = [
     { name = "cvxpy" },
@@ -2931,7 +2931,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.23.5" },
     { name = "pillow", specifier = ">=10.4.0" },
     { name = "ray", extras = ["data", "default"], specifier = "==2.23.0" },
-    { name = "rlplg", git = "https://github.com/guidj/rlplg.git?rev=0.20.3" },
+    { name = "rlplg", git = "https://github.com/guidj/rlplg" },
     { name = "scipy", specifier = ">=1.14.1" },
     { name = "tensorflow", specifier = ">=2.11.1" },
 ]
@@ -2985,8 +2985,8 @@ rendering = [{ name = "pyglet", specifier = ">=1.5.31" }]
 
 [[package]]
 name = "rlplg"
-version = "0.20.3"
-source = { git = "https://github.com/guidj/rlplg.git?rev=0.20.3#e9881e9b08a94b89acbce5013f6040726d054b9b" }
+version = "0.21.6"
+source = { git = "https://github.com/guidj/rlplg#f074b6128fb7b4f7b3c49c08258125f2081c33b7" }
 dependencies = [
     { name = "gymnasium" },
     { name = "numpy" },
@@ -3393,7 +3393,7 @@ wheels = [
 
 [[package]]
 name = "textual"
-version = "1.0.0"
+version = "2.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py", extra = ["linkify", "plugins"], marker = "sys_platform != 'win32'" },
@@ -3401,9 +3401,9 @@ dependencies = [
     { name = "rich", marker = "sys_platform != 'win32'" },
     { name = "typing-extensions", marker = "sys_platform != 'win32'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1f/b6/59b1de04bb4dca0f21ed7ba0b19309ed7f3f5de4396edf20cc2855e53085/textual-1.0.0.tar.gz", hash = "sha256:bec9fe63547c1c552569d1b75d309038b7d456c03f86dfa3706ddb099b151399", size = 1532733 }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/d7/b45464bf3e8362190b817e1fa60cce3d7004369e4a2ec0f0d28c7fa3d83d/textual-2.0.4.tar.gz", hash = "sha256:128177fc6d63d0f3236e374e28d68f4343bd2e996825da2a6f122d9fbf017d31", size = 1591729 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/bb/5fb6656c625019cd653d5215237d7cd6e0b12e7eae4195c3d1c91b2136fc/textual-1.0.0-py3-none-any.whl", hash = "sha256:2d4a701781c05104925e463ae370c630567c70c2880e92ab838052e3e23c986f", size = 660456 },
+    { url = "https://files.pythonhosted.org/packages/93/68/7f26c55e7c5818eed5c1912106e1392bf1edfb1b7ef342b35930fa559f2d/textual-2.0.4-py3-none-any.whl", hash = "sha256:0a151c060586eb4fb091584fab58f0706daa51cf27330efef548bc14f3c6aa66", size = 679459 },
 ]
 
 [[package]]

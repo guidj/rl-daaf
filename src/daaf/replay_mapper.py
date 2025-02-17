@@ -12,9 +12,9 @@ import logging
 from typing import Any, Callable, Dict, FrozenSet, Iterator, Optional, Sequence, Set
 
 import numpy as np
-from rlplg import combinatorics, core
 
-from daaf import math_ops
+from daaf import combinatorics, core
+from daaf.learning import opt
 
 
 class TrajMapper(abc.ABC):
@@ -312,7 +312,7 @@ class DaafLsqRewardAttributionMapper(TrajMapper):
         terminal_state_action_mask: np.ndarray,
     ):
         logging.debug("Estimating rewards with Least-Squares.")
-        estimated_rewards = math_ops.solve_least_squares(
+        estimated_rewards = opt.solve_least_squares(
             matrix=matrix,
             rhs=rhs,
         )
@@ -446,7 +446,9 @@ class DaafNStepTdUpdateMarkMapper(TrajMapper):
             reward_sum += traj_step.reward
             tau = step - self.nstep + 1
             if tau >= 0 and (step + 1) % self.reward_period == 0:
-                traj_steps[tau].info["ok_nstep_tau"] = True
+                traj_steps[tau] = dataclasses.replace(
+                    traj_steps[tau], info={**traj_steps[tau].info, "ok_nstep_tau": True}
+                )
                 reward, reward_sum, imputed = reward_sum, 0.0, False
             else:
                 reward, imputed = self.impute_value, True
@@ -602,7 +604,8 @@ class AbQueueBuffer:
         if np.sum(candidate_row) > 0:
             mask = (candidate_row > 0).astype(np.int64)
             row_factors_key = combinatorics.sequence_to_integer(
-                space_size=2, sequence=mask
+                space_size=2,
+                sequence=mask,  # type: ignore
             )
             # Only add distict rows - based on their mask
             if row_factors_key not in self._factors_tracker:

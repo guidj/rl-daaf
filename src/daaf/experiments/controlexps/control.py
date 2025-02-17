@@ -7,18 +7,16 @@ for tabular problems.
 import dataclasses
 import json
 import logging
-from typing import Any, Callable, Generator, Iterator, Mapping, Optional, Set, Tuple
+from typing import Any, Callable, Iterator, Mapping, Optional, Set, Tuple
 
-import gymnasium as gym
 import numpy as np
 from numpy.typing import DTypeLike
-from rlplg import core
-from rlplg.learning import utils as rlplg_utils
-from rlplg.learning.opt import schedules
-from rlplg.learning.tabular import policies, policycontrol
 
-from daaf import constants, expconfig, options, task, utils
-from daaf.controlexps import methods
+from daaf import constants, core, expconfig, task, utils
+from daaf.core import GeneratesEpisode
+from daaf.learning import opt
+from daaf.learning import utils as learning_utils
+from daaf.learning.tabular import policies, policycontrol
 
 
 def run_fn(experiment_run: expconfig.ExperimentRun):
@@ -112,15 +110,12 @@ def policy_control(
     daaf_config: expconfig.DaafConfig,
     num_episodes: int,
     learnign_args: expconfig.LearningArgs,
-    generate_steps_fn: Callable[
-        [gym.Env, core.PyPolicy],
-        Generator[core.TrajectoryStep, None, None],
-    ],
+    generate_steps_fn: GeneratesEpisode,
 ) -> Iterator[policycontrol.PolicyControlSnapshot]:
     """
     Runs policy control with given algorithm, env, and policy spec.
     """
-    lrs = schedules.LearningRateSchedule(
+    lrs = opt.LearningRateSchedule(
         initial_learning_rate=learnign_args.learning_rate,
         schedule=task.constant_learning_rate,
     )
@@ -129,7 +124,7 @@ def policy_control(
     )
     if daaf_config.algorithm == constants.SARSA:
         if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
-            sarsa_fn = methods.onpolicy_sarsa_control_only_aggregate_updates
+            sarsa_fn = policycontrol.onpolicy_sarsa_control_only_aggregate_updates
         else:
             sarsa_fn = policycontrol.onpolicy_sarsa_control
         return sarsa_fn(
@@ -152,7 +147,9 @@ def policy_control(
             daaf_config.traj_mapping_method
             == constants.DAAF_NSTEP_TD_UPDATE_MARK_MAPPER
         ):
-            nstep_fn = methods.onpolicy_nstep_sarsa_on_aggregate_start_steps_control
+            nstep_fn = (
+                policycontrol.onpolicy_nstep_sarsa_on_aggregate_start_steps_control
+            )
         else:
             nstep_fn = policycontrol.onpolicy_nstep_sarsa_control
 
@@ -172,7 +169,7 @@ def policy_control(
 
     elif daaf_config.algorithm == constants.Q_LEARNING:
         if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
-            qlearn_fn = methods.onpolicy_qlearning_control_only_aggregate_updates
+            qlearn_fn = policycontrol.onpolicy_qlearning_control_only_aggregate_updates
         else:
             qlearn_fn = policycontrol.onpolicy_qlearning_control
         return qlearn_fn(
@@ -197,21 +194,21 @@ def create_qtable_and_egreedy_policy(
     dtype: DTypeLike = np.float64,
     random: bool = False,
     terminal_states: Optional[Set[int]] = None,
-) -> Tuple[np.ndarray, core.PyPolicy]:
+) -> Tuple[np.ndarray, policycontrol.CreatesEGreedyPolicy]:
     if daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
         qtable = _create_initial_values(
-            num_states=env_spec.mdp.env_desc.num_states,
-            num_actions=env_spec.mdp.env_desc.num_actions,
+            num_states=env_spec.mdp.env_space.num_states,
+            num_actions=env_spec.mdp.env_space.num_actions,
             dtype=dtype,
             random=random,
             terminal_states=terminal_states,
         )
 
-        return qtable, rlplg_utils.create_egreedy_policy
+        return qtable, learning_utils.create_egreedy_policy
     elif daaf_config.policy_type == constants.OPTIONS_POLICY:
-        num_options = env_spec.mdp.env_desc.num_actions**daaf_config.reward_period
+        num_options = env_spec.mdp.env_space.num_actions**daaf_config.reward_period
         qtable = _create_initial_values(
-            num_states=env_spec.mdp.env_desc.num_states,
+            num_states=env_spec.mdp.env_space.num_states,
             num_actions=num_options,
             dtype=dtype,
             random=random,
@@ -219,7 +216,7 @@ def create_qtable_and_egreedy_policy(
         )
 
         return qtable, create_options_egreedy_policy_fn(
-            env_desc=env_spec.mdp.env_desc, options_duration=daaf_config.reward_period
+            env_space=env_spec.mdp.env_space, options_duration=daaf_config.reward_period
         )
 
     raise ValueError(f"Unsupported policy type {daaf_config.policy_type}")
@@ -245,7 +242,7 @@ def _create_initial_values(
     return np.zeros(shape=(num_states, num_actions), dtype=dtype)
 
 
-def create_options_egreedy_policy_fn(env_desc: core.EnvDesc, options_duration: int):
+def create_options_egreedy_policy_fn(env_space: core.EnvSpace, options_duration: int):
     def create_options_egreedy_policy(
         initial_qtable: np.ndarray,
         state_id_fn: Callable[[Any], int],
@@ -254,10 +251,10 @@ def create_options_egreedy_policy_fn(env_desc: core.EnvDesc, options_duration: i
         greedy_policy = policies.PyQGreedyPolicy(
             state_id_fn=state_id_fn, action_values=initial_qtable
         )
-        return options.OptionsQGreedyPolicy(
+        return policies.OptionsQGreedyPolicy(
             policy=greedy_policy,
             options_duration=options_duration,
-            primitive_actions=range(env_desc.num_actions),
+            primitive_actions=range(env_space.num_actions),
             epsilon=epsilon,
         )
 

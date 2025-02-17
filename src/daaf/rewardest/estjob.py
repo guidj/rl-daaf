@@ -108,19 +108,19 @@ def main(args: EstimationPipelineArgs):
             result_ref: tasks for tasks, result_ref in tasks_and_result_refs
         }
         datasets = []
-        unfinished_task_ref = list(task_ref_to_tasks.keys())
+        unfinished_task_refs = list(task_ref_to_tasks.keys())
         while True:
-            finished_task_ref, unfinished_task_ref = ray.wait(unfinished_task_ref)
-            for finished_task_ref in finished_task_ref:
+            finished_task_refs, unfinished_task_refs = ray.wait(unfinished_task_refs)
+            for finished_task_ref in finished_task_refs:
                 datasets.append(ray.get(finished_task_ref))
 
                 logging.info(
                     "Tasks left: %d out of %d.",
-                    len(unfinished_task_ref),
+                    len(unfinished_task_refs),
                     len(task_ref_to_tasks),
                 )
 
-            if len(unfinished_task_ref) == 0:
+            if len(unfinished_task_refs) == 0:
                 break
 
         if len(datasets) > 0:
@@ -207,6 +207,10 @@ def estimate(task: EstimationRun) -> Mapping[str, Any]:
     elif task.method == EST_PREFILL_BUFFER:
         factor_terminal_states = False
         prefill_buffer = True
+    else:
+        raise ValueError(f"""
+        Unknown method: {task.method}.
+        Use one of: {EST_PLAIN}, {EST_FACTOR_TS}, {EST_PREFILL_BUFFER}""")
 
     result = estimation.estimate_reward(
         spec=task.env_spec,

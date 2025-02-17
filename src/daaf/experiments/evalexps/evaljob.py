@@ -1,21 +1,23 @@
 """
-Module contains job to run policy evaluation with replay mappers.
+This module contains components for policy evaluation
+with delayed aggregate and anonymous feedback,
+for tabular problems.
 """
 
 import argparse
 import dataclasses
 import logging
 import random
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, List, Mapping, Optional, Sequence, Tuple
 
 import ray
 
 from daaf import constants, expconfig, task, utils
-from daaf.controlexps import control
+from daaf.experiments.evalexps import evaluation
 
 
 @dataclasses.dataclass(frozen=True)
-class ControlPipelineArgs:
+class EvalPipelineArgs:
     """
     Program arguments.
     """
@@ -33,18 +35,18 @@ class ControlPipelineArgs:
     cluster_uri: Optional[str]
 
 
-def main(args: ControlPipelineArgs):
+def main(args: EvalPipelineArgs):
     """
     Program entry point.
     """
 
-    ray_env: Dict[str, Any] = {}
+    ray_env: Mapping[str, Any] = {}
     logging.info("Ray environment: %s", ray_env)
     with ray.init(args.cluster_uri, runtime_env=ray_env) as context:
         logging.info("Ray Context: %s", context)
         logging.info("Ray Nodes: %s", ray.nodes())
 
-        tasks_results_refs = create_tasks(
+        tasks_futures = create_tasks(
             envs_path=args.envs_path,
             config_path=args.config_path,
             num_runs=args.num_runs,
@@ -57,8 +59,8 @@ def main(args: ControlPipelineArgs):
 
         # since ray tracks objectref items
         # we swap the key:value
-        results_refs = [result_ref for _, result_ref in tasks_results_refs]
-        unfinished_tasks = results_refs
+        futures = [future for _, future in tasks_futures]
+        unfinished_tasks = futures
         while True:
             finished_tasks, unfinished_tasks = ray.wait(unfinished_tasks)
             for finished_task in finished_tasks:
@@ -66,7 +68,7 @@ def main(args: ControlPipelineArgs):
                     "Completed task %s, %d left out of %d.",
                     ray.get(finished_task),
                     len(unfinished_tasks),
-                    len(results_refs),
+                    len(futures),
                 )
 
             if len(unfinished_tasks) == 0:
@@ -110,10 +112,8 @@ def create_tasks(
         )
     )
     # shuffle tasks to balance workload
-    experiment_runs = random.sample(
-        experiment_runs,
-        len(experiment_runs),  # type: ignore
-    )
+    experiment_runs = random.sample(experiment_runs, len(experiment_runs))  # type: ignore
+    # bundle tasks
     experiment_batches = utils.bundle(
         experiment_runs, bundle_size=constants.DEFAULT_BATCH_SIZE
     )
@@ -174,23 +174,23 @@ def run_experiments(
     experiments_batch: Sequence[expconfig.ExperimentRun],
 ) -> Sequence[str]:
     """
-    Run experiments.
+    Runs experiments.
     """
     ids: List[str] = []
-    for experiment_task in experiments_batch:
-        task_id = f"{experiment_task.exp_id}/{experiment_task.run_id}"
+    for experiment_run in experiments_batch:
+        task_id = f"{experiment_run.exp_id}/{experiment_run.run_id}"
         logging.debug(
             "Experiment %s starting: %s",
             task_id,
-            experiment_task,
+            experiment_run,
         )
-        control.run_fn(experiment_task)
+        evaluation.run_fn(experiment_run)
         ids.append(task_id)
         logging.debug("Experiment %s finished", task_id)
     return ids
 
 
-def parse_args() -> ControlPipelineArgs:
+def parse_args() -> EvalPipelineArgs:
     """
     Parses program arguments.
     """
@@ -206,7 +206,7 @@ def parse_args() -> ControlPipelineArgs:
     arg_parser.add_argument("--cluster-uri", type=str, default=None)
     known_args, unknown_args = arg_parser.parse_known_args()
     logging.info("Unknown args: %s", unknown_args)
-    return ControlPipelineArgs(**vars(known_args))
+    return EvalPipelineArgs(**vars(known_args))
 
 
 if __name__ == "__main__":
