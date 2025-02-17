@@ -7,7 +7,7 @@ from tests.daaf import defaults
 
 def test_dynamic_iterative_policy_evaluation():
     environment = defaults.CountEnv()
-    mdp = core.EnvMdp(env_space=core.EnvDesc(4, 2), transition=environment.transition)
+    mdp = core.EnvMdp(env_space=core.EnvSpace(4, 2), transition=environment.transition)
     policy = create_observable_random_policy(num_actions=mdp.env_space.num_actions)
     delta = 1e-8
 

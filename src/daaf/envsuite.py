@@ -109,7 +109,7 @@ class RlplgEnvSpecParser:
             Maps an observation to a state ID.
             """
             del self
-            return int(getattr(observation, "id"))
+            return int(observation.get("id"))
 
         def action(self, action: SupportsInt) -> int:
             """
@@ -321,7 +321,9 @@ def rlplg_env_constructors() -> Mapping[str, Callable[..., gym.Env]]:
     Synthetic sugar to make rlplg environments.
     """
 
-    def make_iceworld(map: Optional[str], map_name: Optional[str]) -> gym.Env:
+    def make_iceworld(
+        map: Optional[str] = None, map_name: Optional[str] = None
+    ) -> gym.Env:
         if map and map_name:
             raise ValueError("Both `map` and `map_name` can't be defined.")
 

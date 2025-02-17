@@ -2,10 +2,10 @@ version = 1
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
-    "python_full_version >= '3.13' and sys_platform != 'win32'",
     "python_full_version == '3.12.*' and sys_platform == 'win32'",
-    "python_full_version == '3.12.*' and sys_platform != 'win32'",
     "python_full_version < '3.12' and sys_platform == 'win32'",
+    "python_full_version >= '3.13' and sys_platform != 'win32'",
+    "python_full_version == '3.12.*' and sys_platform != 'win32'",
     "python_full_version < '3.12' and sys_platform != 'win32'",
 ]
 
@@ -1063,8 +1063,8 @@ version = "8.32.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13' and sys_platform == 'win32'",
-    "python_full_version >= '3.13' and sys_platform != 'win32'",
     "python_full_version == '3.12.*' and sys_platform == 'win32'",
+    "python_full_version >= '3.13' and sys_platform != 'win32'",
     "python_full_version == '3.12.*' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -1515,7 +1515,7 @@ name = "linkify-it-py"
 version = "2.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "uc-micro-py", marker = "sys_platform != 'win32'" },
+    { name = "uc-micro-py" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2a/ae/bb56c6828e4797ba5a4821eec7c43b8bf40f69cda4d4f5f8c8a2810ec96a/linkify-it-py-2.0.3.tar.gz", hash = "sha256:68cda27e162e9215c17d786649d1da0021a451bdc436ef9e0fa0ba5234b9b048", size = 27946 }
 wheels = [
@@ -1545,10 +1545,10 @@ wheels = [
 
 [package.optional-dependencies]
 linkify = [
-    { name = "linkify-it-py", marker = "sys_platform != 'win32'" },
+    { name = "linkify-it-py" },
 ]
 plugins = [
-    { name = "mdit-py-plugins", marker = "sys_platform != 'win32'" },
+    { name = "mdit-py-plugins" },
 ]
 
 [[package]]
@@ -1629,7 +1629,7 @@ name = "mdit-py-plugins"
 version = "0.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markdown-it-py", marker = "sys_platform != 'win32'" },
+    { name = "markdown-it-py" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/19/03/a2ecab526543b152300717cf232bb4bb8605b6edb946c845016fa9c9c9fd/mdit_py_plugins-0.4.2.tar.gz", hash = "sha256:5f2cd1fdb606ddf152d37ec30e46101a60512bc0e5fa1a7002c36647b09e26b5", size = 43542 }
 wheels = [
@@ -1650,9 +1650,9 @@ name = "memray"
 version = "1.15.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "jinja2", marker = "sys_platform != 'win32'" },
-    { name = "rich", marker = "sys_platform != 'win32'" },
-    { name = "textual", marker = "sys_platform != 'win32'" },
+    { name = "jinja2" },
+    { name = "rich" },
+    { name = "textual" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e8/d3/b2a01137e2391917928187c4c2837c2750cc832c99a6aecd6e0d6ea07c58/memray-1.15.0.tar.gz", hash = "sha256:1beffa2bcba3dbe0f095d547927286eca46e272798b83026dd1b5db58e16ed56", size = 1025344 }
 wheels = [
@@ -2985,8 +2985,8 @@ rendering = [{ name = "pyglet", specifier = ">=1.5.31" }]
 
 [[package]]
 name = "rlplg"
-version = "0.21.5"
-source = { git = "https://github.com/guidj/rlplg#f8e1e84c849ea3e875046a399a457cbb885dbadc" }
+version = "0.21.6"
+source = { git = "https://github.com/guidj/rlplg#f074b6128fb7b4f7b3c49c08258125f2081c33b7" }
 dependencies = [
     { name = "gymnasium" },
     { name = "numpy" },
@@ -3393,17 +3393,17 @@ wheels = [
 
 [[package]]
 name = "textual"
-version = "1.0.0"
+version = "2.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markdown-it-py", extra = ["linkify", "plugins"], marker = "sys_platform != 'win32'" },
-    { name = "platformdirs", marker = "sys_platform != 'win32'" },
-    { name = "rich", marker = "sys_platform != 'win32'" },
-    { name = "typing-extensions", marker = "sys_platform != 'win32'" },
+    { name = "markdown-it-py", extra = ["linkify", "plugins"] },
+    { name = "platformdirs" },
+    { name = "rich" },
+    { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1f/b6/59b1de04bb4dca0f21ed7ba0b19309ed7f3f5de4396edf20cc2855e53085/textual-1.0.0.tar.gz", hash = "sha256:bec9fe63547c1c552569d1b75d309038b7d456c03f86dfa3706ddb099b151399", size = 1532733 }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/d7/b45464bf3e8362190b817e1fa60cce3d7004369e4a2ec0f0d28c7fa3d83d/textual-2.0.4.tar.gz", hash = "sha256:128177fc6d63d0f3236e374e28d68f4343bd2e996825da2a6f122d9fbf017d31", size = 1591729 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ac/bb/5fb6656c625019cd653d5215237d7cd6e0b12e7eae4195c3d1c91b2136fc/textual-1.0.0-py3-none-any.whl", hash = "sha256:2d4a701781c05104925e463ae370c630567c70c2880e92ab838052e3e23c986f", size = 660456 },
+    { url = "https://files.pythonhosted.org/packages/93/68/7f26c55e7c5818eed5c1912106e1392bf1edfb1b7ef342b35930fa559f2d/textual-2.0.4-py3-none-any.whl", hash = "sha256:0a151c060586eb4fb091584fab58f0706daa51cf27330efef548bc14f3c6aa66", size = 679459 },
 ]
 
 [[package]]
