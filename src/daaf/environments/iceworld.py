@@ -305,7 +305,7 @@ def create_env_spec(
     num_states = height * width
     num_actions = len(MOVES)
     mdp = core.EnvMdp(
-        env_desc=core.EnvDesc(num_states=num_states, num_actions=num_actions),
+        env_space=core.EnvSpace(num_states=num_states, num_actions=num_actions),
         transition=environment.transition,
     )
     return core.EnvSpec(

@@ -135,7 +135,7 @@ class PyPolicy(abc.ABC):
 
 
 @dataclasses.dataclass(frozen=True)
-class EnvDesc:
+class EnvSpace:
     """
     Class contains properties of the environment.
     """
@@ -178,10 +178,10 @@ class Mdp:
 
     @property
     @abc.abstractmethod
-    def env_desc(self) -> EnvDesc:
+    def env_space(self) -> EnvSpace:
         """
         Returns:
-            An instance of EnvDesc with properties of the environment.
+            An instance of EnvSpace with properties of the environment.
         """
 
 
@@ -204,7 +204,7 @@ class EnvMdp(Mdp):
     compliant with Toy Text examples.
     """
 
-    def __init__(self, env_desc: EnvDesc, transition: EnvTransition):
+    def __init__(self, env_space: EnvSpace, transition: EnvTransition):
         """
         Creates an MDP using transition mapping.
 
@@ -212,7 +212,7 @@ class EnvMdp(Mdp):
         for terminal states.
         We correct them.
         """
-        self.__env_desc = env_desc
+        self.__env_space = env_space
         self.__transition: MutableEnvTransition = {}
         # collections.defaultdict(lambda: collections.defaultdict(lambda: (0.0, 0.0)))
         # Find terminal states
@@ -239,12 +239,12 @@ class EnvMdp(Mdp):
                     )
 
     @property
-    def env_desc(self) -> EnvDesc:
+    def env_space(self) -> EnvSpace:
         """
         Returns:
             An instance of EnvDesc with properties of the environment.
         """
-        return self.__env_desc
+        return self.__env_space
 
     @property
     def transition(self) -> EnvTransition:

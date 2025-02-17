@@ -263,7 +263,7 @@ def create_env_spec(length: int, distance_penalty: bool) -> core.EnvSpec:
     environment = ABCSeq(length=length, distance_penalty=distance_penalty)
     discretizer = ABCSeqMdpDiscretizer()
     mdp = core.EnvMdp(
-        env_desc=core.EnvDesc(num_states=length + 1, num_actions=length),
+        env_space=core.EnvSpace(num_states=length + 1, num_actions=length),
         transition=environment.transition,
     )
     return core.EnvSpec(

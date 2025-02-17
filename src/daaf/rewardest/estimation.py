@@ -24,24 +24,24 @@ def estimate_reward(
     env_spec = envsuite.load(spec["name"], **spec["args"])
     terminal_states = core.infer_env_terminal_states(env_spec.mdp.transition)
     init_rtable = np.zeros(
-        shape=(env_spec.mdp.env_desc.num_states, env_spec.mdp.env_desc.num_actions),
+        shape=(env_spec.mdp.env_space.num_states, env_spec.mdp.env_space.num_actions),
         dtype=np.float64,
     )
     mapper = replay_mapper.DaafLsqRewardAttributionMapper(
-        num_states=env_spec.mdp.env_desc.num_states,
-        num_actions=env_spec.mdp.env_desc.num_actions,
+        num_states=env_spec.mdp.env_space.num_states,
+        num_actions=env_spec.mdp.env_space.num_actions,
         reward_period=reward_period,
         state_id_fn=env_spec.discretizer.state,
         action_id_fn=env_spec.discretizer.action,
         init_rtable=init_rtable,
-        buffer_size=env_spec.mdp.env_desc.num_states
-        * env_spec.mdp.env_desc.num_actions
+        buffer_size=env_spec.mdp.env_space.num_states
+        * env_spec.mdp.env_space.num_actions
         * BUFFER_MULT,
         terminal_states=frozenset(terminal_states),
         factor_terminal_states=factor_terminal_states,
         prefill_buffer=prefill_buffer,
     )
-    policy = policies.PyRandomPolicy(num_actions=env_spec.mdp.env_desc.num_actions)
+    policy = policies.PyRandomPolicy(num_actions=env_spec.mdp.env_space.num_actions)
     # collect data
     logging.info("Collecting data for %s/%s", spec["name"], spec["args"])
     episode = 1
@@ -108,14 +108,14 @@ def estimate_reward(
         if factor_terminal_states:
             yhat_lstsq = expand_reward_with_terminal_action_values(
                 yhat_lstsq,
-                num_states=env_spec.mdp.env_desc.num_states,
-                num_actions=env_spec.mdp.env_desc.num_actions,
+                num_states=env_spec.mdp.env_space.num_states,
+                num_actions=env_spec.mdp.env_space.num_actions,
                 terminal_states=terminal_states,
             )
             yhat_ols_em = expand_reward_with_terminal_action_values(
                 yhat_ols_em,
-                num_states=env_spec.mdp.env_desc.num_states,
-                num_actions=env_spec.mdp.env_desc.num_actions,
+                num_states=env_spec.mdp.env_space.num_states,
+                num_actions=env_spec.mdp.env_space.num_actions,
                 terminal_states=terminal_states,
             )
         meta["ols_iters"] = iters

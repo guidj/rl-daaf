@@ -24,21 +24,21 @@ def iterative_policy_evaluation(
     Vectorized implementation.
     """
     pi_action = np.zeros(
-        (mdp.env_desc.num_states, mdp.env_desc.num_actions), dtype=np.float64
+        (mdp.env_space.num_states, mdp.env_space.num_actions), dtype=np.float64
     )
     m_transition = np.zeros(
         (
-            mdp.env_desc.num_states,
-            mdp.env_desc.num_actions,
-            mdp.env_desc.num_states,
+            mdp.env_space.num_states,
+            mdp.env_space.num_actions,
+            mdp.env_space.num_states,
         ),
         dtype=np.float64,
     )
     m_reward = np.zeros(
         (
-            mdp.env_desc.num_states,
-            mdp.env_desc.num_actions,
-            mdp.env_desc.num_states,
+            mdp.env_space.num_states,
+            mdp.env_space.num_actions,
+            mdp.env_space.num_states,
         ),
         dtype=np.float64,
     )
@@ -51,16 +51,16 @@ def iterative_policy_evaluation(
                 m_reward[state, action, next_state] = reward
 
     m_state_values = np.tile(
-        np.zeros(shape=mdp.env_desc.num_states), (mdp.env_desc.num_actions, 1)
+        np.zeros(shape=mdp.env_space.num_states), (mdp.env_space.num_actions, 1)
     )
     while True:
-        delta = np.zeros(shape=mdp.env_desc.num_states)
+        delta = np.zeros(shape=mdp.env_space.num_states)
         current_state_values = copy.deepcopy(m_state_values[0])
         # |S| x |A| x |S'|
         # |S| x |A|
         values = np.sum(m_transition * (m_reward + gamma * m_state_values), axis=2)
         new_state_values = np.diag(np.dot(pi_action, np.transpose(values)))
-        m_state_values = np.tile(new_state_values, (mdp.env_desc.num_actions, 1))
+        m_state_values = np.tile(new_state_values, (mdp.env_space.num_actions, 1))
 
         delta = np.maximum(
             delta,
@@ -76,7 +76,7 @@ def action_values_from_state_values(
     """
     Compute Q(s,a) using V(s)
     """
-    qtable = np.zeros(shape=(mdp.env_desc.num_states, mdp.env_desc.num_actions))
+    qtable = np.zeros(shape=(mdp.env_space.num_states, mdp.env_space.num_actions))
     for state, action_transitions in mdp.transition.items():
         for action, transitions in action_transitions.items():
             cu_value = 0

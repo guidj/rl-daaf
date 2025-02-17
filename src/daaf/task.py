@@ -70,21 +70,21 @@ def create_trajectory_mappers(
     elif traj_mapping_method == constants.DAAF_LSQ_REWARD_ATTRIBUTION_MAPPER:
         _buffer_size, _buffer_size_mult = buffer_size_or_multiplier
         buffer_size = _buffer_size or int(
-            env_spec.mdp.env_desc.num_states
-            * env_spec.mdp.env_desc.num_actions
+            env_spec.mdp.env_space.num_states
+            * env_spec.mdp.env_space.num_actions
             * (_buffer_size_mult or constants.DEFAULT_BUFFER_SIZE_MULTIPLIER)
         )
         mappers.append(
             replay_mapper.DaafLsqRewardAttributionMapper(
-                num_states=env_spec.mdp.env_desc.num_states,
-                num_actions=env_spec.mdp.env_desc.num_actions,
+                num_states=env_spec.mdp.env_space.num_states,
+                num_actions=env_spec.mdp.env_space.num_actions,
                 reward_period=reward_period,
                 state_id_fn=env_spec.discretizer.state,
                 action_id_fn=env_spec.discretizer.action,
                 buffer_size=buffer_size,
                 init_rtable=utils.initial_table(
-                    num_states=env_spec.mdp.env_desc.num_states,
-                    num_actions=env_spec.mdp.env_desc.num_actions,
+                    num_states=env_spec.mdp.env_space.num_states,
+                    num_actions=env_spec.mdp.env_space.num_actions,
                 ),
                 terminal_states=frozenset(
                     core.infer_env_terminal_states(env_spec.mdp.transition)

@@ -95,7 +95,7 @@ def run_dynaprog(task: Task) -> Tuple[Task, np.ndarray]:
         task.discount,
     )
     start = time.time()
-    policy = policies.PyRandomPolicy(num_actions=task.env_spec.mdp.env_desc.num_actions)
+    policy = policies.PyRandomPolicy(num_actions=task.env_spec.mdp.env_space.num_actions)
     state_values = dynamicprog.iterative_policy_evaluation(
         mdp=task.env_spec.mdp, policy=policy, gamma=task.discount, accuracy=EST_ACCURACY
     )

@@ -113,7 +113,7 @@ def evaluate_policy(
     """
     Runs policy evaluation with given algorithm, env, and policy spec.
     """
-    initial_state_values = create_initial_values(env_spec.mdp.env_desc.num_states)
+    initial_state_values = create_initial_values(env_spec.mdp.env_space.num_states)
     eval_fn: Optional[Iterator[policyeval.PolicyEvalSnapshot]] = None
     if algorithm == constants.ONE_STEP_TD:
         if daaf_config.traj_mapping_method == constants.DAAF_TRAJECTORY_MAPPER:
@@ -240,12 +240,12 @@ def create_eval_policy(
     """
     if daaf_config.policy_type == constants.OPTIONS_POLICY:
         return policies.UniformlyRandomCompositeActionPolicy(
-            primitive_actions=tuple(range(env_spec.mdp.env_desc.num_actions)),
+            primitive_actions=tuple(range(env_spec.mdp.env_space.num_actions)),
             options_duration=daaf_config.reward_period,
         )
     elif daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
         return policies.PyRandomPolicy(
-            num_actions=env_spec.mdp.env_desc.num_actions,
+            num_actions=env_spec.mdp.env_space.num_actions,
             emit_log_probability=True,
         )
     raise ValueError(f"Unknown policy {daaf_config.policy_type}")

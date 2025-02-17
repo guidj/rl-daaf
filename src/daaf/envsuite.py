@@ -123,7 +123,7 @@ def __gym_environment_spec(name: str, **kwargs: Mapping[str, Any]) -> core.EnvSp
     environment = __make_gym_environment(name, **kwargs)
     discretizer = __gym_environment_discretizer(name)
     mdp = core.EnvMdp(
-        env_desc=__parse_gym_env_desc(environment=environment),
+        env_space=__parse_gym_env_space(environment=environment),
         transition=__parse_gym_env_transition(environment),
     )
     return core.EnvSpec(
@@ -142,7 +142,7 @@ def __make_gym_environment(name: str, **kwargs: Mapping[str, Any]) -> gym.Env:
     return gym.make(name, **kwargs)
 
 
-def __parse_gym_env_desc(environment: gym.Env) -> core.EnvDesc:
+def __parse_gym_env_space(environment: gym.Env) -> core.EnvSpace:
     """
     Infers the EnvDesc from a `gym.Env`.
     """
@@ -156,7 +156,7 @@ def __parse_gym_env_desc(environment: gym.Env) -> core.EnvDesc:
         if isinstance(environment.action_space, spaces.Discrete)
         else np.inf
     )
-    return core.EnvDesc(num_states=num_states, num_actions=num_actions)
+    return core.EnvSpace(num_states=num_states, num_actions=num_actions)
 
 
 def __parse_gym_env_transition(environment: gym.Env) -> EnvTransition:

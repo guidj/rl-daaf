@@ -109,12 +109,12 @@ class CountEnv(gym.Env[np.ndarray, int]):
         return CountEnv.RIGHT_MOVE_REWARD
 
     @property
-    def env_desc(self) -> core.EnvDesc:
+    def env_space(self) -> core.EnvSpace:
         """
         Returns:
             An instance of EnvDesc with properties of the environment.
         """
-        return core.EnvDesc(num_states=self.MAX_VALUE + 1, num_actions=2)
+        return core.EnvSpace(num_states=self.MAX_VALUE + 1, num_actions=2)
 
     def step(self, action: int) -> TimeStep:
         """

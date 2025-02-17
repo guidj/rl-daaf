@@ -292,7 +292,7 @@ def dynamic_prog_estimation(
         A tuple of state-value and action-value estimates.
     """
     observable_random_policy = policies.PyRandomPolicy(
-        num_actions=mdp.env_desc.num_actions,
+        num_actions=mdp.env_space.num_actions,
     )
     state_values = dynamicprog.iterative_policy_evaluation(
         mdp=mdp,

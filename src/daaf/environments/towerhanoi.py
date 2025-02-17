@@ -261,7 +261,7 @@ def create_env_spec(num_disks: int) -> core.EnvSpec:
         environment=environment,
         discretizer=discretizer,
         mdp=core.EnvMdp(
-            env_desc=core.EnvDesc(num_states=num_states, num_actions=num_actions),
+            env_space=core.EnvSpace(num_states=num_states, num_actions=num_actions),
             transition=environment.transition,
         ),
     )

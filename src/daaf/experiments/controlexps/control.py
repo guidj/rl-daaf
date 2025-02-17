@@ -197,8 +197,8 @@ def create_qtable_and_egreedy_policy(
 ) -> Tuple[np.ndarray, policycontrol.CreatesEGreedyPolicy]:
     if daaf_config.policy_type == constants.SINGLE_STEP_POLICY:
         qtable = _create_initial_values(
-            num_states=env_spec.mdp.env_desc.num_states,
-            num_actions=env_spec.mdp.env_desc.num_actions,
+            num_states=env_spec.mdp.env_space.num_states,
+            num_actions=env_spec.mdp.env_space.num_actions,
             dtype=dtype,
             random=random,
             terminal_states=terminal_states,
@@ -206,9 +206,9 @@ def create_qtable_and_egreedy_policy(
 
         return qtable, learning_utils.create_egreedy_policy
     elif daaf_config.policy_type == constants.OPTIONS_POLICY:
-        num_options = env_spec.mdp.env_desc.num_actions**daaf_config.reward_period
+        num_options = env_spec.mdp.env_space.num_actions**daaf_config.reward_period
         qtable = _create_initial_values(
-            num_states=env_spec.mdp.env_desc.num_states,
+            num_states=env_spec.mdp.env_space.num_states,
             num_actions=num_options,
             dtype=dtype,
             random=random,
@@ -216,7 +216,7 @@ def create_qtable_and_egreedy_policy(
         )
 
         return qtable, create_options_egreedy_policy_fn(
-            env_desc=env_spec.mdp.env_desc, options_duration=daaf_config.reward_period
+            env_space=env_spec.mdp.env_space, options_duration=daaf_config.reward_period
         )
 
     raise ValueError(f"Unsupported policy type {daaf_config.policy_type}")
@@ -242,7 +242,7 @@ def _create_initial_values(
     return np.zeros(shape=(num_states, num_actions), dtype=dtype)
 
 
-def create_options_egreedy_policy_fn(env_desc: core.EnvDesc, options_duration: int):
+def create_options_egreedy_policy_fn(env_space: core.EnvSpace, options_duration: int):
     def create_options_egreedy_policy(
         initial_qtable: np.ndarray,
         state_id_fn: Callable[[Any], int],
@@ -254,7 +254,7 @@ def create_options_egreedy_policy_fn(env_desc: core.EnvDesc, options_duration: i
         return policies.OptionsQGreedyPolicy(
             policy=greedy_policy,
             options_duration=options_duration,
-            primitive_actions=range(env_desc.num_actions),
+            primitive_actions=range(env_space.num_actions),
             epsilon=epsilon,
         )
 
