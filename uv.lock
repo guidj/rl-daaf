@@ -2931,7 +2931,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.23.5" },
     { name = "pillow", specifier = ">=10.4.0" },
     { name = "ray", extras = ["data", "default"], specifier = "==2.23.0" },
-    { name = "rlplg", git = "https://github.com/guidj/rlplg.git?rev=0.20.3" },
+    { name = "rlplg", git = "https://github.com/guidj/rlplg" },
     { name = "scipy", specifier = ">=1.14.1" },
     { name = "tensorflow", specifier = ">=2.11.1" },
 ]
@@ -2985,8 +2985,8 @@ rendering = [{ name = "pyglet", specifier = ">=1.5.31" }]
 
 [[package]]
 name = "rlplg"
-version = "0.20.3"
-source = { git = "https://github.com/guidj/rlplg.git?rev=0.20.3#e9881e9b08a94b89acbce5013f6040726d054b9b" }
+version = "0.21.5"
+source = { git = "https://github.com/guidj/rlplg#f8e1e84c849ea3e875046a399a457cbb885dbadc" }
 dependencies = [
     { name = "gymnasium" },
     { name = "numpy" },

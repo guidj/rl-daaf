@@ -23,7 +23,7 @@ dependencies = [
     "pillow>=10.4.0",
     "scipy>=1.14.1",
     "numpy>=1.23.5",
-    "rlplg==0.21.3",
+    "rlplg==0.21.5",
     "ray[data,default]==2.23.0",
     "tensorflow>=2.11.1",
     "cvxpy>=1.5.3,<1.6",
@@ -150,7 +150,7 @@ module = [ "pytest.*",]
 ignore_missing_imports = true
 
 [tool.uv.sources]
-rlplg = { git = "https://github.com/guidj/rlplg.git", rev = "0.20.3" }
+rlplg = { git = "https://github.com/guidj/rlplg" }
 
 [dependency-groups]
 rendering = [

@@ -10,7 +10,7 @@ from daaf.core import EnvTransition, TimeStep
 
 
 @pytest.mark.parametrize(
-    "env_name", envsuite.SUPPORTED_LIB_ENVS | envsuite.SUPPORTED_GYM_ENVS
+    "env_name", envsuite.SUPPORTED_RLPLG_ENVS | envsuite.SUPPORTED_GYM_ENVS
 )
 def test_envsuite_load(env_name: str, args: Mapping[str, Sequence[Mapping[str, Any]]]):
     for kwargs in args[env_name]:
@@ -35,7 +35,9 @@ def test_envsuite_load(env_name: str, args: Mapping[str, Sequence[Mapping[str, A
             next_time_step = env_spec.environment.step(action)
             next_obs, next_reward, _, _, _ = next_time_step
             assert (
-                0 <= env_spec.discretizer.state(obs) <= env_spec.mdp.env_space.num_states
+                0
+                <= env_spec.discretizer.state(obs)
+                <= env_spec.mdp.env_space.num_states
             )
             assert (
                 0
@@ -50,6 +52,7 @@ def test_envsuite_load(env_name: str, args: Mapping[str, Sequence[Mapping[str, A
             if terminated or truncated:
                 break
             time_step = next_time_step
+            # TODO: fix - move back
             env_spec.environment.close()
 
 
