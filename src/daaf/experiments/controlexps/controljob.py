@@ -143,11 +143,8 @@ def add_experiment_context(
         )
         dyna_prog_specs.append(
             (
-                env_spec.name,
-                env_spec.level,
-                experiment.learning_args.discount_factor,
-                env_spec.mdp,
-                experiment.env_config.args,
+                env_spec,
+                experiment.learning_args.discount_factor
             )
         )
 
@@ -156,13 +153,13 @@ def add_experiment_context(
     )
 
     experiments_and_context = []
-    for experiment, (name, level, gamma, _, _) in zip(experiments, dyna_prog_specs):
+    for experiment, (env_spec, gamma) in zip(experiments, dyna_prog_specs):
         experiments_and_context.append(
             (
                 experiment,
                 {
                     "dyna_prog_state_values": dyna_prog_index.get(
-                        name, level, gamma
+                        env_spec.name, env_spec.uid, gamma
                     ).tolist(),  # so it can be serialized
                 },
             )

@@ -145,7 +145,8 @@ class RlplgEnvSpecParser:
         )
         return core.EnvSpec(
             name=name,
-            level=encode_env(**kwargs),
+            args=kwargs,
+            uid=encode_env(**kwargs),
             environment=environment,
             discretizer=discretizer,
             mdp=mdp,
@@ -228,7 +229,8 @@ class GymEnvSpecParser:
         )
         return core.EnvSpec(
             name=name,
-            level=encode_env(**kwargs),
+            args=kwargs,
+            uid=encode_env(**kwargs),
             environment=environment,
             discretizer=discretizer,
             mdp=mdp,

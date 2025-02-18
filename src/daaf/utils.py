@@ -202,7 +202,7 @@ class DynaProgStateValueIndex:
     @classmethod
     def build_index(
         cls,
-        specs: Sequence[Tuple[str, str, float, core.Mdp, Mapping[str, Any]]],
+        specs: Sequence[Tuple[core.EnvSpec, float]],
         path: str,
     ) -> "DynaProgStateValueIndex":
         """
@@ -214,17 +214,17 @@ class DynaProgStateValueIndex:
             key: value
             for key, value in DynaProgStateValueIndex._parse_index(path).items()
         }
-        for name, level, gamma, mdp, args in specs:
-            key = (name, level, gamma)
+        for env_spec, gamma in specs:
+            key = (env_spec.name, env_spec.uid, gamma)
             if key not in state_value_mapping:
                 logging.info(
                     "Solving dynamic programming for %s/%s, discount=%f",
-                    name,
-                    level,
+                    env_spec.name,
+                    env_spec.uid,
                     gamma,
                 )
-                state_values, _ = dynamic_prog_estimation(mdp=mdp, gamma=gamma)
-                state_value_mapping[key] = {"args": args, "state_values": state_values}
+                state_values, _ = dynamic_prog_estimation(mdp=env_spec.mdp, gamma=gamma)
+                state_value_mapping[key] = {"args": env_spec.args, "state_values": state_values}
         # overrides initial index, if it existed
         cls._export_index(path=path, state_value_mapping=state_value_mapping)
         logging.info("Dynamic programming index updated at %s", path)
@@ -250,7 +250,7 @@ class DynaProgStateValueIndex:
             with tf.io.gfile.GFile(file_path, "r") as readable:
                 for line in readable:
                     row = json.loads(line)
-                    key = (row["env_name"], row["level"], float(row["gamma"]))
+                    key = (row["env_name"], row["uid"], float(row["gamma"]))
                     state_value_mapping[key] = {
                         "state_values": np.array(row["state_values"], dtype=np.float64),
                         "args": row["args"],
@@ -271,10 +271,10 @@ class DynaProgStateValueIndex:
             tf.io.gfile.makedirs(path)
         file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
         with tf.io.gfile.GFile(file_path, "w") as writable:
-            for (env_name, level, gamma), meta in state_value_mapping.items():
+            for (env_name, uid, gamma), meta in state_value_mapping.items():
                 row = {
                     "env_name": env_name,
-                    "level": level,
+                    "uid": uid,
                     "gamma": gamma,
                     "state_values": meta["state_values"].tolist(),
                     "args": meta["args"],

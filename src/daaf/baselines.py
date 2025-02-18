@@ -2,7 +2,7 @@ import argparse
 import dataclasses
 import logging
 import time
-from typing import Tuple
+from typing import Any, Mapping, Tuple
 
 import numpy as np
 import ray
@@ -69,8 +69,8 @@ def main(args: Args):
         for finished_task in finished_tasks:
             result: Tuple[Task, np.ndarray] = ray.get(finished_task)
             task, state_values = result
-            key = (task.env_spec.name, task.env_spec.level, task.discount)
-            results[key] = state_values
+            key = (task.env_spec.name, task.env_spec.uid, task.discount)
+            results[key] = {"state_values": state_values, "args": task.env_spec.args}
 
             logging.info(
                 "Tasks left: %d out of %d.",
@@ -91,7 +91,7 @@ def run_dynaprog(task: Task) -> Tuple[Task, np.ndarray]:
     logging.info(
         "Running dynamic programming for %s/%s, with gamma=%f",
         task.env_spec.name,
-        task.env_spec.level,
+        task.env_spec.uid,
         task.discount,
     )
     start = time.time()
@@ -105,7 +105,7 @@ def run_dynaprog(task: Task) -> Tuple[Task, np.ndarray]:
     logging.info(
         "Completed dynamic programming for %s/%s, with gamma=%f in %ds",
         task.env_spec.name,
-        task.env_spec.level,
+        task.env_spec.uid,
         task.discount,
         int(end - start),
     )

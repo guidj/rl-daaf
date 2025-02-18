@@ -53,7 +53,7 @@ def run_fn(experiment_run: expconfig.ExperimentRun):
     env_info: Mapping[str, Any] = {
         "env": {
             "name": env_spec.name,
-            "level": env_spec.level,
+            "uid": env_spec.uid,
             "args": json.dumps(experiment_run.experiment.env_config.args),
         },
     }

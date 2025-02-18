@@ -190,7 +190,8 @@ class EnvSpec:
     """
 
     name: str
-    level: str
+    args: Mapping[str, Any]
+    uid: str
     environment: gym.Env
     discretizer: MdpDiscretizer
     mdp: Mdp
