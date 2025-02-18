@@ -2862,7 +2862,7 @@ wheels = [
 
 [[package]]
 name = "rl-daaf"
-version = "0.16.3"
+version = "0.16.4"
 source = { editable = "." }
 dependencies = [
     { name = "cvxpy" },
