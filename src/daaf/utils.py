@@ -224,7 +224,10 @@ class DynaProgStateValueIndex:
                     gamma,
                 )
                 state_values, _ = dynamic_prog_estimation(mdp=env_spec.mdp, gamma=gamma)
-                state_value_mapping[key] = {"args": env_spec.args, "state_values": state_values}
+                state_value_mapping[key] = {
+                    "args": env_spec.args,
+                    "state_values": state_values,
+                }
         # overrides initial index, if it existed
         cls._export_index(path=path, state_value_mapping=state_value_mapping)
         logging.info("Dynamic programming index updated at %s", path)

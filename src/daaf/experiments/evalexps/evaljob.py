@@ -141,12 +141,7 @@ def add_experiment_context(
         env_spec = task.create_env_spec(
             problem=experiment.env_config.name, env_args=experiment.env_config.args
         )
-        dyna_prog_specs.append(
-            (
-                env_spec,
-                experiment.learning_args.discount_factor
-            )
-        )
+        dyna_prog_specs.append((env_spec, experiment.learning_args.discount_factor))
 
     dyna_prog_index = utils.DynaProgStateValueIndex.build_index(
         specs=dyna_prog_specs, path=assets_dir
