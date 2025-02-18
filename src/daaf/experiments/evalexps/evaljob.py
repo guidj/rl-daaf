@@ -147,6 +147,7 @@ def add_experiment_context(
                 env_spec.level,
                 experiment.learning_args.discount_factor,
                 env_spec.mdp,
+                experiment.env_config.args,
             )
         )
 
@@ -155,7 +156,7 @@ def add_experiment_context(
     )
 
     experiments_and_context = []
-    for experiment, (name, level, gamma, _) in zip(experiments, dyna_prog_specs):
+    for experiment, (name, level, gamma, _, _) in zip(experiments, dyna_prog_specs):
         experiments_and_context.append(
             (
                 experiment,
