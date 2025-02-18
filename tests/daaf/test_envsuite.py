@@ -17,6 +17,7 @@ def test_envsuite_load(env_name: str, args: Mapping[str, Sequence[Mapping[str, A
         env_spec = envsuite.load(name=env_name, **kwargs)
         assert isinstance(env_spec, core.EnvSpec)
         assert env_spec.name == env_name
+        np.testing.assert_equal(env_spec.args, kwargs)
         assert_transition_mapping(
             env_spec.mdp.transition, env_space=env_spec.mdp.env_space
         )

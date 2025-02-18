@@ -32,7 +32,7 @@ import tensorflow as tf
 from daaf import core
 from daaf.learning.tabular import dynamicprog, policies
 
-STATE_VALUE_FN_FILENAME = "state_action_value_index.json"
+STATE_VALUE_FN_FILENAME = "state_action_value_index_v2.json"
 
 
 class ExperimentLogger(contextlib.AbstractContextManager):
@@ -188,7 +188,7 @@ class DynaProgStateValueIndex:
     """
 
     def __init__(
-        self, state_value_mapping: Mapping[Tuple[str, str, float], np.ndarray]
+        self, state_value_mapping: Mapping[Tuple[str, str, float], Mapping[str, Any]]
     ):
         self.state_value_mapping = state_value_mapping
 
@@ -197,33 +197,37 @@ class DynaProgStateValueIndex:
         Get value estimates.
         """
         key = (name, level, gamma)
-        return self.state_value_mapping[key]
+        return self.state_value_mapping[key]["state_values"]  # type: ignore
 
     @classmethod
     def build_index(
-        cls, specs: Sequence[Tuple[str, str, float, core.Mdp]], path: str
+        cls,
+        specs: Sequence[Tuple[core.EnvSpec, float]],
+        path: str,
     ) -> "DynaProgStateValueIndex":
         """
         Builds the cache for given configurations.
         This function does not override existing
         entries.
         """
-        state_value_mapping: Dict[Tuple[str, str, float], np.ndarray] = {
+        state_value_mapping: Dict[Tuple[str, str, float], Mapping[str, Any]] = {
             key: value
             for key, value in DynaProgStateValueIndex._parse_index(path).items()
         }
-        for name, level, gamma, mdp in specs:
-            key = (name, level, gamma)
+        for env_spec, gamma in specs:
+            key = (env_spec.name, env_spec.uid, gamma)
             if key not in state_value_mapping:
                 logging.info(
                     "Solving dynamic programming for %s/%s, discount=%f",
-                    name,
-                    level,
+                    env_spec.name,
+                    env_spec.uid,
                     gamma,
                 )
-                state_value_mapping[key], _ = dynamic_prog_estimation(
-                    mdp=mdp, gamma=gamma
-                )
+                state_values, _ = dynamic_prog_estimation(mdp=env_spec.mdp, gamma=gamma)
+                state_value_mapping[key] = {
+                    "args": env_spec.args,
+                    "state_values": state_values,
+                }
         # overrides initial index, if it existed
         cls._export_index(path=path, state_value_mapping=state_value_mapping)
         logging.info("Dynamic programming index updated at %s", path)
@@ -241,23 +245,27 @@ class DynaProgStateValueIndex:
         return DynaProgStateValueIndex(state_values)
 
     @staticmethod
-    def _parse_index(path: str) -> Mapping[Tuple[str, str, float], np.ndarray]:
+    def _parse_index(path: str) -> Mapping[Tuple[str, str, float], Mapping[str, Any]]:
         file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
         logging.info("Loading dynamic programming index from %s", file_path)
-        state_values: Dict[Tuple[str, str, float], np.ndarray] = {}
+        state_value_mapping: Dict[Tuple[str, str, float], Mapping[str, Any]] = {}
         try:
             with tf.io.gfile.GFile(file_path, "r") as readable:
                 for line in readable:
                     row = json.loads(line)
-                    key = (row["env_name"], row["level"], float(row["gamma"]))
-                    state_values[key] = np.array(row["state_values"], dtype=np.float64)
+                    key = (row["env_name"], row["uid"], float(row["gamma"]))
+                    state_value_mapping[key] = {
+                        "state_values": np.array(row["state_values"], dtype=np.float64),
+                        "args": row["args"],
+                    }
         except tf.errors.NotFoundError:
             pass
-        return state_values
+        return state_value_mapping
 
     @staticmethod
     def _export_index(
-        path: str, state_value_mapping: Mapping[Tuple[str, str, float], np.ndarray]
+        path: str,
+        state_value_mapping: Mapping[Tuple[str, str, float], Mapping[str, Any]],
     ) -> None:
         """
         Export index to a file.
@@ -266,12 +274,13 @@ class DynaProgStateValueIndex:
             tf.io.gfile.makedirs(path)
         file_path = os.path.join(path, STATE_VALUE_FN_FILENAME)
         with tf.io.gfile.GFile(file_path, "w") as writable:
-            for (env_name, level, gamma), state_values in state_value_mapping.items():
+            for (env_name, uid, gamma), meta in state_value_mapping.items():
                 row = {
                     "env_name": env_name,
-                    "level": level,
+                    "uid": uid,
                     "gamma": gamma,
-                    "state_values": state_values.tolist(),
+                    "state_values": meta["state_values"].tolist(),
+                    "args": meta["args"],
                 }
                 writable.write("".join([json.dumps(row), "\n"]))
 

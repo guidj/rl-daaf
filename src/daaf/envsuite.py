@@ -4,6 +4,7 @@ defined in either `rlplg` or gymnasium.
 """
 
 import functools
+import hashlib
 from typing import Any, Callable, Mapping, Optional, SupportsInt
 
 import gymnasium as gym
@@ -35,6 +36,7 @@ SUPPORTED_RLPLG_ENVS = frozenset(
     )
 )
 SUPPORTED_GYM_ENVS = frozenset((FROZEN_LAKE, CLIFF_WALKING))
+KEY_HALF_SIZE = 5
 
 
 class DefaultEnvMdp(core.Mdp):
@@ -143,7 +145,8 @@ class RlplgEnvSpecParser:
         )
         return core.EnvSpec(
             name=name,
-            level=encode_env(**kwargs),
+            args=kwargs,
+            uid=encode_env(**kwargs),
             environment=environment,
             discretizer=discretizer,
             mdp=mdp,
@@ -226,7 +229,8 @@ class GymEnvSpecParser:
         )
         return core.EnvSpec(
             name=name,
-            level=encode_env(**kwargs),
+            args=kwargs,
+            uid=encode_env(**kwargs),
             environment=environment,
             discretizer=discretizer,
             mdp=mdp,
@@ -356,12 +360,10 @@ def encode_env(**kwargs: Mapping[str, Any]) -> str:
     """
     Encodes environment into a unique hash.
     """
-    # TODO: env name should be factored into the hash.
     keys = []
     values = []
     for key, value in sorted(kwargs.items()):
         keys.append(key)
         values.append(value)
-
     hash_key = tuple(keys) + tuple(values)
-    return core.encode_env(signature=hash_key)
+    return hashlib.shake_256(str(hash_key).encode("UTF-8")).hexdigest(KEY_HALF_SIZE)

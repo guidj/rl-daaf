@@ -3,9 +3,7 @@ This module defines core abstractions.
 """
 
 import abc
-import base64
 import dataclasses
-import hashlib
 import typing
 from typing import (
     Any,
@@ -192,7 +190,8 @@ class EnvSpec:
     """
 
     name: str
-    level: str
+    args: Mapping[str, Any]
+    uid: str
     environment: gym.Env
     discretizer: MdpDiscretizer
     mdp: Mdp
@@ -278,9 +277,3 @@ def infer_env_terminal_states(transition: EnvTransition) -> Set[int]:
                 if terminated is True:
                     terminal_states.add(next_state)
     return terminal_states
-
-
-def encode_env(signature: Sequence[Any]) -> str:
-    hash_key = tuple(signature)
-    hashing = hashlib.sha512(str(hash_key).encode("UTF-8"))
-    return base64.b32encode(hashing.digest()).decode("UTF-8")
